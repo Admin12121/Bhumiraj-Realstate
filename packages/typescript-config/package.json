@@ -1,0 +1,14 @@
+{
+  "name": "@real-estate/typescript-config",
+  "private": true,
+  "version": "0.0.0",
+  "files": [
+    "*.json"
+  ],
+  "exports": {
+    "./base.json": "./base.json",
+    "./library.json": "./library.json",
+    "./nest.json": "./nest.json",
+    "./next.json": "./next.json"
+  }
+}

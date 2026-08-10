@@ -1,0 +1,26 @@
+{
+  "name": "@real-estate/auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "commonjs",
+  "types": "./dist/server.d.ts",
+  "exports": {
+    ".": "./dist/server.js",
+    "./client": "./dist/client.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "echo no-tests"
+  },
+  "dependencies": {
+    "@better-auth/passkey": "catalog:",
+    "@real-estate/database": "workspace:*",
+    "better-auth": "catalog:",
+    "@real-estate/config": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

@@ -1,0 +1,93 @@
+name: bhumiraj-estates-production
+services:
+  nginx:
+    image: nginx:1.29-alpine
+    ports: ["80:80"]
+    volumes:
+      - ./infrastructure/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      web: { condition: service_healthy }
+      api: { condition: service_healthy }
+    restart: always
+    read_only: true
+    tmpfs: [/var/cache/nginx, /var/run]
+
+  web:
+    image: ${REGISTRY}/real-estate-web:${IMAGE_TAG}
+    env_file: [.env.production]
+    environment:
+      NODE_ENV: production
+      API_INTERNAL_URL: http://api:3001
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: always
+    read_only: true
+    tmpfs: [/tmp]
+
+  migrate:
+    image: ${REGISTRY}/real-estate-api:${IMAGE_TAG}
+    env_file: [.env.production]
+    command: ["node", "packages/database/node_modules/.bin/prisma", "migrate", "deploy", "--config", "packages/database/prisma.config.ts"]
+    restart: "no"
+
+  api:
+    image: ${REGISTRY}/real-estate-api:${IMAGE_TAG}
+    env_file: [.env.production]
+    environment:
+      NODE_ENV: production
+      API_PORT: 3001
+      REDIS_CACHE_URL: redis://redis-cache:6379
+      REDIS_CRITICAL_URL: redis://redis-critical:6379
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/api/v1/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis-cache: { condition: service_healthy }
+      redis-critical: { condition: service_healthy }
+    restart: always
+    read_only: true
+    tmpfs: [/tmp]
+
+  worker:
+    image: ${REGISTRY}/real-estate-worker:${IMAGE_TAG}
+    env_file: [.env.production]
+    environment:
+      NODE_ENV: production
+      REDIS_CACHE_URL: redis://redis-cache:6379
+      REDIS_CRITICAL_URL: redis://redis-critical:6379
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis-critical: { condition: service_healthy }
+    restart: always
+    read_only: true
+    tmpfs: [/tmp]
+
+  redis-cache:
+    image: redis:8.2-alpine
+    command: ["redis-server", "--maxmemory", "512mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: always
+
+  redis-critical:
+    image: redis:8.2-alpine
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec", "--maxmemory-policy", "noeviction"]
+    volumes: ["redis-critical-data:/data"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: always
+
+volumes:
+  redis-critical-data: {}

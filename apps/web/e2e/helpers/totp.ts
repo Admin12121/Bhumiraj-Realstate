@@ -1,0 +1,4 @@
+import { createHmac } from "node:crypto";
+function decodeBase32(input: string) { const alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";let bits="";for(const char of input.replace(/=+$/,""))bits+=alphabet.indexOf(char.toUpperCase()).toString(2).padStart(5,"0");const bytes=[];for(let i=0;i+8<=bits.length;i+=8)bytes.push(parseInt(bits.slice(i,i+8),2));return Buffer.from(bytes); }
+export function totp(secret:string,time=Date.now()){const counter=Math.floor(time/1000/30);const data=Buffer.alloc(8);data.writeBigUInt64BE(BigInt(counter));const hmac=createHmac("sha1",decodeBase32(secret)).update(data).digest();const offset=hmac[hmac.length-1]!&15;const code=(hmac.readUInt32BE(offset)&0x7fffffff)%1_000_000;return code.toString().padStart(6,"0")}
+export function secretFromOtpUri(uri:string){const parsed=new URL(uri);const secret=parsed.searchParams.get("secret");if(!secret)throw new Error("TOTP URI has no secret");return secret}

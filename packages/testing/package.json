@@ -1,0 +1,22 @@
+{
+  "name": "@real-estate/testing",
+  "version": "0.0.0",
+  "private": true,
+  "type": "commonjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit",
+    "test": "echo no-tests"
+  },
+  "dependencies": {
+    "otpauth": "9.5.1"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

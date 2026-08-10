@@ -1,0 +1,17 @@
+node_modules/
+.bun/
+.turbo/
+.next/
+dist/
+coverage/
+playwright-report/
+test-results/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+packages/database/generated/
+apps/web/.next/
+apps/api/dist/
+apps/worker/dist/

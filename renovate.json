@@ -1,0 +1,20 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "rangeStrategy": "pin",
+  "schedule": ["before 6am on monday"],
+  "packageRules": [
+    {
+      "groupName": "nestjs",
+      "matchPackageNames": ["@nestjs/**"]
+    },
+    {
+      "groupName": "prisma",
+      "matchPackageNames": ["prisma", "@prisma/**"]
+    },
+    {
+      "groupName": "better-auth",
+      "matchPackageNames": ["better-auth", "@better-auth/**", "@thallesp/nestjs-better-auth"]
+    }
+  ]
+}

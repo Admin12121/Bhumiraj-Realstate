@@ -1,0 +1,12 @@
+{
+  "extends": "../typescript-config/library.json",
+  "compilerOptions": {
+    "lib": [
+      "ES2023",
+      "DOM"
+    ]
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
+}

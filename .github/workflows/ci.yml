@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_USER: estate
+          POSTGRES_PASSWORD: estate
+          POSTGRES_DB: estate
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U estate -d estate"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:8.2-alpine
+        ports: [6379:6379]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      NODE_ENV: test
+      APP_URL: http://localhost:3001
+      API_INTERNAL_URL: http://localhost:3001
+      API_PORT: 3001
+      DATABASE_URL: postgresql://estate:estate@localhost:5432/estate?schema=public
+      DIRECT_URL: postgresql://estate:estate@localhost:5432/estate?schema=public
+      BETTER_AUTH_SECRET: ci-only-secret-that-is-longer-than-thirty-two-characters
+      BETTER_AUTH_URL: http://localhost:3001/api/auth
+      REDIS_CACHE_URL: redis://localhost:6379/0
+      REDIS_CRITICAL_URL: redis://localhost:6379/1
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY_ID: test
+      S3_SECRET_ACCESS_KEY: test-secret
+      S3_PUBLIC_BUCKET: test-public
+      S3_PRIVATE_BUCKET: test-private
+      S3_FORCE_PATH_STYLE: "true"
+      CDN_BASE_URL: http://localhost:9000/test-public
+      MAIL_FROM: tests@bhumiraj.test
+      SMTP_HOST: localhost
+      SMTP_PORT: 1025
+      ACCOUNT_DELETION_GRACE_DAYS: 14
+      VIEW_HASH_SECRET: ci-view-hash-secret-that-is-long-enough
+      E2E_MODE: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun run audit:static
+      - run: bun install
+      - run: bun run audit:release
+      - run: bun audit --audit-level=high
+      - run: bun run db:generate
+      - run: bun run db:deploy
+      - run: bun run lint
+      - run: bun run typecheck
+      - run: bun run test
+      - run: bun run build
+
+  browser-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      E2E_BASE_URL: http://localhost:8080
+      E2E_SETUP_KEY: local-e2e-setup-key-change-me
+      E2E_ADMIN_EMAIL: admin.e2e@bhumiraj.test
+      E2E_ADMIN_PASSWORD: AdminTest!234567
+      E2E_BIDDER_EMAIL: bidder.e2e@bhumiraj.test
+      E2E_BIDDER_PASSWORD: BidderTest!234567
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun run audit:static
+      - run: bun install
+      - run: bun run audit:release
+      - name: Configure local E2E environment
+        run: |
+          cp .env.example .env
+          sed -i 's/E2E_MODE=false/E2E_MODE=true/' .env
+          sed -i 's/replace-with-at-least-32-random-characters/ci-e2e-secret-that-is-longer-than-thirty-two-chars/' .env
+          sed -i 's/replace-with-at-least-16-random-characters/local-e2e-setup-key-change-me/' .env
+      - run: docker compose up -d --build
+      - run: bunx playwright install --with-deps chromium
+      - run: bun --cwd apps/web test:e2e --project=chromium
+      - name: Compose diagnostics
+        if: failure()
+        run: docker compose logs --no-color --tail=500
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report
+          if-no-files-found: ignore
+      - if: always()
+        run: docker compose down -v
