@@ -5,6 +5,7 @@ import type { FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { signIn } from "@real-estate/auth/client"
+import { notify } from "@/shared/feedback/notify"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -38,7 +39,11 @@ export function SignInForm({ callbackURL }: { callbackURL: string }) {
     })
     setPending(false)
     if (result.error) {
-      setError(result.error.message || "Unable to sign in.")
+      const message =
+        result.error.message ||
+        "We could not sign you in. Check your email and password."
+      setError(message)
+      notify.error(message)
       return
     }
 
@@ -79,7 +84,6 @@ export function SignInForm({ callbackURL }: { callbackURL: string }) {
               name="password"
               type="password"
               required
-              minLength={10}
               maxLength={128}
               autoComplete="current-password"
               placeholder="Enter your password"

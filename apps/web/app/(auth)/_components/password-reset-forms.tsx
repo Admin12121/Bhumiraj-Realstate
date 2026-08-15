@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useState } from "react"
 import { MailCheck } from "lucide-react"
 import { authClient } from "@real-estate/auth/client"
-import { toast } from "sonner"
+import { notify } from "@/shared/feedback/notify"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
@@ -33,10 +33,11 @@ export function ForgotPasswordForm() {
     })
     setPending(false)
     if (result.error) {
-      return toast.error(
+      return notify.error(
         result.error.message || "Unable to request a password reset."
       )
     }
+    notify.success("Reset link sent if the account exists.")
     setSent(true)
   }
 
@@ -117,11 +118,13 @@ export function ResetPasswordForm() {
     })
     setPending(false)
     if (result.error) {
-      return toast.error(
+      return notify.error(
         result.error.message || "The reset link is invalid or expired."
       )
     }
-    toast.success("Password updated. Sign in with your new password.")
+    notify.success("Password updated.", {
+      description: "Sign in with your new password.",
+    })
     router.replace("/sign-in")
   }
 

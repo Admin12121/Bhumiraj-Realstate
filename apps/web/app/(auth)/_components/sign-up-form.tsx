@@ -5,7 +5,7 @@ import type { FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { signUp } from "@real-estate/auth/client"
-import { toast } from "sonner"
+import { notify } from "@/shared/feedback/notify"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -36,6 +36,7 @@ export function SignUpForm() {
     const password = String(form.get("password"))
     if (password !== String(form.get("confirm"))) {
       setError("Passwords do not match.")
+      notify.warning("Passwords do not match.")
       return
     }
     setError(null)
@@ -49,10 +50,14 @@ export function SignUpForm() {
     })
     setPending(false)
     if (result.error) {
-      setError(result.error.message || "Registration failed.")
+      const message = result.error.message || "We could not create the account."
+      setError(message)
+      notify.error(message)
       return
     }
-    toast.success("Account created. Check your email to verify it.")
+    notify.success("Account created.", {
+      description: "Check your email to verify it before signing in.",
+    })
     router.push("/sign-in")
   }
 

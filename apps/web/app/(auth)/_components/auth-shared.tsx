@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState, type ReactNode } from "react"
-import { toast } from "sonner"
+import { notify } from "@/shared/feedback/notify"
 import { signIn, signOut, useSession } from "@real-estate/auth/client"
 import { Button } from "@/components/ui/button"
 import { CardPanel } from "@/components/ui/card"
@@ -91,7 +91,7 @@ export function GoogleButton({
     const result = await signIn.social({ provider: "google", callbackURL })
     if (result?.error) {
       setPending(false)
-      toast.error(result.error.message || "Google sign-in is unavailable.")
+      notify.error(result.error.message || "Google sign-in is unavailable.")
     }
   }
 

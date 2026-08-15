@@ -5,7 +5,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Fingerprint, KeyRound, ShieldCheck } from "lucide-react"
 import { authClient } from "@real-estate/auth/client"
-import { toast } from "sonner"
+import { notify } from "@/shared/feedback/notify"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -43,7 +43,9 @@ export function TwoFactorForm({ callbackURL }: { callbackURL: string }) {
         : await authClient.twoFactor.verifyTotp({ code, trustDevice: true })
     setPending(false)
     if (result.error) {
-      return toast.error(result.error.message || "That code was not accepted.")
+      return notify.error(
+        result.error.message || "That code was not accepted."
+      )
     }
     succeed()
   }
@@ -53,7 +55,9 @@ export function TwoFactorForm({ callbackURL }: { callbackURL: string }) {
     const result = await authClient.signIn.passkey({ autoFill: false })
     setPending(false)
     if (result?.error) {
-      return toast.error(result.error.message || "Passkey verification failed.")
+      return notify.error(
+        result.error.message || "Passkey verification failed."
+      )
     }
     succeed()
   }
