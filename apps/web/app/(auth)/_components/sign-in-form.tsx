@@ -2,29 +2,33 @@
 
 import Link from "next/link"
 import type { FormEvent } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { signIn } from "@real-estate/auth/client"
-import { toast } from "sonner"
-import { safeReturnPath } from "@/shared/security/safe-return-path"
 import { Button } from "@/components/ui/button"
-import { Field, FieldLabel } from "@/components/ui/field"
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+  FieldNote,
+  FieldSeparator,
+} from "@/components/ui/field"
+import { Form } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import {
-  AuthFooterLink,
-  AuthProviders,
-  AuthSeparator,
+  AuthFrame,
   ExistingSessionNotice,
+  GoogleButton,
 } from "./auth-shared"
 
-export function SignInForm() {
+export function SignInForm({ callbackURL }: { callbackURL: string }) {
   const router = useRouter()
-  const search = useSearchParams()
-  const callbackURL = safeReturnPath(search.get("callbackURL"))
   const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    setError(null)
     setPending(true)
     const form = new FormData(event.currentTarget)
     const result = await signIn.email({
@@ -34,7 +38,8 @@ export function SignInForm() {
     })
     setPending(false)
     if (result.error) {
-      return toast.error(result.error.message || "Unable to sign in.")
+      setError(result.error.message || "Unable to sign in.")
+      return
     }
 
     const data = result.data as { twoFactorRedirect?: boolean } | null
@@ -47,28 +52,41 @@ export function SignInForm() {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <ExistingSessionNotice callbackURL={callbackURL} />
-      <AuthProviders callbackURL={callbackURL} disabled={pending} />
-      <AuthSeparator />
+    <AuthFrame>
+      <Form onSubmit={submit}>
+        <FieldGroup>
+          <ExistingSessionNotice callbackURL={callbackURL} />
+          <GoogleButton callbackURL={callbackURL} disabled={pending} />
+          <FieldSeparator className="mt-1">Or</FieldSeparator>
 
-      <form onSubmit={submit} className="flex flex-col gap-4">
-        <Field>
-          <FieldLabel htmlFor="email">Email</FieldLabel>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            placeholder="you@example.com"
-            className="w-full"
-          />
-        </Field>
+          <Field>
+            <FieldLabel htmlFor="email">Email</FieldLabel>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="m@example.com"
+              className="w-full"
+            />
+          </Field>
 
-        <Field>
-          <div className="flex w-full items-center justify-between">
+          <Field>
             <FieldLabel htmlFor="password">Password</FieldLabel>
+            <Input
+              id="password"
+              name="password"
+              type="password"
+              required
+              minLength={10}
+              maxLength={128}
+              autoComplete="current-password"
+              placeholder="Enter your password"
+              className="w-full"
+            />
+          </Field>
+          <div className="-mt-3 flex justify-end">
             <Link
               href="/forgot-password"
               className="text-xs text-muted-foreground underline-offset-4 hover:underline"
@@ -76,32 +94,27 @@ export function SignInForm() {
               Forgot password?
             </Link>
           </div>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            required
-            minLength={10}
-            maxLength={128}
-            autoComplete="current-password"
-            placeholder="Enter your password"
-            className="w-full"
-          />
-        </Field>
 
-        <Button type="submit" className="w-full" loading={pending}>
-          Sign in
-        </Button>
-      </form>
+          {error && (
+            <div role="alert" className="text-sm font-normal text-destructive">
+              {error}
+            </div>
+          )}
 
-      <AuthFooterLink
-        prompt="New to Bhumiraj?"
-        href="/sign-up"
-        label="Create an account"
-      />
-      <p className="px-4 text-center text-xs text-muted-foreground">
-        By continuing, you agree to the Terms of Service and Privacy Policy.
-      </p>
-    </div>
+          <Field className="space-y-1">
+            <Button type="submit" className="w-full" loading={pending}>
+              Sign in
+            </Button>
+          </Field>
+
+          <FieldNote className="text-center">
+            Don&apos;t have an account?{" "}
+            <Link href="/sign-up" className="font-medium">
+              Sign up
+            </Link>
+          </FieldNote>
+        </FieldGroup>
+      </Form>
+    </AuthFrame>
   )
 }

@@ -1,13 +1,15 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState, type ReactNode } from "react"
-import { Fingerprint } from "lucide-react"
 import { toast } from "sonner"
 import { signIn, signOut, useSession } from "@real-estate/auth/client"
 import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
+import { CardPanel } from "@/components/ui/card"
+import { Field, FieldNote } from "@/components/ui/field"
+import { Frame } from "@/components/ui/frame"
 
 export function GoogleMark() {
   return (
@@ -32,77 +34,81 @@ export function GoogleMark() {
   )
 }
 
-/** Google and passkey entry points, shown above the credential form. */
-export function AuthProviders({
-  callbackURL,
-  disabled,
-  showPasskey = true,
+/**
+ * The card the reference project puts its auth forms in: a bare frame with the
+ * mark on top, the form inside, and the terms note sitting outside the card.
+ */
+export function AuthFrame({
+  children,
+  note = "By continuing, you agree to the Terms of Service and Privacy Policy.",
 }: {
-  callbackURL: string
-  disabled?: boolean
-  showPasskey?: boolean
+  children: ReactNode
+  note?: ReactNode
 }) {
-  const router = useRouter()
-  const [pending, setPending] = useState<"google" | "passkey" | null>(null)
-  const busy = disabled || pending !== null
-
-  async function withGoogle() {
-    setPending("google")
-    const result = await signIn.social({ provider: "google", callbackURL })
-    if (result?.error) {
-      setPending(null)
-      toast.error(result.error.message || "Google sign-in is unavailable.")
-    }
-  }
-
-  async function withPasskey() {
-    setPending("passkey")
-    const result = await signIn.passkey({ autoFill: false })
-    setPending(null)
-    if (result?.error) {
-      return toast.error(result.error.message || "Passkey sign-in failed.")
-    }
-    router.push(callbackURL)
-    router.refresh()
-  }
-
   return (
-    <div className="flex flex-col gap-2">
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full"
-        disabled={busy}
-        loading={pending === "google"}
-        onClick={() => void withGoogle()}
-      >
-        <GoogleMark />
-        Continue with Google
-      </Button>
-      {showPasskey && (
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          disabled={busy}
-          loading={pending === "passkey"}
-          onClick={() => void withPasskey()}
-        >
-          <Fingerprint />
-          Continue with a passkey
-        </Button>
-      )}
+    <div className="flex w-full flex-col gap-6">
+      <Frame className="border-none py-5">
+        <div className="mb-5 text-center">
+          <Link
+            href="/"
+            className="flex flex-col items-center gap-2 self-center"
+            aria-label="Bhumiraj Estates home"
+          >
+            <Image
+              src="/Bhumiraj Logo.png"
+              alt=""
+              width={56}
+              height={56}
+              className="size-14 rounded-lg object-contain"
+            />
+          </Link>
+        </div>
+        <CardPanel className="px-4 py-0">{children}</CardPanel>
+      </Frame>
+      <FieldNote className="px-6 text-center">{note}</FieldNote>
     </div>
   )
 }
 
-export function AuthSeparator({ label = "Or" }: { label?: string }) {
+/**
+ * Google is the only social provider. Passkeys are deliberately not offered
+ * here: they are a second factor, presented at verification time, not a way
+ * to skip the first one.
+ */
+export function GoogleButton({
+  callbackURL,
+  disabled,
+  label = "Continue with Google",
+}: {
+  callbackURL: string
+  disabled?: boolean
+  label?: string
+}) {
+  const [pending, setPending] = useState(false)
+
+  async function withGoogle() {
+    setPending(true)
+    const result = await signIn.social({ provider: "google", callbackURL })
+    if (result?.error) {
+      setPending(false)
+      toast.error(result.error.message || "Google sign-in is unavailable.")
+    }
+  }
+
   return (
-    <div className="flex items-center gap-3">
-      <Separator className="flex-1" />
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <Separator className="flex-1" />
-    </div>
+    <Field>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full"
+        disabled={disabled}
+        loading={pending}
+        onClick={() => void withGoogle()}
+      >
+        <GoogleMark />
+        {label}
+      </Button>
+    </Field>
   )
 }
 
@@ -120,7 +126,7 @@ export function ExistingSessionNotice({ callbackURL }: { callbackURL: string }) 
   if (!user) return null
 
   return (
-    <div className="mb-5 rounded-xl border bg-muted/40 p-4">
+    <div className="rounded-xl border bg-muted/40 p-4">
       <p className="text-sm">
         Already signed in as{" "}
         <span className="font-semibold">{user.email || user.name}</span>.
@@ -144,24 +150,5 @@ export function ExistingSessionNotice({ callbackURL }: { callbackURL: string }) 
         </Button>
       </div>
     </div>
-  )
-}
-
-export function AuthFooterLink({
-  prompt,
-  href,
-  label,
-}: {
-  prompt: string
-  href: string
-  label: ReactNode
-}) {
-  return (
-    <p className="text-center text-sm text-muted-foreground">
-      {prompt}{" "}
-      <Link href={href} className="font-semibold text-emerald-700 underline-offset-4 hover:underline">
-        {label}
-      </Link>
-    </p>
   )
 }

@@ -1,15 +1,19 @@
-﻿import { Suspense } from "react";
 import { AuthCard, TwoFactorForm } from "../_components";
+import { safeReturnPath } from "@/shared/security/safe-return-path";
 
-export default function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackURL?: string }>;
+}) {
+  const { callbackURL } = await searchParams;
+
   return (
     <AuthCard
       title="Two-factor verification"
-      description="Enter the code from your authenticator app or a backup code."
+      description="Confirm the sign-in with a code or a passkey."
     >
-      <Suspense>
-        <TwoFactorForm />
-      </Suspense>
+      <TwoFactorForm callbackURL={safeReturnPath(callbackURL)} />
     </AuthCard>
   );
 }

@@ -2,25 +2,26 @@
 
 import type { FormEvent } from "react"
 import { useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Fingerprint, KeyRound, ShieldCheck } from "lucide-react"
 import { authClient } from "@real-estate/auth/client"
 import { toast } from "sonner"
-import { safeReturnPath } from "@/shared/security/safe-return-path"
 import { Button } from "@/components/ui/button"
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
+import {
+  Field,
+  FieldDescription,
+  FieldLabel,
+  FieldSeparator,
+} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { OTPField, OTPFieldInput } from "@/components/ui/otp-field"
-import { AuthSeparator } from "./auth-shared"
 
 type Method = "totp" | "backup" | "passkey"
 
 const TOTP_LENGTH = 6
 
-export function TwoFactorForm() {
+export function TwoFactorForm({ callbackURL }: { callbackURL: string }) {
   const router = useRouter()
-  const search = useSearchParams()
-  const callbackURL = safeReturnPath(search.get("callbackURL"))
   const [method, setMethod] = useState<Method>("totp")
   const [code, setCode] = useState("")
   const [pending, setPending] = useState(false)
@@ -64,7 +65,7 @@ export function TwoFactorForm() {
           <Fingerprint />
           Verify with a passkey
         </Button>
-        <AuthSeparator label="Or" />
+        <FieldSeparator>Or</FieldSeparator>
         <MethodChooser current={method} onChoose={setMethod} />
       </div>
     )
@@ -120,7 +121,7 @@ export function TwoFactorForm() {
         </Button>
       </form>
 
-      <AuthSeparator label="Or" />
+      <FieldSeparator>Or</FieldSeparator>
       <MethodChooser current={method} onChoose={setMethod} />
     </div>
   )

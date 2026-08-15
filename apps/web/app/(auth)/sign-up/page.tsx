@@ -1,12 +1,11 @@
-﻿import { AuthCard, SignUpForm } from "../_components";
+import { SignUpForm } from "../_components";
 
 export default function Page() {
   return (
-    <AuthCard
-      title="Create your account"
-      description="Join Nepal’s trusted property marketplace."
-    >
-      <SignUpForm />
-    </AuthCard>
+    <main className="grid min-h-screen place-items-center px-4 py-10">
+      <div className="w-full max-w-sm">
+        <SignUpForm />
+      </div>
+    </main>
   );
 }

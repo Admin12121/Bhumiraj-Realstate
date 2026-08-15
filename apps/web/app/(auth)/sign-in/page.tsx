@@ -1,15 +1,20 @@
-﻿import { Suspense } from "react";
-import { AuthCard, SignInForm } from "../_components";
+import { SignInForm } from "../_components";
+import { safeReturnPath } from "@/shared/security/safe-return-path";
 
-export default function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams: Promise<{ callbackURL?: string }>;
+}) {
+  // Resolved on the server so the form needs no client-side search-param hook,
+  // and therefore no Suspense boundary that can strand the whole page.
+  const { callbackURL } = await searchParams;
+
   return (
-    <AuthCard
-      title="Welcome back"
-      description="Sign in to save properties, message agents and join live auctions."
-    >
-      <Suspense>
-        <SignInForm />
-      </Suspense>
-    </AuthCard>
+    <main className="grid min-h-screen place-items-center px-4 py-10">
+      <div className="w-full max-w-sm">
+        <SignInForm callbackURL={safeReturnPath(callbackURL)} />
+      </div>
+    </main>
   );
 }

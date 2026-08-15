@@ -9,9 +9,13 @@ import { authClient } from "@real-estate/auth/client"
 import { toast } from "sonner"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
+import {
+  Field,
+  FieldDescription,
+  FieldLabel,
+  FieldNote,
+} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { AuthFooterLink } from "./auth-shared"
 
 const MINIMUM_PASSWORD_LENGTH = 10
 
@@ -47,7 +51,12 @@ export function ForgotPasswordForm() {
             deliberately identical for unknown addresses.
           </AlertDescription>
         </Alert>
-        <AuthFooterLink prompt="Remembered it?" href="/sign-in" label="Return to sign in" />
+        <FieldNote className="text-center">
+          Remembered it?{" "}
+          <Link href="/sign-in" className="font-medium">
+            Return to sign in
+          </Link>
+        </FieldNote>
       </div>
     )
   }
@@ -72,7 +81,12 @@ export function ForgotPasswordForm() {
       <Button type="submit" className="w-full" loading={pending}>
         Send reset link
       </Button>
-      <AuthFooterLink prompt="Remembered it?" href="/sign-in" label="Return to sign in" />
+      <FieldNote className="text-center">
+          Remembered it?{" "}
+          <Link href="/sign-in" className="font-medium">
+            Return to sign in
+          </Link>
+        </FieldNote>
     </form>
   )
 }
