@@ -23,6 +23,7 @@ import { ApiExceptionFilter } from "./shared/http/api-exception.filter";
 import { CsrfOriginGuard } from "./shared/http/csrf-origin.guard";
 import { RequestContextMiddleware } from "./shared/http/request-context.middleware";
 import { apiEnv } from "./bootstrap-env";
+import { AccessControlModule } from "./shared/auth/access-control.module";
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { apiEnv } from "./bootstrap-env";
     LoggerModule.forRoot({ pinoHttp: { level: apiEnv.NODE_ENV === "production" ? "info" : "debug", redact: ["req.headers.authorization", "req.headers.cookie", "res.headers.set-cookie", "password", "token", "secret"] } }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     AuthModule.forRoot({ auth, bodyParser: { json: { limit: "2mb" }, urlencoded: { limit: "2mb", extended: true }, rawBody: true } }),
+    AccessControlModule,
     HealthModule,
     ListingsModule,
     ProfilesModule,

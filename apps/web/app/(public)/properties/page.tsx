@@ -1,2 +1,5 @@
-import { HomeShell } from "@/features/home/components/home-shell";
-export default function PropertiesPage(){return <HomeShell/>}
+import { Home } from "../../_components";
+
+export default function PropertiesPage() {
+  return <Home />;
+}

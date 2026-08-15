@@ -14,12 +14,23 @@ services:
     build:
       context: .
       dockerfile: infrastructure/docker/web.Dockerfile
+      target: dev
       args:
         NEXT_PUBLIC_APP_URL: "http://localhost:8080"
         NEXT_PUBLIC_CDN_BASE_URL: "http://localhost:9000/bhumiraj-public"
         NEXT_PUBLIC_UPLOAD_ORIGIN: "http://localhost:9000"
         NEXT_PUBLIC_MAP_STYLE_URL: "https://demotiles.maplibre.org/style.json"
+    working_dir: /workspace
+    command: >
+      sh -lc "
+        bun install &&
+        exec bun --cwd apps/web dev --hostname 0.0.0.0
+      "
     environment:
+      NODE_ENV: development
+      WATCHPACK_POLLING: "true"
+      CHOKIDAR_USEPOLLING: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
       APP_URL: http://localhost:8080
       NEXT_PUBLIC_APP_URL: http://localhost:8080
       NEXT_PUBLIC_CDN_BASE_URL: http://localhost:9000/bhumiraj-public
@@ -29,20 +40,34 @@ services:
       interval: 10s
       timeout: 5s
       retries: 12
+      start_period: 30s
     depends_on:
       api: { condition: service_healthy }
+    volumes:
+      - .:/workspace
+      - web-node-modules:/workspace/node_modules
+      - web-next:/workspace/apps/web/.next
     restart: unless-stopped
 
   api:
-    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }
+    build:
+      context: .
+      dockerfile: infrastructure/docker/api.Dockerfile
+      target: dev
     env_file: [.env]
-    command:
-      [
-        "sh",
-        "-c",
-        "node packages/database/node_modules/.bin/prisma migrate deploy --config packages/database/prisma.config.ts && node apps/api/dist/scripts/seed-admin.js && exec node apps/api/dist/main.js",
-      ]
+    working_dir: /workspace
+    command: >
+      sh -lc "
+        bun install &&
+        bun run db:generate &&
+        bun run build:packages &&
+        bun run build:packages:watch &
+        bun run db:deploy &&
+        bun apps/api/src/scripts/seed-admin.ts &&
+        exec bun --cwd apps/api start:dev
+      "
     environment:
+      NODE_ENV: development
       API_PORT: 3001
       APP_URL: http://localhost:8080
       BETTER_AUTH_URL: http://localhost:8080/api/auth
@@ -56,26 +81,40 @@ services:
       S3_CONFIGURE_BUCKET_CORS: "false"
       CDN_BASE_URL: http://localhost:9000/bhumiraj-public
       RESEND_API_KEY: ${RESEND_API_KEY:-}
-      BHUMIRAJ_ADMIN_EMAIL: ${BHUMIRAJ_ADMIN_EMAIL:-admin@gmail.com}
-      BHUMIRAJ_ADMIN_PASSWORD: ${BHUMIRAJ_ADMIN_PASSWORD:-admin@#1234}
-      BHUMIRAJ_ADMIN_NAME: ${BHUMIRAJ_ADMIN_NAME:-Admin}
-      SEED_ADMIN_ON_START: ${SEED_ADMIN_ON_START:-true}
+      BHUMIRAJ_ADMIN_EMAIL: ${BHUMIRAJ_ADMIN_EMAIL:-}
+      BHUMIRAJ_ADMIN_PASSWORD: ${BHUMIRAJ_ADMIN_PASSWORD:-}
+      BHUMIRAJ_ADMIN_NAME: ${BHUMIRAJ_ADMIN_NAME:-Platform Owner}
+      SEED_ADMIN_ON_START: ${SEED_ADMIN_ON_START:-false}
       SEED_ADMIN_RESET: ${SEED_ADMIN_RESET:-false}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/api/v1/health"]
       interval: 10s
       timeout: 3s
       retries: 12
+      start_period: 30s
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
       minio: { condition: service_healthy }
+    volumes:
+      - .:/workspace
+      - api-node-modules:/workspace/node_modules
     restart: unless-stopped
 
   worker:
-    build: { context: ., dockerfile: infrastructure/docker/worker.Dockerfile }
+    build:
+      context: .
+      dockerfile: infrastructure/docker/worker.Dockerfile
+      target: dev
     env_file: [.env]
+    working_dir: /workspace
+    command: >
+      sh -lc "
+        bun install &&
+        exec bun --cwd apps/worker start:dev
+      "
     environment:
+      NODE_ENV: development
       DATABASE_URL: postgresql://estate:estate@postgres:5432/estate?schema=public
       DIRECT_URL: postgresql://estate:estate@postgres:5432/estate?schema=public
       REDIS_CACHE_URL: redis://redis:6379
@@ -90,6 +129,9 @@ services:
       redis: { condition: service_healthy }
       minio: { condition: service_healthy }
       clamav: { condition: service_healthy }
+    volumes:
+      - .:/workspace
+      - worker-node-modules:/workspace/node_modules
     restart: unless-stopped
 
   postgres:
@@ -144,6 +186,10 @@ services:
       start_period: 60s
 
 volumes:
+  api-node-modules: {}
+  web-node-modules: {}
+  web-next: {}
+  worker-node-modules: {}
   postgres-data: {}
   redis-data: {}
   minio-data: {}

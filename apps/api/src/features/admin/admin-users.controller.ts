@@ -5,20 +5,21 @@ import {
   adminUsersQuerySchema,
   banUserSchema,
   idSchema,
-  setRoleSchema,
+  setAccountTypeSchema,
 } from "@real-estate/contracts";
-import { Roles } from "../../shared/auth/roles.decorator";
-import { RolesGuard } from "../../shared/auth/roles.guard";
+import { StaffPermissions } from "../../shared/auth/staff-permissions.decorator";
+import { StaffPermissionsGuard } from "../../shared/auth/staff-permissions.guard";
 import { ZodValidationPipe } from "../../shared/http/zod-validation.pipe";
+import { ADMIN_PERMISSIONS } from "./admin.permissions";
 import { AdminUsersService } from "./admin-users.service";
 
 @Controller("api/v1/admin/users")
-@UseGuards(RolesGuard)
-@Roles("ADMIN", "SUPER_ADMIN")
+@UseGuards(StaffPermissionsGuard)
 export class AdminUsersController {
   constructor(private readonly service: AdminUsersService) {}
 
   @Get()
+  @StaffPermissions(ADMIN_PERMISSIONS.USERS_READ)
   list(
     @Query(new ZodValidationPipe(adminUsersQuerySchema))
     query: z.infer<typeof adminUsersQuerySchema>,
@@ -26,17 +27,19 @@ export class AdminUsersController {
     return this.service.list(query);
   }
 
-  @Post(":id/role")
-  role(
+  @Post(":id/account-type")
+  @StaffPermissions(ADMIN_PERMISSIONS.USERS_TYPE_MANAGE)
+  accountType(
     @Param("id", new ZodValidationPipe(idSchema)) id: string,
-    @Body(new ZodValidationPipe(setRoleSchema))
-    body: z.infer<typeof setRoleSchema>,
+    @Body(new ZodValidationPipe(setAccountTypeSchema))
+    body: z.infer<typeof setAccountTypeSchema>,
     @Session() session: UserSession,
   ) {
-    return this.service.setRole(session.user.id, id, body.role);
+    return this.service.setAccountType(session.user.id, id, body.accountType);
   }
 
   @Post(":id/ban")
+  @StaffPermissions(ADMIN_PERMISSIONS.USERS_STATUS_MANAGE)
   ban(
     @Param("id", new ZodValidationPipe(idSchema)) id: string,
     @Body(new ZodValidationPipe(banUserSchema))
@@ -52,6 +55,7 @@ export class AdminUsersController {
   }
 
   @Post(":id/unban")
+  @StaffPermissions(ADMIN_PERMISSIONS.USERS_STATUS_MANAGE)
   unban(
     @Param("id", new ZodValidationPipe(idSchema)) id: string,
     @Session() session: UserSession,

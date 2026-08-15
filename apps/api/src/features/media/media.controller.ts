@@ -36,7 +36,7 @@ export class MediaController {
     @Session() session: UserSession,
     @Param("id", new ZodValidationPipe(idSchema)) id: string,
   ) {
-    return this.service.download(session.user.id, id);
+    return this.service.download(session.user.id, session.session.id, id);
   }
 
   @Get("uploads/:id")

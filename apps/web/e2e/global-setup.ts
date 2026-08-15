@@ -40,7 +40,10 @@ export default async function setup(config: FullConfig) {
   for (const user of users) {
     const response = await fetch(`${baseURL}/api/auth/sign-up/email`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        origin: baseURL,
+      },
       body: JSON.stringify(user),
     });
     if (!response.ok && response.status !== 422) {
@@ -57,6 +60,7 @@ export default async function setup(config: FullConfig) {
     method: "POST",
     headers: {
       "content-type": "application/json",
+      origin: baseURL,
       "x-e2e-key":
         process.env.E2E_SETUP_KEY ??
         "local-e2e-setup-key-change-me",

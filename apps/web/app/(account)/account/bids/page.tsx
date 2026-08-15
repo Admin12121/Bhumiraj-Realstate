@@ -1,1 +1,12 @@
-import{AccountShell}from"@/features/account/components/account-shell";import{MyBids}from"@/features/account/components/my-bids";export default function Page(){return <AccountShell title="My bids" description="Your immutable live-auction bid history."><MyBids/></AccountShell>}
+﻿import { AccountShell, MyBids } from "../_components";
+
+export default function Page() {
+  return (
+    <AccountShell
+      title="My bids"
+      description="Your immutable live-auction bid history."
+    >
+      <MyBids />
+    </AccountShell>
+  );
+}

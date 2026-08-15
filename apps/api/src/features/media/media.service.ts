@@ -14,6 +14,8 @@ import { QUEUES } from "@real-estate/queue";
 import { createRedis } from "@real-estate/redis";
 import { assertActiveAccount } from "../../shared/auth/account-policy";
 import { apiEnv } from "../../bootstrap-env";
+import { StaffAccessService } from "../../shared/auth/staff-access.service";
+import { ADMIN_PERMISSIONS } from "../admin/admin.permissions";
 
 const PRIVATE_PURPOSES = new Set([
   "OWNERSHIP_DOCUMENT",
@@ -36,6 +38,8 @@ const EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
 
 @Injectable()
 export class MediaService implements OnModuleDestroy {
+  constructor(private readonly staffAccessService: StaffAccessService) {}
+
   private readonly redis = createRedis(apiEnv.REDIS_CRITICAL_URL, "critical");
   private readonly storage = createStorage({
     ...(apiEnv.S3_ENDPOINT === undefined ? {} : { endpoint: apiEnv.S3_ENDPOINT }),
@@ -247,7 +251,7 @@ export class MediaService implements OnModuleDestroy {
   }
 
 
-  async download(userId: string, assetId: string) {
+  async download(userId: string, sessionId: string | undefined, assetId: string) {
     const [user, asset] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
@@ -287,7 +291,22 @@ export class MediaService implements OnModuleDestroy {
       throw new NotFoundException();
     }
 
-    const elevated = ["MODERATOR", "ADMIN", "SUPER_ADMIN"].includes(user.role);
+    const staffAccess =
+      user.role === "OWNER" || user.role === "STAFF"
+        ? await this.staffAccessService.resolve(userId, sessionId)
+        : null;
+    const strongAuthentication =
+      apiEnv.E2E_MODE ||
+      staffAccess?.authMethod === "credential+2fa" ||
+      staffAccess?.authMethod === "passkey";
+    const elevated = Boolean(
+      staffAccess &&
+        strongAuthentication &&
+        this.staffAccessService.hasPermission(
+          staffAccess,
+          ADMIN_PERMISSIONS.PRIVATE_MEDIA_READ,
+        ),
+    );
     const authorized =
       asset.visibility === "PUBLIC" ||
       asset.ownerId === userId ||

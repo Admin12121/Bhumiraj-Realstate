@@ -35,7 +35,7 @@ export class RedisIoAdapter extends IoAdapter {
   }
 
   override async close(server: Server): Promise<void> {
-    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await server.close();
     await Promise.allSettled([
       this.publisher?.quit(),
       this.subscriber?.quit(),

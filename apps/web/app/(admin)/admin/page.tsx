@@ -1,5 +1,4 @@
-import { AdminShell } from "@/features/admin/components/admin-shell";
-import { AdminOverview } from "@/features/admin/components/admin-overview";
+﻿import { AdminOverview, AdminShell } from "./_components";
 
 export default function AdminPage() {
   return (

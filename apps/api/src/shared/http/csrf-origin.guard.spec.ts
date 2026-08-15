@@ -1,4 +1,4 @@
-import { ExecutionContext, ForbiddenException } from "@nestjs/common";
+import { ForbiddenException, type ExecutionContext } from "@nestjs/common";
 import { CsrfOriginGuard } from "./csrf-origin.guard";
 import { apiEnv } from "../../bootstrap-env";
 

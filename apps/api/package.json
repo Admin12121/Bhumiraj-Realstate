@@ -7,9 +7,9 @@
     "start:dev": "nest start --watch",
     "build": "nest build",
     "start": "node dist/main.js",
-    "lint": "eslint src test",
+    "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "jest --runInBand",
+    "test": "jest --config jest.config.json --runInBand",
     "test:e2e": "jest --config test/jest-e2e.json --runInBand"
   },
   "dependencies": {

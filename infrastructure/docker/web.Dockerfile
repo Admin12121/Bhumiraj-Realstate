@@ -1,6 +1,9 @@
-FROM oven/bun:1.3.14-alpine AS build
+FROM oven/bun:1.3.14-alpine AS dev
 WORKDIR /workspace
 ENV NEXT_TELEMETRY_DISABLED=1
+RUN apk add --no-cache wget
+
+FROM dev AS build
 COPY package.json bunfig.toml turbo.json ./
 COPY apps ./apps
 COPY packages ./packages

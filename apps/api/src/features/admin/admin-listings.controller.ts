@@ -17,15 +17,16 @@ import {
 } from "@real-estate/contracts";
 import { prisma, type Prisma } from "@real-estate/database";
 import { randomUUID } from "node:crypto";
-import { Roles } from "../../shared/auth/roles.decorator";
-import { RolesGuard } from "../../shared/auth/roles.guard";
+import { StaffPermissions } from "../../shared/auth/staff-permissions.decorator";
+import { StaffPermissionsGuard } from "../../shared/auth/staff-permissions.guard";
 import { ZodValidationPipe } from "../../shared/http/zod-validation.pipe";
+import { ADMIN_PERMISSIONS } from "./admin.permissions";
 
 @Controller("api/v1/admin/listings")
-@UseGuards(RolesGuard)
-@Roles("MODERATOR", "ADMIN", "SUPER_ADMIN")
+@UseGuards(StaffPermissionsGuard)
 export class AdminListingsController {
   @Get()
+  @StaffPermissions(ADMIN_PERMISSIONS.LISTINGS_READ)
   async list(
     @Query(new ZodValidationPipe(adminListingsQuerySchema))
     query: z.infer<typeof adminListingsQuerySchema>,
@@ -44,8 +45,8 @@ export class AdminListingsController {
             ],
           }
         : {}),
-      ...(query.status ? { status: query.status as any } : {}),
-      ...(query.type ? { type: query.type as any } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.type ? { type: query.type } : {}),
     };
     const orderBy =
       query.sort === "title"
@@ -99,6 +100,7 @@ export class AdminListingsController {
   }
 
   @Post(":id/decision")
+  @StaffPermissions(ADMIN_PERMISSIONS.LISTINGS_MODERATE)
   async decide(
     @Param("id", new ZodValidationPipe(idSchema)) id: string,
     @Body(new ZodValidationPipe(listingModerationDecisionSchema))

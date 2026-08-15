@@ -48,7 +48,7 @@ export class E2eFixturesController {
       await tx.user.update({
         where: { id: admin.id },
         data: {
-          role: "SUPER_ADMIN",
+          role: "OWNER",
           emailVerified: true,
           banned: false,
           lifecycleStatus: "ACTIVE",

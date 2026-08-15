@@ -36,7 +36,12 @@ export function AppProviders({ children }: { children: ReactNode }) {
         {children}
         <Toaster richColors position="top-right" />
         {process.env.NODE_ENV === "development" && (
-          <ReactQueryDevtools initialIsOpen={false} />
+          <div className="fixed right-3 bottom-20 z-[60] min-[800px]:bottom-3">
+            <ReactQueryDevtools
+              buttonPosition="relative"
+              initialIsOpen={false}
+            />
+          </div>
         )}
       </QueryClientProvider>
     </ThemeProvider>

@@ -3,12 +3,10 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
-} from "@nestjs/common";
-import { prisma } from "@real-estate/database";
-import type { z } from "zod";
-import { adminUsersQuerySchema } from "@real-estate/contracts";
-
-const ELEVATED_ROLES = new Set(["MODERATOR", "ADMIN", "SUPER_ADMIN"]);
+} from '@nestjs/common';
+import { prisma } from '@real-estate/database';
+import type { z } from 'zod';
+import { adminUsersQuerySchema } from '@real-estate/contracts';
 
 @Injectable()
 export class AdminUsersService {
@@ -17,18 +15,18 @@ export class AdminUsersService {
       ...(q.search
         ? {
             OR: [
-              { name: { contains: q.search, mode: "insensitive" as const } },
-              { email: { contains: q.search, mode: "insensitive" as const } },
+              { name: { contains: q.search, mode: 'insensitive' as const } },
+              { email: { contains: q.search, mode: 'insensitive' as const } },
             ],
           }
         : {}),
-      ...(q.role ? { role: q.role } : {}),
-      ...(q.status ? { banned: q.status === "banned" } : {}),
+      ...(q.accountType ? { role: q.accountType } : {}),
+      ...(q.status ? { banned: q.status === 'banned' } : {}),
     };
     const orderBy =
-      q.sort === "name"
+      q.sort === 'name'
         ? { name: q.direction }
-        : q.sort === "email"
+        : q.sort === 'email'
           ? { email: q.direction }
           : { createdAt: q.direction };
 
@@ -60,7 +58,7 @@ export class AdminUsersService {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role,
+        accountType: user.role,
         banned: user.banned,
         emailVerified: user.emailVerified,
         twoFactorEnabled: user.twoFactorEnabled,
@@ -76,7 +74,11 @@ export class AdminUsersService {
     };
   }
 
-  async setRole(actorId: string, userId: string, role: string) {
+  async setAccountType(
+    actorId: string,
+    userId: string,
+    accountType: 'USER' | 'AGENT',
+  ) {
     return prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`
@@ -95,61 +97,76 @@ export class AdminUsersService {
         if (!actor || !target) throw new NotFoundException();
         this.assertActiveActor(actor);
 
-        if (actorId === userId && role !== target.role) {
+        if (actorId === userId && accountType !== target.role) {
           throw new ConflictException({
-            code: "SELF_ROLE_CHANGE_BLOCKED",
-            message: "Administrators cannot change their own role.",
+            code: 'SELF_ROLE_CHANGE_BLOCKED',
+            message: 'Staff cannot change their own account type.',
           });
         }
-        if (target.lifecycleStatus === "DELETED") {
+        if (target.lifecycleStatus === 'DELETED') {
           throw new ConflictException({
-            code: "DELETED_ACCOUNT_IMMUTABLE",
-            message: "A deleted account cannot be assigned a role.",
+            code: 'DELETED_ACCOUNT_IMMUTABLE',
+            message: 'A deleted account cannot be assigned a role.',
           });
         }
-        if (
-          actor.role !== "SUPER_ADMIN" &&
-          (ELEVATED_ROLES.has(role) || ELEVATED_ROLES.has(target.role))
-        ) {
+        if (target.role === 'OWNER' || target.role === 'STAFF') {
           throw new ForbiddenException({
-            code: "SUPER_ADMIN_REQUIRED",
+            code: 'STAFF_GOVERNANCE_REQUIRED',
             message:
-              "Only a super administrator can assign or modify elevated roles.",
+              'Owner and staff account types are managed through staff governance.',
           });
         }
-
-        await this.assertNotRemovingLastSuperAdmin(
-          target.role,
-          role,
-          () =>
-            tx.user.count({
-              where: {
-                role: "SUPER_ADMIN",
-                banned: false,
-                lifecycleStatus: "ACTIVE",
-              },
-            }),
-        );
+        if (target.role === 'AGENT') {
+          throw new ForbiddenException({
+            code: 'AGENT_GOVERNANCE_REQUIRED',
+            message:
+              'Agent accounts must be suspended or retired through agent governance.',
+          });
+        }
 
         const user = await tx.user.update({
           where: { id: userId },
-          data: { role },
+          data: { role: accountType },
           select: { id: true, role: true },
         });
+        if (accountType === 'AGENT') {
+          const profile = await tx.agentProfile.upsert({
+            where: { userId },
+            update: {
+              status: 'PENDING',
+              availabilityStatus: 'UNAVAILABLE',
+              statusReason: null,
+              retiredAt: null,
+              suspendedAt: null,
+              updatedById: actorId,
+            },
+            create: { userId, createdById: actorId, updatedById: actorId },
+          });
+          await tx.auditLog.create({
+            data: {
+              actorId,
+              action: 'AGENT_CREATED',
+              entityType: 'AgentProfile',
+              entityId: profile.id,
+              before: { accountType: target.role },
+              after: { accountType: 'AGENT', status: 'PENDING' },
+            },
+          });
+        }
         await tx.session.deleteMany({ where: { userId } });
         await tx.auditLog.create({
           data: {
             actorId,
-            action: "USER_ROLE_CHANGED",
-            entityType: "User",
+            action: 'ACCOUNT_TYPE_CHANGED',
+            entityType: 'User',
             entityId: userId,
-            before: { role: target.role },
-            after: { role },
+            before: { accountType: target.role },
+            after: { accountType },
           },
         });
-        return user;
+        return { id: user.id, accountType: user.role };
       },
-      { isolationLevel: "Serializable", maxWait: 5_000, timeout: 10_000 },
+      { isolationLevel: 'Serializable', maxWait: 5_000, timeout: 10_000 },
     );
   }
 
@@ -161,16 +178,16 @@ export class AdminUsersService {
   ) {
     if (actorId === userId) {
       throw new ConflictException({
-        code: "SELF_BAN_BLOCKED",
-        message: "You cannot ban your own account.",
+        code: 'SELF_BAN_BLOCKED',
+        message: 'You cannot ban your own account.',
       });
     }
 
     const expires = expiresAt ? new Date(expiresAt) : null;
     if (expires && expires.getTime() <= Date.now()) {
       throw new ConflictException({
-        code: "INVALID_BAN_EXPIRY",
-        message: "The ban expiry must be in the future.",
+        code: 'INVALID_BAN_EXPIRY',
+        message: 'The ban expiry must be in the future.',
       });
     }
 
@@ -192,30 +209,24 @@ export class AdminUsersService {
         if (!actor || !target) throw new NotFoundException();
         this.assertActiveActor(actor);
 
-        if (["PENDING_DELETION", "DELETED"].includes(target.lifecycleStatus)) {
+        if (['PENDING_DELETION', 'DELETED'].includes(target.lifecycleStatus)) {
           throw new ConflictException({
-            code: "ACCOUNT_LIFECYCLE_CONFLICT",
-            message: "This account lifecycle state cannot be suspended.",
+            code: 'ACCOUNT_LIFECYCLE_CONFLICT',
+            message: 'This account lifecycle state cannot be suspended.',
           });
         }
-        if (ELEVATED_ROLES.has(target.role) && actor.role !== "SUPER_ADMIN") {
+        if (target.role === 'OWNER') {
           throw new ForbiddenException({
-            code: "SUPER_ADMIN_REQUIRED",
-            message: "Only a super administrator can suspend an elevated account.",
+            code: 'OWNER_PROTECTED',
+            message: 'The application owner cannot be suspended.',
           });
         }
-        await this.assertNotRemovingLastSuperAdmin(
-          target.role,
-          target.role === "SUPER_ADMIN" ? "SUSPENDED" : target.role,
-          () =>
-            tx.user.count({
-              where: {
-                role: "SUPER_ADMIN",
-                banned: false,
-                lifecycleStatus: "ACTIVE",
-              },
-            }),
-        );
+        if (target.role === 'STAFF' && actor.role !== 'OWNER') {
+          throw new ForbiddenException({
+            code: 'OWNER_REQUIRED',
+            message: 'Only the application owner can suspend staff accounts.',
+          });
+        }
 
         const user = await tx.user.update({
           where: { id: userId },
@@ -223,7 +234,7 @@ export class AdminUsersService {
             banned: true,
             banReason: reason,
             banExpires: expires,
-            lifecycleStatus: "SUSPENDED",
+            lifecycleStatus: 'SUSPENDED',
           },
           select: { id: true },
         });
@@ -231,8 +242,8 @@ export class AdminUsersService {
         await tx.auditLog.create({
           data: {
             actorId,
-            action: "USER_BANNED",
-            entityType: "User",
+            action: 'USER_BANNED',
+            entityType: 'User',
             entityId: userId,
             reason,
             before: {
@@ -241,14 +252,14 @@ export class AdminUsersService {
             },
             after: {
               banned: true,
-              lifecycleStatus: "SUSPENDED",
+              lifecycleStatus: 'SUSPENDED',
               expiresAt: expires?.toISOString() ?? null,
             },
           },
         });
         return { id: user.id, banned: true };
       },
-      { isolationLevel: "Serializable", maxWait: 5_000, timeout: 10_000 },
+      { isolationLevel: 'Serializable', maxWait: 5_000, timeout: 10_000 },
     );
   }
 
@@ -271,16 +282,23 @@ export class AdminUsersService {
         if (!actor || !target) throw new NotFoundException();
         this.assertActiveActor(actor);
 
-        if (ELEVATED_ROLES.has(target.role) && actor.role !== "SUPER_ADMIN") {
+        if (target.role === 'OWNER') {
           throw new ForbiddenException({
-            code: "SUPER_ADMIN_REQUIRED",
-            message: "Only a super administrator can restore an elevated account.",
+            code: 'OWNER_PROTECTED',
+            message:
+              'The application owner account is not governed by staff status actions.',
           });
         }
-        if (!target.banned || target.lifecycleStatus !== "SUSPENDED") {
+        if (target.role === 'STAFF' && actor.role !== 'OWNER') {
+          throw new ForbiddenException({
+            code: 'OWNER_REQUIRED',
+            message: 'Only the application owner can restore staff accounts.',
+          });
+        }
+        if (!target.banned || target.lifecycleStatus !== 'SUSPENDED') {
           throw new ConflictException({
-            code: "ACCOUNT_NOT_SUSPENDED",
-            message: "This account is not currently suspended.",
+            code: 'ACCOUNT_NOT_SUSPENDED',
+            message: 'This account is not currently suspended.',
           });
         }
 
@@ -290,37 +308,22 @@ export class AdminUsersService {
             banned: false,
             banReason: null,
             banExpires: null,
-            lifecycleStatus: "ACTIVE",
+            lifecycleStatus: 'ACTIVE',
           },
           select: { id: true },
         });
         await tx.auditLog.create({
           data: {
             actorId,
-            action: "USER_UNBANNED",
-            entityType: "User",
+            action: 'USER_UNBANNED',
+            entityType: 'User',
             entityId: userId,
           },
         });
         return { id: user.id, banned: false };
       },
-      { isolationLevel: "Serializable", maxWait: 5_000, timeout: 10_000 },
+      { isolationLevel: 'Serializable', maxWait: 5_000, timeout: 10_000 },
     );
-  }
-
-  private async assertNotRemovingLastSuperAdmin(
-    currentRole: string,
-    nextRole: string,
-    countActiveSuperAdmins: () => Promise<number>,
-  ) {
-    if (currentRole !== "SUPER_ADMIN" || nextRole === "SUPER_ADMIN") return;
-    const activeSuperAdmins = await countActiveSuperAdmins();
-    if (activeSuperAdmins <= 1) {
-      throw new ConflictException({
-        code: "LAST_SUPER_ADMIN",
-        message: "The final active super administrator cannot be removed.",
-      });
-    }
   }
 
   private assertActiveActor(actor: {
@@ -330,12 +333,12 @@ export class AdminUsersService {
   }): void {
     if (
       actor.banned ||
-      actor.lifecycleStatus !== "ACTIVE" ||
-      !["ADMIN", "SUPER_ADMIN"].includes(actor.role)
+      actor.lifecycleStatus !== 'ACTIVE' ||
+      !['OWNER', 'STAFF'].includes(actor.role)
     ) {
       throw new ForbiddenException({
-        code: "ADMIN_ACCESS_REVOKED",
-        message: "The acting administrator is not authorized.",
+        code: 'ADMIN_ACCESS_REVOKED',
+        message: 'The acting administrator is not authorized.',
       });
     }
   }

@@ -3,13 +3,16 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-} from "@nestjs/common";
-import { prisma } from "@real-estate/database";
-import { z } from "zod";
-import { publicAgentsQuerySchema, updateProfileSchema } from "@real-estate/contracts";
-import { assertActiveAccount } from "../../shared/auth/account-policy";
-import { decodeCursor, encodeCursor } from "../../shared/utils/cursor";
-import { apiEnv } from "../../bootstrap-env";
+} from '@nestjs/common';
+import { prisma } from '@real-estate/database';
+import { z } from 'zod';
+import {
+  publicAgentsQuerySchema,
+  updateProfileSchema,
+} from '@real-estate/contracts';
+import { assertActiveAccount } from '../../shared/auth/account-policy';
+import { decodeCursor, encodeCursor } from '../../shared/utils/cursor';
+import { apiEnv } from '../../bootstrap-env';
 
 @Injectable()
 export class ProfilesService {
@@ -28,14 +31,25 @@ export class ProfilesService {
     const search = query.search?.trim();
     const where = {
       verifiedAt: { not: null },
+      status: 'ACTIVE' as const,
       user: {
-        lifecycleStatus: "ACTIVE" as const,
+        role: 'AGENT' as const,
+        lifecycleStatus: 'ACTIVE' as const,
         banned: false,
         ...(search
           ? {
               OR: [
-                { name: { contains: search, mode: "insensitive" as const } },
-                { profile: { is: { username: { contains: search, mode: "insensitive" as const } } } },
+                { name: { contains: search, mode: 'insensitive' as const } },
+                {
+                  profile: {
+                    is: {
+                      username: {
+                        contains: search,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                  },
+                },
               ],
             }
           : {}),
@@ -61,9 +75,9 @@ export class ProfilesService {
     const rows = await prisma.agentProfile.findMany({
       where,
       orderBy: [
-        { averageRating: "desc" },
-        { reviewCount: "desc" },
-        { id: "desc" },
+        { averageRating: 'desc' },
+        { reviewCount: 'desc' },
+        { id: 'desc' },
       ],
       take: query.limit + 1,
       select: {
@@ -81,7 +95,7 @@ export class ProfilesService {
             profile: { select: { username: true } },
             _count: {
               select: {
-                listings: { where: { status: "PUBLISHED" } },
+                listings: { where: { status: 'PUBLISHED' } },
                 followedBy: true,
               },
             },
@@ -133,7 +147,7 @@ export class ProfilesService {
     const user = await prisma.user.findFirst({
       where: {
         id: userId,
-        ...(includePrivate ? {} : { lifecycleStatus: "ACTIVE", banned: false }),
+        ...(includePrivate ? {} : { lifecycleStatus: 'ACTIVE', banned: false }),
       },
       select: {
         id: true,
@@ -146,7 +160,7 @@ export class ProfilesService {
         profile: true,
         _count: {
           select: {
-            listings: { where: { status: "PUBLISHED" } },
+            listings: { where: { status: 'PUBLISHED' } },
             favorites: true,
             follows: true,
             followedBy: true,
@@ -193,10 +207,10 @@ export class ProfilesService {
     await assertActiveAccount(userId);
     const [imageAsset, coverAsset] = await Promise.all([
       input.imageAssetId
-        ? this.profileAsset(input.imageAssetId, userId, ["PROFILE_IMAGE"])
+        ? this.profileAsset(input.imageAssetId, userId, ['PROFILE_IMAGE'])
         : Promise.resolve(null),
       input.coverAssetId
-        ? this.profileAsset(input.coverAssetId, userId, ["COVER_IMAGE"])
+        ? this.profileAsset(input.coverAssetId, userId, ['COVER_IMAGE'])
         : Promise.resolve(null),
     ]);
 
@@ -230,8 +244,8 @@ export class ProfilesService {
         prisma.auditLog.create({
           data: {
             actorId: userId,
-            action: "PROFILE_UPDATED",
-            entityType: "User",
+            action: 'PROFILE_UPDATED',
+            entityType: 'User',
             entityId: userId,
           },
         }),
@@ -239,8 +253,8 @@ export class ProfilesService {
     } catch (error) {
       if (this.isUniqueConstraint(error)) {
         throw new ConflictException({
-          code: "PROFILE_VALUE_TAKEN",
-          message: "That username or phone number is already in use.",
+          code: 'PROFILE_VALUE_TAKEN',
+          message: 'That username or phone number is already in use.',
         });
       }
       throw error;
@@ -253,15 +267,15 @@ export class ProfilesService {
     await assertActiveAccount(followerId);
     if (targetUserId === followerId) {
       throw new BadRequestException({
-        code: "SELF_FOLLOW",
-        message: "You cannot follow your own profile.",
+        code: 'SELF_FOLLOW',
+        message: 'You cannot follow your own profile.',
       });
     }
 
     const target = await prisma.user.findFirst({
       where: {
         id: targetUserId,
-        lifecycleStatus: "ACTIVE",
+        lifecycleStatus: 'ACTIVE',
         banned: false,
       },
       select: { id: true },
@@ -289,8 +303,8 @@ export class ProfilesService {
     await assertActiveAccount(followerId);
     if (targetUserId === followerId) {
       throw new BadRequestException({
-        code: "SELF_FOLLOW",
-        message: "You cannot unfollow your own profile.",
+        code: 'SELF_FOLLOW',
+        message: 'You cannot unfollow your own profile.',
       });
     }
 
@@ -299,7 +313,7 @@ export class ProfilesService {
     });
     if (result.count === 0) {
       const target = await prisma.user.findFirst({
-        where: { id: targetUserId, lifecycleStatus: "ACTIVE", banned: false },
+        where: { id: targetUserId, lifecycleStatus: 'ACTIVE', banned: false },
         select: { id: true },
       });
       if (!target) throw new NotFoundException();
@@ -314,21 +328,21 @@ export class ProfilesService {
   private async profileAsset(
     assetId: string,
     ownerId: string,
-    purposes: Array<"PROFILE_IMAGE" | "COVER_IMAGE">,
+    purposes: Array<'PROFILE_IMAGE' | 'COVER_IMAGE'>,
   ) {
     const asset = await prisma.mediaAsset.findFirst({
       where: {
         id: assetId,
         ownerId,
         purpose: { in: purposes },
-        visibility: "PUBLIC",
-        status: "READY",
+        visibility: 'PUBLIC',
+        status: 'READY',
       },
       select: {
         objectKey: true,
         variants: {
-          where: { name: { in: ["profile", "card", "large"] } },
-          orderBy: { name: "asc" },
+          where: { name: { in: ['profile', 'card', 'large'] } },
+          orderBy: { name: 'asc' },
           take: 1,
           select: { objectKey: true },
         },
@@ -336,23 +350,24 @@ export class ProfilesService {
     });
     if (!asset) {
       throw new BadRequestException({
-        code: "PROFILE_MEDIA_NOT_READY",
-        message: "The selected profile image is unavailable or still processing.",
+        code: 'PROFILE_MEDIA_NOT_READY',
+        message:
+          'The selected profile image is unavailable or still processing.',
       });
     }
     return { objectKey: asset.variants[0]?.objectKey ?? asset.objectKey };
   }
 
   private mediaUrl(objectKey: string) {
-    return `${apiEnv.CDN_BASE_URL.replace(/\/$/, "")}/${objectKey}`;
+    return `${apiEnv.CDN_BASE_URL.replace(/\/$/, '')}/${objectKey}`;
   }
 
   private isUniqueConstraint(error: unknown) {
     return Boolean(
       error &&
-        typeof error === "object" &&
-        "code" in error &&
-        (error as { code?: string }).code === "P2002",
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code?: string }).code === 'P2002',
     );
   }
 }

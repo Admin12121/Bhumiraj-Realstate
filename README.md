@@ -30,7 +30,7 @@ docs           Architecture, schema, security, testing and runbooks
 
 ## Full Docker development environment
 
-Bun and Docker are required on the development machine.
+Docker is required on the development machine. The local Compose stack runs the application containers in mounted development mode: source files are bind-mounted into `/workspace`, dependencies live in Linux named volumes, and the web/API/worker processes run watch/dev commands.
 
 ```bash
 cp .env.example .env
@@ -43,7 +43,14 @@ Open:
 - Application: `http://localhost:8080`
 - MinIO console: `http://localhost:9001`
 
-The API container applies Prisma migrations, seeds the local platform admin and bootstraps MinIO buckets before serving. PostgreSQL/PostGIS, Redis, MinIO and ClamAV are local-only dependencies. Local MinIO uses global CORS via `MINIO_API_CORS_ALLOW_ORIGIN`; per-bucket CORS is opt-in with `S3_CONFIGURE_BUCKET_CORS=true` for S3 backends that support it cleanly.
+The API container applies Prisma migrations and bootstraps MinIO buckets before serving. Owner seeding is off by default and runs only when `SEED_ADMIN_ON_START=true` with explicit credentials; it refuses to replace an existing owner. PostgreSQL/PostGIS, Redis, MinIO and ClamAV are local-only dependencies. Local MinIO uses global CORS via `MINIO_API_CORS_ALLOW_ORIGIN`; per-bucket CORS is opt-in with `S3_CONFIGURE_BUCKET_CORS=true` for S3 backends that support it cleanly.
+
+Local code-change behavior:
+
+- Changes under `apps/web` are picked up by `next dev`.
+- Changes under `apps/api` and `apps/worker` are picked up by Nest watch mode.
+- Changes under `packages/*` are compiled during container startup. If a shared package edit is not picked up by the running app, restart the affected app container with `docker compose restart api web worker`.
+- Rebuild images only when Dockerfiles, Alpine packages, or Compose build settings change. Ordinary TypeScript/React edits should not need `docker compose build`.
 
 ## Host-based application development
 

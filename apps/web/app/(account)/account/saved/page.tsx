@@ -1,1 +1,12 @@
-import{AccountShell}from"@/features/account/components/account-shell";import{SavedProperties}from"@/features/account/components/saved-properties";export default function Page(){return <AccountShell title="Saved properties" description="Properties you bookmarked for later."><SavedProperties/></AccountShell>}
+﻿import { AccountShell, SavedProperties } from "../_components";
+
+export default function Page() {
+  return (
+    <AccountShell
+      title="Saved properties"
+      description="Properties you bookmarked for later."
+    >
+      <SavedProperties />
+    </AccountShell>
+  );
+}

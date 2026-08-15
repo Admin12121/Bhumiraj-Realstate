@@ -1,4 +1,5 @@
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join, relative, extname, basename } from "node:path";
 import process from "node:process";
 
@@ -15,6 +16,10 @@ const ignoredDirectories = new Set([
   "coverage",
   "playwright-report",
   "test-results",
+  "generated",
+  "CodeSandbox",
+  ".bun-cache",
+  ".codex-tmp",
 ]);
 
 function walk(directory) {
@@ -34,9 +39,22 @@ const sourceFiles = allFiles.filter((file) =>
   [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"].includes(extname(file)),
 );
 const packageFiles = allFiles.filter((file) => basename(file) === "package.json");
+const relativePath = (file) => relative(root, file).replaceAll("\\", "/");
+let trackedFiles = null;
+try {
+  trackedFiles = new Set(
+    execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" })
+      .split("\0")
+      .filter(Boolean)
+      .map((file) => file.replaceAll("\\", "/")),
+  );
+} catch {
+  // Source archives may not contain Git metadata. In that case every file in
+  // the archive is treated as distributed.
+}
 
 for (const file of packageFiles) {
-  const rel = relative(root, file);
+  const rel = relativePath(file);
   let manifest;
   try {
     manifest = JSON.parse(readFileSync(file, "utf8"));
@@ -58,7 +76,7 @@ for (const file of packageFiles) {
 }
 
 for (const file of sourceFiles) {
-  const rel = relative(root, file);
+  const rel = relativePath(file);
   if (rel === "scripts/static-audit.mjs") continue;
   const text = readFileSync(file, "utf8");
   const checks = [
@@ -79,9 +97,13 @@ for (const file of sourceFiles) {
 }
 
 for (const file of allFiles) {
-  const rel = relative(root, file);
+  const rel = relativePath(file);
   const name = basename(file);
-  if (name.startsWith(".env") && name !== ".env.example") {
+  if (
+    name.startsWith(".env") &&
+    name !== ".env.example" &&
+    (!trackedFiles || trackedFiles.has(rel))
+  ) {
     errors.push(`${rel}: environment secret file must not be distributed`);
   }
 }

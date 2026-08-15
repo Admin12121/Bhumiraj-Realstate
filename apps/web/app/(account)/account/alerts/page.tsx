@@ -1,1 +1,12 @@
-import{AccountShell}from"@/features/account/components/account-shell";import{AlertsCenter}from"@/features/account/components/alerts-center";export default function Page(){return <AccountShell title="Search alerts" description="Saved searches and new-property notifications."><AlertsCenter/></AccountShell>}
+﻿import { AccountShell, AlertsCenter } from "../_components";
+
+export default function Page() {
+  return (
+    <AccountShell
+      title="Search alerts"
+      description="Saved searches and new-property notifications."
+    >
+      <AlertsCenter />
+    </AccountShell>
+  );
+}

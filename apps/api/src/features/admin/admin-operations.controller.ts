@@ -6,9 +6,9 @@ import {
   Patch,
   Query,
   UseGuards,
-} from "@nestjs/common";
-import { z } from "zod";
-import { Session, type UserSession } from "@thallesp/nestjs-better-auth";
+} from '@nestjs/common';
+import { z } from 'zod';
+import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import {
   adminAgentsQuerySchema,
   adminAuditQuerySchema,
@@ -17,13 +17,14 @@ import {
   idSchema,
   moderationDecisionSchema,
   platformSettingsSchema,
-} from "@real-estate/contracts";
-import { prisma, type Prisma } from "@real-estate/database";
-import { Roles } from "../../shared/auth/roles.decorator";
-import { RolesGuard } from "../../shared/auth/roles.guard";
-import { ZodValidationPipe } from "../../shared/http/zod-validation.pipe";
+} from '@real-estate/contracts';
+import { prisma, type Prisma } from '@real-estate/database';
+import { StaffPermissions } from '../../shared/auth/staff-permissions.decorator';
+import { StaffPermissionsGuard } from '../../shared/auth/staff-permissions.guard';
+import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
+import { ADMIN_PERMISSIONS } from './admin.permissions';
 
-const moderationKindSchema = z.enum(["listing", "user"]);
+const moderationKindSchema = z.enum(['listing', 'user']);
 
 const DEFAULT_SETTINGS = {
   propertyModerationRequired: true,
@@ -33,11 +34,11 @@ const DEFAULT_SETTINGS = {
   maximumPropertyImages: 50,
 };
 
-@Controller("api/v1/admin")
-@UseGuards(RolesGuard)
-@Roles("MODERATOR", "ADMIN", "SUPER_ADMIN")
+@Controller('api/v1/admin')
+@UseGuards(StaffPermissionsGuard)
 export class AdminOperationsController {
-  @Get("overview")
+  @Get('overview')
+  @StaffPermissions(ADMIN_PERMISSIONS.OVERVIEW_READ)
   async overview() {
     const startOfDay = new Date();
     startOfDay.setUTCHours(0, 0, 0, 0);
@@ -56,25 +57,31 @@ export class AdminOperationsController {
       recentActivity,
       pendingListings,
     ] = await prisma.$transaction([
-      prisma.listing.count({ where: { status: "PUBLISHED" } }),
-      prisma.auction.count({ where: { status: "LIVE" } }),
+      prisma.listing.count({ where: { status: 'PUBLISHED' } }),
+      prisma.auction.count({ where: { status: 'LIVE' } }),
       prisma.user.count({
         where: {
           emailVerified: true,
           banned: false,
-          lifecycleStatus: "ACTIVE",
+          lifecycleStatus: 'ACTIVE',
         },
       }),
-      prisma.listing.count({ where: { status: "PENDING_REVIEW" } }),
-      prisma.listingReport.count({ where: { status: { in: ["OPEN", "IN_REVIEW"] } } }),
-      prisma.userReport.count({ where: { status: { in: ["OPEN", "IN_REVIEW"] } } }),
+      prisma.listing.count({ where: { status: 'PENDING_REVIEW' } }),
+      prisma.listingReport.count({
+        where: { status: { in: ['OPEN', 'IN_REVIEW'] } },
+      }),
+      prisma.userReport.count({
+        where: { status: { in: ['OPEN', 'IN_REVIEW'] } },
+      }),
       prisma.user.count(),
       prisma.agentProfile.count({ where: { verifiedAt: { not: null } } }),
       prisma.bid.count({ where: { acceptedAt: { gte: startOfDay } } }),
-      prisma.outboxEvent.count({ where: { status: { in: ["PENDING", "FAILED"] } } }),
+      prisma.outboxEvent.count({
+        where: { status: { in: ['PENDING', 'FAILED'] } },
+      }),
       prisma.auditLog.findMany({
         take: 8,
-        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         select: {
           id: true,
           action: true,
@@ -85,9 +92,9 @@ export class AdminOperationsController {
         },
       }),
       prisma.listing.findMany({
-        where: { status: "PENDING_REVIEW" },
+        where: { status: 'PENDING_REVIEW' },
         take: 5,
-        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         select: {
           id: true,
           title: true,
@@ -125,21 +132,41 @@ export class AdminOperationsController {
       })),
     };
   }
-  @Get("moderation")
+  @Get('moderation')
+  @StaffPermissions(ADMIN_PERMISSIONS.MODERATION_READ)
   async moderation(
     @Query(new ZodValidationPipe(adminModerationQuerySchema))
     query: z.infer<typeof adminModerationQuerySchema>,
   ) {
     const skip = (query.page - 1) * query.pageSize;
-    if (query.kind === "USER_REPORT") {
+    if (query.kind === 'USER_REPORT') {
       const where: Prisma.UserReportWhereInput = {
         ...(query.status ? { status: query.status } : {}),
         ...(query.search
           ? {
               OR: [
-                { reason: { contains: query.search, mode: "insensitive" as const } },
-                { reportedUser: { name: { contains: query.search, mode: "insensitive" as const } } },
-                { reportedUser: { email: { contains: query.search, mode: "insensitive" as const } } },
+                {
+                  reason: {
+                    contains: query.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+                {
+                  reportedUser: {
+                    name: {
+                      contains: query.search,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                },
+                {
+                  reportedUser: {
+                    email: {
+                      contains: query.search,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                },
               ],
             }
           : {}),
@@ -160,7 +187,7 @@ export class AdminOperationsController {
       return this.page(
         rows.map((row) => ({
           id: row.id,
-          kind: "USER_REPORT" as const,
+          kind: 'USER_REPORT' as const,
           subjectId: row.reportedUserId,
           subjectLabel: row.reportedUser.name,
           reporter: row.reporter,
@@ -179,8 +206,20 @@ export class AdminOperationsController {
       ...(query.search
         ? {
             OR: [
-              { reason: { contains: query.search, mode: "insensitive" as const } },
-              { listing: { title: { contains: query.search, mode: "insensitive" as const } } },
+              {
+                reason: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                listing: {
+                  title: {
+                    contains: query.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              },
             ],
           }
         : {}),
@@ -201,7 +240,7 @@ export class AdminOperationsController {
     return this.page(
       rows.map((row) => ({
         id: row.id,
-        kind: "LISTING_REPORT" as const,
+        kind: 'LISTING_REPORT' as const,
         subjectId: row.listingId,
         subjectLabel: row.listing.title,
         reporter: row.reporter,
@@ -215,26 +254,33 @@ export class AdminOperationsController {
     );
   }
 
-  @Patch("moderation/:kind/:id")
+  @Patch('moderation/:kind/:id')
+  @StaffPermissions(ADMIN_PERMISSIONS.MODERATION_MANAGE)
   async moderate(
-    @Param("kind", new ZodValidationPipe(moderationKindSchema))
+    @Param('kind', new ZodValidationPipe(moderationKindSchema))
     kind: z.infer<typeof moderationKindSchema>,
-    @Param("id", new ZodValidationPipe(idSchema)) id: string,
+    @Param('id', new ZodValidationPipe(idSchema)) id: string,
     @Body(new ZodValidationPipe(moderationDecisionSchema))
-    body: { status: "IN_REVIEW" | "RESOLVED" | "DISMISSED"; reason: string },
+    body: { status: 'IN_REVIEW' | 'RESOLVED' | 'DISMISSED'; reason: string },
     @Session() session: UserSession,
   ) {
     return prisma.$transaction(async (tx) => {
-      if (kind === "listing") {
-        await tx.listingReport.update({ where: { id }, data: { status: body.status } });
+      if (kind === 'listing') {
+        await tx.listingReport.update({
+          where: { id },
+          data: { status: body.status },
+        });
       } else {
-        await tx.userReport.update({ where: { id }, data: { status: body.status } });
+        await tx.userReport.update({
+          where: { id },
+          data: { status: body.status },
+        });
       }
       await tx.auditLog.create({
         data: {
           actorId: session.user.id,
-          action: "REPORT_REVIEWED",
-          entityType: kind === "listing" ? "ListingReport" : "UserReport",
+          action: 'REPORT_REVIEWED',
+          entityType: kind === 'listing' ? 'ListingReport' : 'UserReport',
           entityId: id,
           reason: body.reason,
           after: { status: body.status },
@@ -244,7 +290,8 @@ export class AdminOperationsController {
     });
   }
 
-  @Get("agents")
+  @Get('agents')
+  @StaffPermissions(ADMIN_PERMISSIONS.AGENTS_READ)
   async agents(
     @Query(new ZodValidationPipe(adminAgentsQuerySchema))
     query: z.infer<typeof adminAgentsQuerySchema>,
@@ -253,14 +300,37 @@ export class AdminOperationsController {
       ...(query.search
         ? {
             OR: [
-              { user: { name: { contains: query.search, mode: "insensitive" as const } } },
-              { user: { email: { contains: query.search, mode: "insensitive" as const } } },
-              { licenseNumber: { contains: query.search, mode: "insensitive" as const } },
+              {
+                user: {
+                  name: {
+                    contains: query.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              },
+              {
+                user: {
+                  email: {
+                    contains: query.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              },
+              {
+                licenseNumber: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
             ],
           }
         : {}),
       ...(query.verified !== undefined
         ? { verifiedAt: query.verified ? { not: null } : null }
+        : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(query.availabilityStatus
+        ? { availabilityStatus: query.availabilityStatus }
         : {}),
     };
     const [rows, total] = await prisma.$transaction([
@@ -275,7 +345,9 @@ export class AdminOperationsController {
               id: true,
               name: true,
               email: true,
-              _count: { select: { listings: { where: { status: "PUBLISHED" } } } },
+              _count: {
+                select: { listings: { where: { status: 'PUBLISHED' } } },
+              },
             },
           },
         },
@@ -290,6 +362,10 @@ export class AdminOperationsController {
         email: row.user.email,
         licenseNumber: row.licenseNumber,
         verifiedAt: row.verifiedAt?.toISOString() ?? null,
+        status: row.status,
+        availabilityStatus: row.availabilityStatus,
+        maxActiveCases: row.maxActiveCases,
+        statusReason: row.statusReason,
         averageRating: Number(row.averageRating),
         reviewCount: row.reviewCount,
         activeListings: row.user._count.listings,
@@ -300,7 +376,8 @@ export class AdminOperationsController {
     );
   }
 
-  @Get("audit")
+  @Get('audit')
+  @StaffPermissions(ADMIN_PERMISSIONS.AUDIT_READ)
   async audit(
     @Query(new ZodValidationPipe(adminAuditQuerySchema))
     query: z.infer<typeof adminAuditQuerySchema>,
@@ -309,13 +386,30 @@ export class AdminOperationsController {
       ...(query.search
         ? {
             OR: [
-              { entityId: { contains: query.search, mode: "insensitive" as const } },
-              { reason: { contains: query.search, mode: "insensitive" as const } },
-              { actor: { email: { contains: query.search, mode: "insensitive" as const } } },
+              {
+                entityId: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                reason: {
+                  contains: query.search,
+                  mode: 'insensitive' as const,
+                },
+              },
+              {
+                actor: {
+                  email: {
+                    contains: query.search,
+                    mode: 'insensitive' as const,
+                  },
+                },
+              },
             ],
           }
         : {}),
-      ...(query.action ? { action: query.action as any } : {}),
+      ...(query.action ? { action: query.action } : {}),
       ...(query.entityType ? { entityType: query.entityType } : {}),
     };
     const [rows, total] = await prisma.$transaction([
@@ -344,18 +438,39 @@ export class AdminOperationsController {
     );
   }
 
-  @Get("messages")
+  @Get('messages')
+  @StaffPermissions(ADMIN_PERMISSIONS.MESSAGES_READ)
   async messages(
     @Query(new ZodValidationPipe(adminPaginationQuerySchema))
     query: z.infer<typeof adminPaginationQuerySchema>,
   ) {
     const where = {
-      type: "SUPPORT" as const,
+      type: 'SUPPORT' as const,
       ...(query.search
         ? {
             OR: [
-              { messages: { some: { body: { contains: query.search, mode: "insensitive" as const } } } },
-              { participants: { some: { user: { email: { contains: query.search, mode: "insensitive" as const } } } } },
+              {
+                messages: {
+                  some: {
+                    body: {
+                      contains: query.search,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                },
+              },
+              {
+                participants: {
+                  some: {
+                    user: {
+                      email: {
+                        contains: query.search,
+                        mode: 'insensitive' as const,
+                      },
+                    },
+                  },
+                },
+              },
             ],
           }
         : {}),
@@ -367,8 +482,16 @@ export class AdminOperationsController {
         take: query.pageSize,
         orderBy: { updatedAt: query.direction },
         include: {
-          participants: { include: { user: { select: { id: true, name: true, email: true } } } },
-          messages: { take: 1, orderBy: { createdAt: "desc" }, select: { body: true, createdAt: true } },
+          participants: {
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
+          },
+          messages: {
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+            select: { body: true, createdAt: true },
+          },
           _count: { select: { messages: true } },
         },
       }),
@@ -380,7 +503,10 @@ export class AdminOperationsController {
         type: row.type,
         participants: row.participants.map((participant) => participant.user),
         lastMessage: row.messages[0]
-          ? { body: row.messages[0].body, createdAt: row.messages[0].createdAt.toISOString() }
+          ? {
+              body: row.messages[0].body,
+              createdAt: row.messages[0].createdAt.toISOString(),
+            }
           : null,
         messageCount: row._count.messages,
         updatedAt: row.updatedAt.toISOString(),
@@ -390,33 +516,37 @@ export class AdminOperationsController {
     );
   }
 
-  @Get("settings")
-  @Roles("ADMIN", "SUPER_ADMIN")
+  @Get('settings')
+  @StaffPermissions(ADMIN_PERMISSIONS.SETTINGS_READ)
   async settings() {
-    const row = await prisma.systemSetting.findUnique({ where: { key: "platform" } });
+    const row = await prisma.systemSetting.findUnique({
+      where: { key: 'platform' },
+    });
     return platformSettingsSchema.parse(row?.value ?? DEFAULT_SETTINGS);
   }
 
-  @Patch("settings")
-  @Roles("ADMIN", "SUPER_ADMIN")
+  @Patch('settings')
+  @StaffPermissions(ADMIN_PERMISSIONS.SETTINGS_MANAGE)
   async updateSettings(
     @Body(new ZodValidationPipe(platformSettingsSchema))
     body: z.infer<typeof platformSettingsSchema>,
     @Session() session: UserSession,
   ) {
-    const before = await prisma.systemSetting.findUnique({ where: { key: "platform" } });
+    const before = await prisma.systemSetting.findUnique({
+      where: { key: 'platform' },
+    });
     await prisma.$transaction(async (tx) => {
       await tx.systemSetting.upsert({
-        where: { key: "platform" },
+        where: { key: 'platform' },
         update: { value: body, updatedById: session.user.id },
-        create: { key: "platform", value: body, updatedById: session.user.id },
+        create: { key: 'platform', value: body, updatedById: session.user.id },
       });
       await tx.auditLog.create({
         data: {
           actorId: session.user.id,
-          action: "SETTINGS_UPDATED",
-          entityType: "SystemSetting",
-          entityId: "platform",
+          action: 'SETTINGS_UPDATED',
+          entityType: 'SystemSetting',
+          entityId: 'platform',
           before: before?.value ?? DEFAULT_SETTINGS,
           after: body,
         },
@@ -425,7 +555,11 @@ export class AdminOperationsController {
     return body;
   }
 
-  private page(items: unknown[], total: number, query: { page: number; pageSize: number }) {
+  private page(
+    items: unknown[],
+    total: number,
+    query: { page: number; pageSize: number },
+  ) {
     return {
       items,
       page: query.page,

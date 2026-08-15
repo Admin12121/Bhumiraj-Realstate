@@ -1,0 +1,617 @@
+"use client"
+
+import { useEffect, useState, type FormEvent } from "react"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import type { z } from "zod"
+import type { adminAgentSchema } from "@real-estate/contracts"
+import {
+  Copy,
+  MailPlus,
+  Plus,
+  Search,
+  Settings2,
+  ShieldCheck,
+  UserRoundX,
+} from "lucide-react"
+import { toast } from "sonner"
+import {
+  createAgent,
+  createAgentInvitation,
+  getAdminAgents,
+  getAgentCandidates,
+  getAgentInvitations,
+  revokeAgentInvitation,
+  setAgentAvailability,
+  setAgentStatus,
+} from "@/features/admin/api/admin-api"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
+import { Form } from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { Textarea } from "@/components/ui/textarea"
+import { AdminPagination } from "./admin-pagination"
+
+type Agent = z.infer<typeof adminAgentSchema>
+const availabilityItems = [
+  { label: "Available", value: "AVAILABLE" as const },
+  { label: "Unavailable", value: "UNAVAILABLE" as const },
+  { label: "At capacity", value: "AT_CAPACITY" as const },
+]
+
+export function AgentGovernancePanel() {
+  const client = useQueryClient()
+  const [page, setPage] = useState(1)
+  const [search, setSearch] = useState("")
+  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [adding, setAdding] = useState(false)
+  const [candidateSearch, setCandidateSearch] = useState("")
+  const [candidateId, setCandidateId] = useState("")
+  const [inviting, setInviting] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState("")
+  const [inviteLink, setInviteLink] = useState("")
+  const [statusAgent, setStatusAgent] = useState<Agent | null>(null)
+  const [nextStatus, setNextStatus] = useState<
+    "ACTIVE" | "SUSPENDED" | "RETIRED"
+  >("ACTIVE")
+  const [reason, setReason] = useState("")
+  const [availabilityAgent, setAvailabilityAgent] = useState<Agent | null>(null)
+  const [availability, setAvailability] = useState<
+    "AVAILABLE" | "UNAVAILABLE" | "AT_CAPACITY"
+  >("UNAVAILABLE")
+  const [capacity, setCapacity] = useState(10)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300)
+    return () => clearTimeout(timer)
+  }, [search])
+
+  const agents = useQuery({
+    queryKey: ["admin", "agents", page, debouncedSearch],
+    queryFn: () => getAdminAgents(page, debouncedSearch),
+    placeholderData: (previous) => previous,
+  })
+  const candidates = useQuery({
+    queryKey: ["admin", "agent-candidates", candidateSearch.trim()],
+    queryFn: () => getAgentCandidates(candidateSearch.trim()),
+    enabled: adding && candidateSearch.trim().length >= 2,
+  })
+  const invitations = useQuery({
+    queryKey: ["admin", "agent-invitations"],
+    queryFn: () => getAgentInvitations(1),
+  })
+  const refresh = async () => {
+    await Promise.all([
+      client.invalidateQueries({ queryKey: ["admin", "agents"] }),
+      client.invalidateQueries({ queryKey: ["admin", "agent-invitations"] }),
+    ])
+  }
+  const add = useMutation({
+    mutationFn: () => createAgent(candidateId),
+    onSuccess: async () => {
+      toast.success("Customer onboarded as a pending agent and signed out.")
+      setAdding(false)
+      setCandidateId("")
+      setCandidateSearch("")
+      await refresh()
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
+  const invite = useMutation({
+    mutationFn: () => createAgentInvitation(inviteEmail),
+    onSuccess: async (result) => {
+      setInviteLink(result.inviteLink)
+      toast.success(
+        result.delivery === "SENT"
+          ? "Agent invitation sent."
+          : "Invitation created; copy its secure link."
+      )
+      await refresh()
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
+  const changeStatus = useMutation({
+    mutationFn: () => {
+      if (!statusAgent) throw new Error("No agent selected.")
+      return setAgentStatus(statusAgent.id, nextStatus, reason || null)
+    },
+    onSuccess: async () => {
+      toast.success("Agent lifecycle updated.")
+      setStatusAgent(null)
+      await refresh()
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
+  const changeAvailability = useMutation({
+    mutationFn: () => {
+      if (!availabilityAgent) throw new Error("No agent selected.")
+      return setAgentAvailability(availabilityAgent.id, availability, capacity)
+    },
+    onSuccess: async () => {
+      toast.success("Agent availability updated.")
+      setAvailabilityAgent(null)
+      await refresh()
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
+  const revokeInvite = useMutation({
+    mutationFn: revokeAgentInvitation,
+    onSuccess: refresh,
+    onError: (error: Error) => toast.error(error.message),
+  })
+
+  const openStatus = (
+    agent: Agent,
+    status: "ACTIVE" | "SUSPENDED" | "RETIRED"
+  ) => {
+    setStatusAgent(agent)
+    setNextStatus(status)
+    setReason("")
+  }
+
+  return (
+    <div className="space-y-6">
+      <section className="surface overflow-hidden rounded-2xl">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-5">
+          <div>
+            <h2 className="font-semibold">Agent lifecycle</h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Agents are platform accounts, never staff roles.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setInviting(true)}>
+              <MailPlus /> Invite agent
+            </Button>
+            <Button onClick={() => setAdding(true)}>
+              <Plus /> Add customer
+            </Button>
+          </div>
+        </div>
+        <div className="border-b p-4">
+          <div className="relative max-w-md">
+            <Search className="absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                setPage(1)
+              }}
+              placeholder="Search agents"
+              aria-label="Search agents"
+              className="[&_input]:pl-9"
+            />
+          </div>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="px-5">Agent</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Availability</TableHead>
+              <TableHead>Rating</TableHead>
+              <TableHead>Capacity</TableHead>
+              <TableHead className="px-5 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {agents.data?.items.map((agent) => (
+              <TableRow key={agent.id}>
+                <TableCell className="px-5 py-4">
+                  <p className="font-medium">{agent.name}</p>
+                  <p className="text-xs text-muted-foreground">{agent.email}</p>
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      agent.status === "ACTIVE"
+                        ? "success"
+                        : agent.status === "SUSPENDED"
+                          ? "error"
+                          : "warning"
+                    }
+                  >
+                    {agent.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {agent.availabilityStatus.replace("_", " ")}
+                </TableCell>
+                <TableCell>
+                  {agent.averageRating.toFixed(1)} ({agent.reviewCount})
+                </TableCell>
+                <TableCell>{agent.maxActiveCases}</TableCell>
+                <TableCell className="px-5">
+                  <div className="flex justify-end gap-2">
+                    {agent.status !== "ACTIVE" &&
+                      agent.status !== "RETIRED" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openStatus(agent, "ACTIVE")}
+                        >
+                          <ShieldCheck /> Approve
+                        </Button>
+                      )}
+                    {agent.status === "ACTIVE" && (
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        aria-label={`Manage availability for ${agent.email}`}
+                        onClick={() => {
+                          setAvailabilityAgent(agent)
+                          setAvailability(agent.availabilityStatus)
+                          setCapacity(agent.maxActiveCases)
+                        }}
+                      >
+                        <Settings2 />
+                      </Button>
+                    )}
+                    {agent.status !== "SUSPENDED" &&
+                      agent.status !== "RETIRED" && (
+                        <Button
+                          size="icon"
+                          variant="destructive-outline"
+                          aria-label={`Suspend ${agent.email}`}
+                          onClick={() => openStatus(agent, "SUSPENDED")}
+                        >
+                          <UserRoundX />
+                        </Button>
+                      )}
+                    {agent.status !== "RETIRED" && (
+                      <Button
+                        size="sm"
+                        variant="destructive-outline"
+                        onClick={() => openStatus(agent, "RETIRED")}
+                      >
+                        Retire
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+            {(agents.isPending || agents.data?.items.length === 0) && (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="p-10 text-center text-muted-foreground"
+                >
+                  {agents.isPending
+                    ? "Loading agents…"
+                    : "No agents match this search."}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+        <AdminPagination
+          page={agents.data?.page ?? page}
+          pageCount={agents.data?.pageCount ?? 1}
+          onPage={setPage}
+        />
+      </section>
+
+      <section className="surface overflow-hidden rounded-2xl">
+        <div className="border-b p-5">
+          <h2 className="font-semibold">Agent invitations</h2>
+        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="px-5">Email</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Expires</TableHead>
+              <TableHead className="px-5 text-right">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {invitations.data?.items.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell className="px-5 font-medium">{item.email}</TableCell>
+                <TableCell>
+                  <Badge
+                    variant={
+                      item.status === "PENDING" ? "warning" : "secondary"
+                    }
+                  >
+                    {item.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {new Date(item.expiresAt).toLocaleString()}
+                </TableCell>
+                <TableCell className="px-5 text-right">
+                  <Button
+                    size="sm"
+                    variant="destructive-outline"
+                    disabled={item.status !== "PENDING"}
+                    onClick={() => revokeInvite.mutate(item.id)}
+                  >
+                    Revoke
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </section>
+
+      <Dialog open={adding} onOpenChange={setAdding}>
+        <DialogPopup>
+          <DialogHeader>
+            <DialogTitle>Add existing customer</DialogTitle>
+            <DialogDescription>
+              The agent starts pending and unavailable.
+            </DialogDescription>
+          </DialogHeader>
+          <Form
+            className="contents"
+            onSubmit={(event: FormEvent<HTMLFormElement>) => {
+              event.preventDefault()
+              add.mutate()
+            }}
+          >
+            <DialogPanel className="space-y-4">
+              <Field>
+                <FieldLabel>Find customer</FieldLabel>
+                <Input
+                  value={candidateSearch}
+                  onChange={(event) => {
+                    setCandidateSearch(event.target.value)
+                    setCandidateId("")
+                  }}
+                  minLength={2}
+                  placeholder="Name or email"
+                />
+              </Field>
+              <div className="space-y-2 rounded-xl border p-2">
+                {candidates.data?.map((candidate) => (
+                  <Button
+                    key={candidate.id}
+                    type="button"
+                    variant={
+                      candidateId === candidate.id ? "secondary" : "ghost"
+                    }
+                    className="h-auto w-full justify-start text-left"
+                    onClick={() => setCandidateId(candidate.id)}
+                  >
+                    <span>
+                      <span className="block">{candidate.name}</span>
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        {candidate.email}
+                      </span>
+                    </span>
+                  </Button>
+                ))}
+              </div>
+            </DialogPanel>
+            <DialogFooter>
+              <DialogClose render={<Button variant="outline" />}>
+                Cancel
+              </DialogClose>
+              <Button
+                type="submit"
+                loading={add.isPending}
+                disabled={!candidateId}
+              >
+                Create pending agent
+              </Button>
+            </DialogFooter>
+          </Form>
+        </DialogPopup>
+      </Dialog>
+
+      <Dialog open={inviting} onOpenChange={setInviting}>
+        <DialogPopup>
+          <DialogHeader>
+            <DialogTitle>Invite an agent</DialogTitle>
+            <DialogDescription>
+              The invitation expires after seven days.
+            </DialogDescription>
+          </DialogHeader>
+          <Form
+            className="contents"
+            onSubmit={(event: FormEvent<HTMLFormElement>) => {
+              event.preventDefault()
+              invite.mutate()
+            }}
+          >
+            <DialogPanel className="space-y-4">
+              <Field>
+                <FieldLabel>Email</FieldLabel>
+                <Input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(event) => setInviteEmail(event.target.value)}
+                  required
+                />
+              </Field>
+              {inviteLink && (
+                <Alert variant="success">
+                  <MailPlus />
+                  <AlertTitle>Invitation ready</AlertTitle>
+                  <AlertDescription>
+                    <div className="mt-2 flex gap-2">
+                      <Input value={inviteLink} readOnly />
+                      <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        aria-label="Copy invitation link"
+                        onClick={() =>
+                          void navigator.clipboard.writeText(inviteLink)
+                        }
+                      >
+                        <Copy />
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </DialogPanel>
+            <DialogFooter>
+              <DialogClose render={<Button variant="outline" />}>
+                Close
+              </DialogClose>
+              <Button
+                type="submit"
+                loading={invite.isPending}
+                disabled={!inviteEmail.trim()}
+              >
+                Create invitation
+              </Button>
+            </DialogFooter>
+          </Form>
+        </DialogPopup>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(statusAgent)}
+        onOpenChange={(open) => !open && setStatusAgent(null)}
+      >
+        <DialogPopup>
+          <DialogHeader>
+            <DialogTitle>
+              {nextStatus === "ACTIVE"
+                ? "Approve agent"
+                : nextStatus === "SUSPENDED"
+                  ? "Suspend agent"
+                  : "Retire agent"}
+            </DialogTitle>
+            <DialogDescription>
+              {nextStatus === "RETIRED"
+                ? "Retirement is terminal and returns this account to customer status."
+                : "Suspension closes every active session."}
+            </DialogDescription>
+          </DialogHeader>
+          <Form
+            className="contents"
+            onSubmit={(event: FormEvent<HTMLFormElement>) => {
+              event.preventDefault()
+              changeStatus.mutate()
+            }}
+          >
+            <DialogPanel>
+              {nextStatus !== "ACTIVE" && (
+                <Field>
+                  <FieldLabel>Reason</FieldLabel>
+                  <Textarea
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    minLength={3}
+                    maxLength={500}
+                    required
+                  />
+                </Field>
+              )}
+            </DialogPanel>
+            <DialogFooter>
+              <DialogClose render={<Button variant="outline" />}>
+                Cancel
+              </DialogClose>
+              <Button
+                type="submit"
+                variant={nextStatus === "ACTIVE" ? "default" : "destructive"}
+                loading={changeStatus.isPending}
+                disabled={nextStatus !== "ACTIVE" && reason.trim().length < 3}
+              >
+                Confirm
+              </Button>
+            </DialogFooter>
+          </Form>
+        </DialogPopup>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(availabilityAgent)}
+        onOpenChange={(open) => !open && setAvailabilityAgent(null)}
+      >
+        <DialogPopup>
+          <DialogHeader>
+            <DialogTitle>Agent availability</DialogTitle>
+            <DialogDescription>
+              Control whether this active agent can receive new work.
+            </DialogDescription>
+          </DialogHeader>
+          <Form
+            className="contents"
+            onSubmit={(event: FormEvent<HTMLFormElement>) => {
+              event.preventDefault()
+              changeAvailability.mutate()
+            }}
+          >
+            <DialogPanel className="space-y-4">
+              <Field>
+                <FieldLabel>Availability</FieldLabel>
+                <Select
+                  items={availabilityItems}
+                  value={availability}
+                  onValueChange={(value) => value && setAvailability(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {availabilityItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              </Field>
+              <Field>
+                <FieldLabel>Maximum active cases</FieldLabel>
+                <Input
+                  type="number"
+                  min={0}
+                  max={1000}
+                  value={capacity}
+                  onChange={(event) => setCapacity(Number(event.target.value))}
+                />
+                <FieldDescription>
+                  Assignment enforcement will connect to this limit in Phase 4.
+                </FieldDescription>
+              </Field>
+            </DialogPanel>
+            <DialogFooter>
+              <DialogClose render={<Button variant="outline" />}>
+                Cancel
+              </DialogClose>
+              <Button type="submit" loading={changeAvailability.isPending}>
+                Save
+              </Button>
+            </DialogFooter>
+          </Form>
+        </DialogPopup>
+      </Dialog>
+    </div>
+  )
+}

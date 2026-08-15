@@ -65,14 +65,25 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const response = context.getResponse<Response>();
     const request = context.getRequest<Request & { requestId?: string }>();
 
-    let status = HttpStatus.INTERNAL_SERVER_ERROR;
+    let status: number = HttpStatus.INTERNAL_SERVER_ERROR;
     let payload: ApiErrorPayload = {};
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const raw = exception.getResponse();
-      payload =
-        typeof raw === "string" ? { message: raw } : (raw as ApiErrorPayload);
+      if (typeof raw === "string") {
+        payload = { message: raw };
+      } else if (raw && typeof raw === "object") {
+        const errorPayload = raw as Record<string, unknown>;
+        payload = {
+          ...(typeof errorPayload.code === "string" ? { code: errorPayload.code } : {}),
+          ...(typeof errorPayload.message === "string" ||
+          (Array.isArray(errorPayload.message) && errorPayload.message.every((item) => typeof item === "string"))
+            ? { message: errorPayload.message }
+            : {}),
+          ...(errorPayload.details !== undefined ? { details: errorPayload.details } : {}),
+        };
+      }
     } else {
       const mapped = databaseHttpError(exception);
       if (mapped) {

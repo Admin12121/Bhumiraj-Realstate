@@ -60,6 +60,7 @@ export class AuctionsGateway implements OnModuleInit, OnModuleDestroy {
   }
 
   async handleConnection(client: Socket): Promise<void> {
+    const socketData = client.data as Record<string, unknown>;
     const trustedOrigin = normalizedOrigin(apiEnv.APP_URL);
     const requestOrigin = normalizedOrigin(client.handshake.headers.origin);
     const hasCookie = Boolean(client.handshake.headers.cookie);
@@ -79,13 +80,13 @@ export class AuctionsGateway implements OnModuleInit, OnModuleDestroy {
       }
       const session = await auth.api.getSession({ headers });
       if (session?.user?.id) {
-        client.data.user = session.user;
+        socketData.user = session.user;
         await client.join(`user:${session.user.id}`);
       }
     } catch {
       // A public auction connection may remain anonymous. Authentication
       // failures must never expose internal details over the socket handshake.
-      client.data.user = undefined;
+      socketData.user = undefined;
     }
   }
 
