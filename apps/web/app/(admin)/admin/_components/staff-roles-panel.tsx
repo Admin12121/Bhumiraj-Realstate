@@ -14,6 +14,7 @@ import {
   updateStaffRole,
 } from "@/features/admin/api/admin-api"
 import { useHasStaffPermission } from "./admin-shell"
+import { useStepUp } from "./step-up-dialog"
 import {
   AlertDialog,
   AlertDialogClose,
@@ -67,6 +68,7 @@ const emptyDraft: RoleDraft = {
 }
 
 export function StaffRolesPanel() {
+  const { guard } = useStepUp()
   const client = useQueryClient()
   const query = useQuery({
     queryKey: ["admin", "rbac", "catalog"],
@@ -91,13 +93,15 @@ export function StaffRolesPanel() {
         position,
       }
       if (editing === "new")
-        return createStaffRole({
-          ...base,
-          permissionKeys: draft.permissionKeys,
-        })
+        return guard(() =>
+          createStaffRole({ ...base, permissionKeys: draft.permissionKeys })
+        )
       if (!editing) throw new Error("No role selected.")
-      await updateStaffRole(editing.id, base)
-      return setStaffRolePermissions(editing.id, draft.permissionKeys)
+      const role = editing
+      return guard(async () => {
+        await updateStaffRole(role.id, base)
+        return setStaffRolePermissions(role.id, draft.permissionKeys)
+      })
     },
     onSuccess: async () => {
       toast.success(
@@ -109,7 +113,7 @@ export function StaffRolesPanel() {
     onError: (error: Error) => toast.error(error.message),
   })
   const remove = useMutation({
-    mutationFn: (id: string) => deleteStaffRole(id),
+    mutationFn: (id: string) => guard(() => deleteStaffRole(id)),
     onSuccess: async () => {
       toast.success("Staff role deleted.")
       setDeleting(null)

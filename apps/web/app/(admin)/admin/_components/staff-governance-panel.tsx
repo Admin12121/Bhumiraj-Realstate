@@ -50,7 +50,10 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+import { useStepUp } from "./step-up-dialog"
+
 export function StaffGovernancePanel() {
+  const { guard } = useStepUp()
   const client = useQueryClient()
   const [inviteOpen, setInviteOpen] = useState(false)
   const [email, setEmail] = useState("")
@@ -85,7 +88,7 @@ export function StaffGovernancePanel() {
     catalog.data?.roles.filter((role) => role.manageable) ?? []
 
   const invite = useMutation({
-    mutationFn: () => createStaffInvitation(email, roleIds),
+    mutationFn: () => guard(() => createStaffInvitation(email, roleIds)),
     onSuccess: async (result) => {
       setInviteLink(result.inviteLink)
       toast.success(
@@ -100,7 +103,7 @@ export function StaffGovernancePanel() {
     onError: (error: Error) => toast.error(error.message),
   })
   const revoke = useMutation({
-    mutationFn: revokeStaffInvitation,
+    mutationFn: (id: string) => guard(() => revokeStaffInvitation(id)),
     onSuccess: async () => {
       setRevokingInvitationId(null)
       toast.success("Staff invitation revoked.")
@@ -111,7 +114,8 @@ export function StaffGovernancePanel() {
     onError: (error: Error) => toast.error(error.message),
   })
   const transfer = useMutation({
-    mutationFn: () => transferOwnership(targetUserId, previousOwnerRoleIds),
+    mutationFn: () =>
+      guard(() => transferOwnership(targetUserId, previousOwnerRoleIds)),
     onSuccess: () => location.assign("/sign-in"),
     onError: (error: Error) => toast.error(error.message),
   })

@@ -25,6 +25,7 @@ import {
   setAgentStatus,
 } from "@/features/admin/api/admin-api"
 import { useHasStaffPermission } from "./admin-shell"
+import { useStepUp } from "./step-up-dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -67,6 +68,7 @@ const availabilityItems = [
 ]
 
 export function AgentGovernancePanel() {
+  const { guard } = useStepUp()
   const client = useQueryClient()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
@@ -115,7 +117,7 @@ export function AgentGovernancePanel() {
     ])
   }
   const add = useMutation({
-    mutationFn: () => createAgent(candidateId),
+    mutationFn: () => guard(() => createAgent(candidateId)),
     onSuccess: async () => {
       toast.success("Customer onboarded as a pending agent and signed out.")
       setAdding(false)
@@ -126,7 +128,7 @@ export function AgentGovernancePanel() {
     onError: (error: Error) => toast.error(error.message),
   })
   const invite = useMutation({
-    mutationFn: () => createAgentInvitation(inviteEmail),
+    mutationFn: () => guard(() => createAgentInvitation(inviteEmail)),
     onSuccess: async (result) => {
       setInviteLink(result.inviteLink)
       toast.success(
@@ -141,7 +143,8 @@ export function AgentGovernancePanel() {
   const changeStatus = useMutation({
     mutationFn: () => {
       if (!statusAgent) throw new Error("No agent selected.")
-      return setAgentStatus(statusAgent.id, nextStatus, reason || null)
+      const agent = statusAgent
+      return guard(() => setAgentStatus(agent.id, nextStatus, reason || null))
     },
     onSuccess: async () => {
       toast.success("Agent lifecycle updated.")
@@ -163,7 +166,7 @@ export function AgentGovernancePanel() {
     onError: (error: Error) => toast.error(error.message),
   })
   const revokeInvite = useMutation({
-    mutationFn: revokeAgentInvitation,
+    mutationFn: (id: string) => guard(() => revokeAgentInvitation(id)),
     onSuccess: refresh,
     onError: (error: Error) => toast.error(error.message),
   })

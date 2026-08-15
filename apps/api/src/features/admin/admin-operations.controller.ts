@@ -19,7 +19,10 @@ import {
   platformSettingsSchema,
 } from '@real-estate/contracts';
 import { prisma, type Prisma } from '@real-estate/database';
-import { StaffPermissions } from '../../shared/auth/staff-permissions.decorator';
+import {
+  StaffPermissions,
+  StrongAuth,
+} from '../../shared/auth/staff-permissions.decorator';
 import { StaffPermissionsGuard } from '../../shared/auth/staff-permissions.guard';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { ADMIN_PERMISSIONS } from './admin.permissions';
@@ -527,6 +530,7 @@ export class AdminOperationsController {
 
   @Patch('settings')
   @StaffPermissions(ADMIN_PERMISSIONS.SETTINGS_MANAGE)
+  @StrongAuth()
   async updateSettings(
     @Body(new ZodValidationPipe(platformSettingsSchema))
     body: z.infer<typeof platformSettingsSchema>,

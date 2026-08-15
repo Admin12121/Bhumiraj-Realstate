@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { formatMinorAmount } from "@/shared/utilities/money";
 import { actOnAdminAuction, getAdminAuctions } from "@/features/admin/api/admin-api";
 import { AdminPagination } from "./admin-pagination";
-import { useHasStaffPermission } from "./admin-shell";
+import { useHasStaffPermission } from "./admin-shell"
+import { useStepUp } from "./step-up-dialog";
 
 const auctionStatuses = [
   "DRAFT",
@@ -20,6 +21,7 @@ const auctionStatuses = [
 ] as const;
 
 export function AdminAuctionsTable() {
+  const { guard } = useStepUp()
   const queryClient = useQueryClient();
   const canManage = useHasStaffPermission("admin.auctions.manage");
   const [page, setPage] = useState(1);
@@ -46,7 +48,7 @@ export function AdminAuctionsTable() {
       if (kind === "CANCEL" && !reason) {
         throw new Error("A cancellation reason is required.");
       }
-      return actOnAdminAuction(id, kind, reason);
+      return guard(() => actOnAdminAuction(id, kind, reason));
     },
     onSuccess: async () => {
       toast.success("Auction state updated.");

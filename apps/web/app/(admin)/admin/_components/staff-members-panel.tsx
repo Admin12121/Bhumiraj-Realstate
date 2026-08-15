@@ -24,6 +24,7 @@ import {
   setStaffMemberRoles,
 } from "@/features/admin/api/admin-api"
 import { useHasStaffPermission } from "./admin-shell"
+import { useStepUp } from "./step-up-dialog"
 import {
   AlertDialog,
   AlertDialogClose,
@@ -64,6 +65,7 @@ import { AdminPagination } from "./admin-pagination"
 type StaffMember = z.infer<typeof staffMemberSchema>
 
 export function StaffMembersPanel() {
+  const { guard } = useStepUp()
   const client = useQueryClient()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
@@ -115,7 +117,7 @@ export function StaffMembersPanel() {
   }
 
   const promote = useMutation({
-    mutationFn: () => createStaffMember(candidateId, selectedRoleIds),
+    mutationFn: () => guard(() => createStaffMember(candidateId, selectedRoleIds)),
     onSuccess: async () => {
       toast.success("Customer promoted to staff. They must sign in again.")
       setPromoting(false)
@@ -127,7 +129,8 @@ export function StaffMembersPanel() {
   const updateRoles = useMutation({
     mutationFn: async () => {
       if (!editing) throw new Error("No staff member selected.")
-      await setStaffMemberRoles(editing.id, selectedRoleIds)
+      const member = editing
+      await guard(() => setStaffMemberRoles(member.id, selectedRoleIds))
     },
     onSuccess: async () => {
       toast.success("Staff roles updated.")
@@ -137,7 +140,7 @@ export function StaffMembersPanel() {
     onError: (error: Error) => toast.error(error.message),
   })
   const revoke = useMutation({
-    mutationFn: (userId: string) => revokeStaffMember(userId),
+    mutationFn: (userId: string) => guard(() => revokeStaffMember(userId)),
     onSuccess: async () => {
       toast.success("Staff access revoked. Active sessions were terminated.")
       setRevoking(null)
@@ -154,7 +157,7 @@ export function StaffMembersPanel() {
       member: StaffMember
       status: "ACTIVE" | "SUSPENDED"
       reason?: string
-    }) => setStaffMemberStatus(member.id, status, reason),
+    }) => guard(() => setStaffMemberStatus(member.id, status, reason)),
     onSuccess: async (_, variables) => {
       toast.success(
         variables.status === "SUSPENDED"

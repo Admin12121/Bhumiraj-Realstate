@@ -43,6 +43,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { AdminPagination } from "./admin-pagination"
 import { useHasStaffPermission } from "./admin-shell"
+import { useStepUp } from "./step-up-dialog"
 
 const accountTypes = ["USER", "AGENT"] as const
 const accountTypeFilters = ["ALL", "OWNER", "STAFF", "AGENT", "USER"] as const
@@ -63,6 +64,7 @@ const statusItems = statuses.map((value) => ({
 }))
 
 export function AdminUsersTable() {
+  const { guard } = useStepUp()
   const canManageType = useHasStaffPermission("admin.users.type.manage")
   const canManageStatus = useHasStaffPermission("admin.users.status.manage")
   const queryClient = useQueryClient()
@@ -105,9 +107,10 @@ export function AdminUsersTable() {
       reason?: string
     }) => {
       if (input.kind === "accountType")
-        return setAdminUserAccountType(input.id, input.accountType!)
-      if (input.kind === "ban") return banAdminUser(input.id, input.reason!)
-      return unbanAdminUser(input.id)
+        return guard(() => setAdminUserAccountType(input.id, input.accountType!))
+      if (input.kind === "ban")
+        return guard(() => banAdminUser(input.id, input.reason!))
+      return guard(() => unbanAdminUser(input.id))
     },
     onSuccess: async () => {
       toast.success("User account updated.")

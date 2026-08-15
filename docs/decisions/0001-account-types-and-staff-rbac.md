@@ -1,7 +1,7 @@
 # ADR 0001: Fixed account types and custom staff RBAC
 
 Date: 2026-08-13  
-Status: accepted
+Status: accepted; the strong-authentication clause is superseded by ADR 0003
 
 ## Context
 
@@ -15,7 +15,7 @@ The initial global role field mixed public identity (`USER`, `AGENT`) with platf
 - Treat PostgreSQL as the runtime authorization source. Better Auth identifies the signed-in account and account type but does not own custom staff permissions.
 - Give `OWNER` every registered permission. This bypass applies only to business permissions, never authentication, strong-authentication checks, audit recording, database integrity, or domain invariants.
 - Use role positions for hierarchy. Staff may manage only lower-position roles and may not grant permissions they do not themselves possess.
-- Require a passkey or password plus 2FA for protected administration endpoints outside the E2E environment.
+- ~~Require a passkey or password plus 2FA for protected administration endpoints outside the E2E environment.~~ Superseded by ADR 0003: entry needs only an active staff account, and step-up is required per action for operations that change authority or live auction state.
 - Return resolved capabilities from the API and render administration navigation/actions from those capabilities. UI hiding is convenience only; every operation remains guarded by the API.
 - Enforce one owner with a partial unique database index. Owner creation or replacement is not part of ordinary user/staff mutation endpoints.
 

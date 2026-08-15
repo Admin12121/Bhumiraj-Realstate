@@ -22,6 +22,7 @@ import {
 import {
   FreshStaffSession,
   StaffPermissions,
+  StrongAuth,
 } from '../../shared/auth/staff-permissions.decorator';
 import {
   StaffPermissionsGuard,
@@ -47,6 +48,7 @@ export class PlatformGovernanceAdminController {
 
   @Post('staff-invitations')
   @StaffPermissions(ADMIN_PERMISSIONS.STAFF_MANAGE)
+  @StrongAuth()
   createStaffInvitation(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
@@ -62,6 +64,7 @@ export class PlatformGovernanceAdminController {
 
   @Delete('staff-invitations/:id')
   @StaffPermissions(ADMIN_PERMISSIONS.STAFF_MANAGE)
+  @StrongAuth()
   revokeStaffInvitation(
     @Session() session: UserSession,
     @Param('id', new ZodValidationPipe(idSchema)) id: string,
@@ -80,6 +83,7 @@ export class PlatformGovernanceAdminController {
 
   @Post('agent-invitations')
   @StaffPermissions(ADMIN_PERMISSIONS.AGENTS_MANAGE)
+  @StrongAuth()
   createAgentInvitation(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
@@ -95,6 +99,7 @@ export class PlatformGovernanceAdminController {
 
   @Delete('agent-invitations/:id')
   @StaffPermissions(ADMIN_PERMISSIONS.AGENTS_MANAGE)
+  @StrongAuth()
   revokeAgentInvitation(
     @Session() session: UserSession,
     @Param('id', new ZodValidationPipe(idSchema)) id: string,

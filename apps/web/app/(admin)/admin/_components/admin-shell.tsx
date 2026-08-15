@@ -4,7 +4,6 @@ import Link from "next/link"
 import { createContext, useContext, useEffect, type ReactNode } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
-import { HttpError } from "@real-estate/http"
 import {
   BarChart3,
   Bell,
@@ -25,6 +24,8 @@ import { BrandLogo } from "@/shared/components/brand-logo"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MobileBottomNavigation } from "@/app/_components/mobile-bottom-navigation"
+import { StepUpProvider } from "./step-up-dialog"
+import { TwoFactorNudge } from "./two-factor-nudge"
 import type { NavigationItem } from "@/app/_components/navigation-model"
 
 const sections = [
@@ -149,26 +150,6 @@ export function RequireStaffPermission({
   return <>{children}</>
 }
 
-function AccessNotice({
-  title,
-  description,
-  action,
-}: {
-  title: string
-  description: string
-  action?: ReactNode
-}) {
-  return (
-    <div className="grid min-h-screen place-items-center px-6">
-      <div className="max-w-md space-y-3 text-center">
-        <h1 className="text-lg font-semibold">{title}</h1>
-        <p className="text-sm text-muted-foreground">{description}</p>
-        {action}
-      </div>
-    </div>
-  )
-}
-
 function AdminNavigation({
   pathname,
   permissions,
@@ -234,45 +215,14 @@ export function AdminShell({
     staleTime: 30_000,
   })
 
-  const accessCode =
-    access.error instanceof HttpError ? access.error.code : undefined
-  // A staff member who only needs to strengthen their sign-in must be told so
-  // rather than being bounced home as though they were never staff.
-  const recoverable =
-    accessCode === "STAFF_STEP_UP_REQUIRED" ||
-    accessCode === "STAFF_FRESH_SESSION_REQUIRED"
-
   useEffect(() => {
     if (session.isPending) return
     if (!session.data) {
       router.replace(`/sign-in?callbackURL=${encodeURIComponent(pathname)}`)
       return
     }
-    if (access.isError && !recoverable) router.replace("/")
-  }, [
-    access.isError,
-    pathname,
-    recoverable,
-    router,
-    session.data,
-    session.isPending,
-  ])
-
-  if (access.isError && recoverable) {
-    return (
-      <AccessNotice
-        title="Stronger sign-in required"
-        description={
-          access.error instanceof HttpError
-            ? access.error.message
-            : "Administration requires a passkey or a password sign-in completed with two-factor authentication."
-        }
-        action={
-          <Button render={<Link href="/account/security">Manage sign-in security</Link>} />
-        }
-      />
-    )
-  }
+    if (access.isError) router.replace("/")
+  }, [access.isError, pathname, router, session.data, session.isPending])
 
   if (session.isPending || access.isPending || !session.data || !access.data) {
     return (
@@ -301,6 +251,7 @@ export function AdminShell({
 
   return (
     <StaffPermissionsContext.Provider value={permissions}>
+    <StepUpProvider>
     <div className="min-h-screen bg-[#f7f9f7]">
       <aside className="fixed inset-y-0 left-0 hidden w-[258px] border-r bg-white p-5 lg:flex lg:flex-col">
         {nav}
@@ -366,6 +317,7 @@ export function AdminShell({
           </div>
         </header>
         <main id="main-content" className="p-5 lg:p-8">
+          <TwoFactorNudge />
           {denied ? (
             <div className="mx-auto max-w-md space-y-3 py-16 text-center">
               <h2 className="text-lg font-semibold">
@@ -388,6 +340,7 @@ export function AdminShell({
         onSignOut={handleSignOut}
       />
     </div>
+    </StepUpProvider>
     </StaffPermissionsContext.Provider>
   )
 }

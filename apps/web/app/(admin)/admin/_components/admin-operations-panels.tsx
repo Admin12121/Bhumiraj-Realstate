@@ -13,6 +13,7 @@ import {
   updatePlatformSettings,
 } from "@/features/admin/api/admin-api";
 import { useHasStaffPermission } from "./admin-shell";
+import { useStepUp } from "./step-up-dialog";
 
 export function ModerationPanel() {
   const client = useQueryClient();
@@ -61,11 +62,12 @@ type PlatformSettings = Awaited<ReturnType<typeof getPlatformSettings>>;
 
 export function SettingsPanel() {
   const client = useQueryClient();
+  const { guard } = useStepUp();
   const canManage = useHasStaffPermission("admin.settings.manage");
   const query = useQuery({ queryKey: ["admin", "settings"], queryFn: getPlatformSettings });
   const [draft, setDraft] = useState<PlatformSettings | null>(null);
   const values = draft ?? query.data;
-  const mutation = useMutation({ mutationFn: updatePlatformSettings, onSuccess: async () => { toast.success("Platform settings saved."); setDraft(null); await client.invalidateQueries({ queryKey: ["admin", "settings"] }); }, onError: (error: Error) => toast.error(error.message) });
+  const mutation = useMutation({ mutationFn: (next: PlatformSettings) => guard(() => updatePlatformSettings(next)), onSuccess: async () => { toast.success("Platform settings saved."); setDraft(null); await client.invalidateQueries({ queryKey: ["admin", "settings"] }); }, onError: (error: Error) => toast.error(error.message) });
   if (!values) return <section className="surface rounded-2xl p-8 text-sm text-slate-500">Loading settingsâ€¦</section>;
   const set = <Key extends keyof PlatformSettings>(
     key: Key,

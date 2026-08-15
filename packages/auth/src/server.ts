@@ -6,6 +6,9 @@ import { passkey } from "@better-auth/passkey";
 import { createAuthMiddleware } from "better-auth/api";
 import { prisma } from "@real-estate/database";
 import { loadServerEnv, type ServerEnv } from "@real-estate/config";
+import { assertionUserVerified, classifyAuthMethod } from "./auth-method";
+
+export * from "./auth-method";
 
 export type AuthEmail = {
   to: string;
@@ -22,45 +25,6 @@ export type AuthDependencies = {
   }) => Promise<void>;
 };
 
-export type AuthMethod =
-  | "credential+2fa"
-  | "credential"
-  | "passkey"
-  | "social"
-  | "unknown";
-
-/**
- * Classifies the route that established a session. Matching stays substring
- * based so a Better Auth path revision does not silently downgrade a session
- * to `unknown`, which staff step-up treats as a failed strong authentication.
- */
-export function classifyAuthMethod(path: string): AuthMethod {
-  const normalized = path.toLowerCase();
-  if (
-    normalized.includes("two-factor") ||
-    normalized.includes("two_factor") ||
-    normalized.includes("verify-totp") ||
-    normalized.includes("verify-backup-code") ||
-    normalized.includes("otp")
-  ) {
-    return "credential+2fa";
-  }
-  if (normalized.includes("passkey") || normalized.includes("webauthn")) {
-    return "passkey";
-  }
-  if (
-    normalized.startsWith("/callback/") ||
-    normalized.includes("oauth") ||
-    normalized.includes("sign-in/social")
-  ) {
-    return "social";
-  }
-  if (normalized.includes("sign-in/email") || normalized.includes("sign-up")) {
-    return "credential";
-  }
-  return "unknown";
-}
-
 export function createAuth(dependencies: AuthDependencies = {}) {
   const env = dependencies.env ?? loadServerEnv();
   const appUrl = env.APP_URL;
@@ -76,14 +40,6 @@ export function createAuth(dependencies: AuthDependencies = {}) {
           google: {
             clientId: env.GOOGLE_CLIENT_ID,
             clientSecret: env.GOOGLE_CLIENT_SECRET,
-          },
-        }
-      : {}),
-    ...(env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET
-      ? {
-          github: {
-            clientId: env.GITHUB_CLIENT_ID,
-            clientSecret: env.GITHUB_CLIENT_SECRET,
           },
         }
       : {}),
@@ -143,10 +99,16 @@ export function createAuth(dependencies: AuthDependencies = {}) {
         authMethod: { type: "string", required: false, input: false },
       },
     },
+    advanced: {
+      // Cookies ignore ports, so the default `better-auth.*` names collide with
+      // any other Better Auth app served from localhost. A shared name lets a
+      // foreign session masquerade as one of ours.
+      cookiePrefix: "bhumiraj",
+    },
     account: {
       accountLinking: {
         enabled: true,
-        trustedProviders: ["google", "github"],
+        trustedProviders: ["google"],
         disableImplicitLinking: true,
       },
     },
@@ -185,7 +147,18 @@ export function createAuth(dependencies: AuthDependencies = {}) {
         const newSession = ctx.context.newSession;
         if (!newSession) return;
 
-        const authMethod = classifyAuthMethod(ctx.path);
+        // WebAuthn assertion shape: body.response.response.authenticatorData
+        const assertion = (
+          ctx.body as { response?: { response?: { authenticatorData?: unknown } } }
+        )?.response?.response;
+        const authMethod = classifyAuthMethod(ctx.path, {
+          userVerified: assertionUserVerified(assertion?.authenticatorData),
+        });
+        if (authMethod === "passkey-unverified") {
+          console.warn(
+            "Passkey assertion completed without user verification; the session is single-factor.",
+          );
+        }
         if (authMethod === "unknown") {
           // Staff step-up reads this column, so an unclassified sign-in route
           // locks every staff member out of administration at once.

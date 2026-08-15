@@ -27,6 +27,7 @@ import {
 import {
   FreshStaffSession,
   StaffPermissions,
+  StrongAuth,
 } from '../../shared/auth/staff-permissions.decorator';
 import {
   StaffPermissionsGuard,
@@ -59,6 +60,7 @@ export class StaffRbacController {
 
   @Post('roles')
   @StaffPermissions(ADMIN_PERMISSIONS.ROLES_MANAGE)
+  @StrongAuth()
   createRole(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
@@ -74,6 +76,7 @@ export class StaffRbacController {
 
   @Patch('roles/:id')
   @StaffPermissions(ADMIN_PERMISSIONS.ROLES_MANAGE)
+  @StrongAuth()
   updateRole(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
@@ -109,6 +112,7 @@ export class StaffRbacController {
 
   @Delete('roles/:id')
   @StaffPermissions(ADMIN_PERMISSIONS.ROLES_MANAGE)
+  @StrongAuth()
   deleteRole(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
@@ -133,6 +137,7 @@ export class StaffRbacController {
 
   @Post('staff')
   @StaffPermissions(ADMIN_PERMISSIONS.STAFF_MANAGE)
+  @StrongAuth()
   createStaff(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
@@ -157,6 +162,7 @@ export class StaffRbacController {
 
   @Post('staff/:userId/roles/:roleId')
   @StaffPermissions(ADMIN_PERMISSIONS.STAFF_MANAGE)
+  @StrongAuth()
   assignRole(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
@@ -173,6 +179,7 @@ export class StaffRbacController {
 
   @Put('staff/:userId/roles')
   @StaffPermissions(ADMIN_PERMISSIONS.STAFF_MANAGE)
+  @StrongAuth()
   setRoles(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
@@ -190,6 +197,7 @@ export class StaffRbacController {
 
   @Delete('staff/:userId/roles/:roleId')
   @StaffPermissions(ADMIN_PERMISSIONS.STAFF_MANAGE)
+  @StrongAuth()
   removeRole(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
@@ -206,6 +214,7 @@ export class StaffRbacController {
 
   @Delete('staff/:userId')
   @StaffPermissions(ADMIN_PERMISSIONS.STAFF_MANAGE)
+  @StrongAuth()
   revokeStaff(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
@@ -220,6 +229,7 @@ export class StaffRbacController {
 
   @Patch('staff/:userId/status')
   @StaffPermissions(ADMIN_PERMISSIONS.STAFF_MANAGE)
+  @StrongAuth()
   setStaffStatus(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,

@@ -1,14 +1,25 @@
 import { SetMetadata } from '@nestjs/common';
 
 export const STAFF_PERMISSIONS_KEY = 'required_staff_permissions';
+export const STAFF_STRONG_AUTH_KEY = 'required_staff_strong_auth';
 export const STAFF_FRESH_SESSION_KEY = 'required_staff_fresh_session';
 
 export const StaffPermissions = (...permissions: string[]) =>
   SetMetadata(STAFF_PERMISSIONS_KEY, permissions);
 
 /**
- * Requires a recently established session on top of the permission check, so
- * an irreversible action cannot ride a month-old cookie.
+ * Requires a session proving more than one factor: a user-verified passkey, or
+ * a password sign-in completed with two-factor authentication.
+ *
+ * Reaching the administration surface deliberately does not require this.
+ * Reserve it for actions that change authority or move live auction state,
+ * so ordinary staff work stays usable while consequential actions do not.
+ */
+export const StrongAuth = () => SetMetadata(STAFF_STRONG_AUTH_KEY, true);
+
+/**
+ * Requires a recently established strong session on top of the permission
+ * check, so an irreversible action cannot ride a month-old cookie.
  */
 export const FreshStaffSession = () =>
   SetMetadata(STAFF_FRESH_SESSION_KEY, true);

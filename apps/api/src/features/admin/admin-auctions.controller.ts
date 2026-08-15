@@ -17,7 +17,10 @@ import {
 } from "@real-estate/contracts";
 import { prisma, type Prisma } from "@real-estate/database";
 import { randomUUID } from "node:crypto";
-import { StaffPermissions } from "../../shared/auth/staff-permissions.decorator";
+import {
+  StaffPermissions,
+  StrongAuth,
+} from "../../shared/auth/staff-permissions.decorator";
 import { StaffPermissionsGuard } from "../../shared/auth/staff-permissions.guard";
 import { ZodValidationPipe } from "../../shared/http/zod-validation.pipe";
 import { ADMIN_PERMISSIONS } from "./admin.permissions";
@@ -72,6 +75,7 @@ export class AdminAuctionsController {
 
   @Post(":id/action")
   @StaffPermissions(ADMIN_PERMISSIONS.AUCTIONS_MANAGE)
+  @StrongAuth()
   async action(
     @Param("id", new ZodValidationPipe(idSchema)) id: string,
     @Body(new ZodValidationPipe(adminAuctionActionSchema))

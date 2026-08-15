@@ -32,8 +32,6 @@ export const serverEnvSchema = z
     PASSKEY_RP_ID: z.string().trim().min(1).optional(),
     GOOGLE_CLIENT_ID: optionalCredential,
     GOOGLE_CLIENT_SECRET: optionalCredential,
-    GITHUB_CLIENT_ID: optionalCredential,
-    GITHUB_CLIENT_SECRET: optionalCredential,
     REDIS_CACHE_URL: z.string().min(1),
     REDIS_CRITICAL_URL: z.string().min(1),
     S3_ENDPOINT: z.url().optional(),
@@ -62,7 +60,6 @@ export const serverEnvSchema = z
   .superRefine((env, context) => {
     const credentialPairs = [
       ["GOOGLE_CLIENT_ID", env.GOOGLE_CLIENT_ID, "GOOGLE_CLIENT_SECRET", env.GOOGLE_CLIENT_SECRET],
-      ["GITHUB_CLIENT_ID", env.GITHUB_CLIENT_ID, "GITHUB_CLIENT_SECRET", env.GITHUB_CLIENT_SECRET],
     ] as const;
 
     for (const [firstName, first, secondName, second] of credentialPairs) {

@@ -1,12 +1,15 @@
-﻿import { AccountShell, SecurityCenter } from "../_components";
+import { AccountShell, ConnectedAccounts, SecurityCenter } from "../_components";
 
 export default function Page() {
   return (
     <AccountShell
       title="Security"
-      description="Manage two-factor authentication, passkeys, sessions and account lifecycle."
+      description="Manage two-factor authentication, passkeys, connected accounts and sessions."
     >
-      <SecurityCenter />
+      <div className="space-y-6">
+        <SecurityCenter />
+        <ConnectedAccounts />
+      </div>
     </AccountShell>
   );
 }

@@ -1,39 +1,161 @@
-﻿"use client";
+"use client"
 
-import type { FormEvent } from "react";
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { authClient } from "@real-estate/auth/client";
-import { toast } from "sonner";
-import { safeReturnPath } from "@/shared/security/safe-return-path";
+import type { FormEvent } from "react"
+import { useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { Fingerprint, KeyRound, ShieldCheck } from "lucide-react"
+import { authClient } from "@real-estate/auth/client"
+import { toast } from "sonner"
+import { safeReturnPath } from "@/shared/security/safe-return-path"
+import { Button } from "@/components/ui/button"
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
+import { Input } from "@/components/ui/input"
+import { OTPField, OTPFieldInput } from "@/components/ui/otp-field"
+import { AuthSeparator } from "./auth-shared"
+
+type Method = "totp" | "backup" | "passkey"
+
+const TOTP_LENGTH = 6
 
 export function TwoFactorForm() {
-  const router = useRouter();
-  const search = useSearchParams();
-  const [backup, setBackup] = useState(false);
-  const [pending, setPending] = useState(false);
+  const router = useRouter()
+  const search = useSearchParams()
+  const callbackURL = safeReturnPath(search.get("callbackURL"))
+  const [method, setMethod] = useState<Method>("totp")
+  const [code, setCode] = useState("")
+  const [pending, setPending] = useState(false)
+
+  function succeed() {
+    router.push(callbackURL)
+    router.refresh()
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const code = String(new FormData(event.currentTarget).get("code"));
-    setPending(true);
-    const result = backup
-      ? await authClient.twoFactor.verifyBackupCode({ code, trustDevice: true })
-      : await authClient.twoFactor.verifyTotp({ code, trustDevice: true });
-    setPending(false);
-    if (result.error) return toast.error(result.error.message || "Invalid verification code");
-    router.push(safeReturnPath(search.get("callbackURL")));
-    router.refresh();
+    event.preventDefault()
+    setPending(true)
+    const result =
+      method === "backup"
+        ? await authClient.twoFactor.verifyBackupCode({
+            code,
+            trustDevice: true,
+          })
+        : await authClient.twoFactor.verifyTotp({ code, trustDevice: true })
+    setPending(false)
+    if (result.error) {
+      return toast.error(result.error.message || "That code was not accepted.")
+    }
+    succeed()
+  }
+
+  async function withPasskey() {
+    setPending(true)
+    const result = await authClient.signIn.passkey({ autoFill: false })
+    setPending(false)
+    if (result?.error) {
+      return toast.error(result.error.message || "Passkey verification failed.")
+    }
+    succeed()
+  }
+
+  if (method === "passkey") {
+    return (
+      <div className="flex flex-col gap-5">
+        <Button className="w-full" loading={pending} onClick={() => void withPasskey()}>
+          <Fingerprint />
+          Verify with a passkey
+        </Button>
+        <AuthSeparator label="Or" />
+        <MethodChooser current={method} onChoose={setMethod} />
+      </div>
+    )
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4">
-      <label className="block text-sm font-medium">
-        {backup ? "Backup code" : "Authenticator code"}
-        <input name="code" autoFocus inputMode={backup ? "text" : "numeric"} autoComplete="one-time-code" required minLength={6} maxLength={32} className="mt-2 h-12 w-full rounded-xl border px-4 text-center font-mono text-xl tracking-[.35em] outline-none focus:border-emerald-600" />
-      </label>
-      <button disabled={pending} className="brand-button h-11 w-full rounded-xl font-semibold">{pending ? "Verifyingâ€¦" : "Verify and continue"}</button>
-      <button type="button" onClick={() => setBackup((value) => !value)} className="w-full text-xs font-semibold text-emerald-700">{backup ? "Use authenticator code" : "Use a backup code"}</button>
-    </form>
-  );
+    <div className="flex flex-col gap-5">
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        {method === "totp" ? (
+          <Field>
+            <FieldLabel>Authenticator code</FieldLabel>
+            <OTPField
+              size="lg"
+              value={code}
+              onValueChange={setCode}
+              length={TOTP_LENGTH}
+              autoFocus
+              className="w-full justify-between"
+            >
+              {Array.from({ length: TOTP_LENGTH }, (_, index) => (
+                <OTPFieldInput key={index} />
+              ))}
+            </OTPField>
+            <FieldDescription>
+              Open your authenticator app and enter the current six-digit code.
+            </FieldDescription>
+          </Field>
+        ) : (
+          <Field>
+            <FieldLabel htmlFor="backup-code">Backup code</FieldLabel>
+            <Input
+              id="backup-code"
+              autoFocus
+              value={code}
+              onChange={(event) => setCode(event.target.value)}
+              autoComplete="one-time-code"
+              placeholder="Enter a saved backup code"
+              className="w-full font-mono"
+            />
+            <FieldDescription>
+              Each backup code works once. Generate new ones afterwards.
+            </FieldDescription>
+          </Field>
+        )}
+
+        <Button
+          type="submit"
+          className="w-full"
+          loading={pending}
+          disabled={code.trim().length < TOTP_LENGTH}
+        >
+          Verify and continue
+        </Button>
+      </form>
+
+      <AuthSeparator label="Or" />
+      <MethodChooser current={method} onChoose={setMethod} />
+    </div>
+  )
+}
+
+function MethodChooser({
+  current,
+  onChoose,
+}: {
+  current: Method
+  onChoose: (method: Method) => void
+}) {
+  const options: Array<{ id: Method; label: string; icon: typeof ShieldCheck }> = [
+    { id: "totp", label: "Use an authenticator code", icon: ShieldCheck },
+    { id: "backup", label: "Use a backup code", icon: KeyRound },
+    { id: "passkey", label: "Use a passkey", icon: Fingerprint },
+  ]
+
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="text-xs font-medium text-muted-foreground">Try another way</p>
+      {options
+        .filter((option) => option.id !== current)
+        .map(({ id, label, icon: Icon }) => (
+          <Button
+            key={id}
+            type="button"
+            variant="outline"
+            className="w-full justify-start"
+            onClick={() => onChoose(id)}
+          >
+            <Icon />
+            {label}
+          </Button>
+        ))}
+    </div>
+  )
 }

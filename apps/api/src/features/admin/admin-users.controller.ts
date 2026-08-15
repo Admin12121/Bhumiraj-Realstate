@@ -7,7 +7,10 @@ import {
   idSchema,
   setAccountTypeSchema,
 } from "@real-estate/contracts";
-import { StaffPermissions } from "../../shared/auth/staff-permissions.decorator";
+import {
+  StaffPermissions,
+  StrongAuth,
+} from "../../shared/auth/staff-permissions.decorator";
 import { StaffPermissionsGuard } from "../../shared/auth/staff-permissions.guard";
 import { ZodValidationPipe } from "../../shared/http/zod-validation.pipe";
 import { ADMIN_PERMISSIONS } from "./admin.permissions";
@@ -29,6 +32,7 @@ export class AdminUsersController {
 
   @Post(":id/account-type")
   @StaffPermissions(ADMIN_PERMISSIONS.USERS_TYPE_MANAGE)
+  @StrongAuth()
   accountType(
     @Param("id", new ZodValidationPipe(idSchema)) id: string,
     @Body(new ZodValidationPipe(setAccountTypeSchema))
@@ -40,6 +44,7 @@ export class AdminUsersController {
 
   @Post(":id/ban")
   @StaffPermissions(ADMIN_PERMISSIONS.USERS_STATUS_MANAGE)
+  @StrongAuth()
   ban(
     @Param("id", new ZodValidationPipe(idSchema)) id: string,
     @Body(new ZodValidationPipe(banUserSchema))
@@ -56,6 +61,7 @@ export class AdminUsersController {
 
   @Post(":id/unban")
   @StaffPermissions(ADMIN_PERMISSIONS.USERS_STATUS_MANAGE)
+  @StrongAuth()
   unban(
     @Param("id", new ZodValidationPipe(idSchema)) id: string,
     @Session() session: UserSession,

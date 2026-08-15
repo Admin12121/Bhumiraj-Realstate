@@ -65,7 +65,7 @@ function contentSecurityPolicy(): string {
     "default-src 'self';",
     `script-src 'self' 'unsafe-inline'${developmentScript};`,
     "style-src 'self' 'unsafe-inline';",
-    `img-src 'self' data: blob: ${media.origin} https://lh3.googleusercontent.com https://avatars.githubusercontent.com ${mapStyle.origin};`,
+    `img-src 'self' data: blob: ${media.origin} https://lh3.googleusercontent.com ${mapStyle.origin};`,
     "font-src 'self' data:;",
     `connect-src 'self' ${upload.origin} ${mapStyle.origin} ws: wss:;`,
     `media-src 'self' blob: ${media.origin};`,
@@ -105,11 +105,6 @@ const nextConfig: NextConfig = {
       {
         protocol: "https",
         hostname: "lh3.googleusercontent.com",
-        pathname: "/**",
-      },
-      {
-        protocol: "https",
-        hostname: "avatars.githubusercontent.com",
         pathname: "/**",
       },
     ],

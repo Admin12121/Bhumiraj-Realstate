@@ -11,7 +11,10 @@ import {
   StaffPermissionsGuard,
   type StaffAuthorizedRequest,
 } from './staff-permissions.guard';
-import { STAFF_FRESH_SESSION_KEY } from './staff-permissions.decorator';
+import {
+  STAFF_FRESH_SESSION_KEY,
+  STAFF_STRONG_AUTH_KEY,
+} from './staff-permissions.decorator';
 
 jest.mock('../../bootstrap-env', () => ({ apiEnv: { E2E_MODE: false } }));
 jest.mock('@real-estate/database', () => ({
@@ -40,11 +43,14 @@ function guardFor(
   required: string[],
   resolved: StaffAccessSnapshot | null,
   freshSessionRequired = false,
+  strongAuthRequired = false,
 ) {
   const reflector = {
-    getAllAndOverride: jest.fn((key: string) =>
-      key === STAFF_FRESH_SESSION_KEY ? freshSessionRequired : required,
-    ),
+    getAllAndOverride: jest.fn((key: string) => {
+      if (key === STAFF_FRESH_SESSION_KEY) return freshSessionRequired;
+      if (key === STAFF_STRONG_AUTH_KEY) return strongAuthRequired;
+      return required;
+    }),
   } as unknown as Reflector;
   const accessService = {
     resolve: jest.fn().mockResolvedValue(resolved),
@@ -72,7 +78,7 @@ describe('StaffPermissionsGuard', () => {
     ).rejects.toBeInstanceOf(ForbiddenException);
   });
 
-  it('requires strong authentication for staff access', async () => {
+  it('admits an ordinary password session to unmarked routes', async () => {
     const request = {
       session: { user: { id: 'staff-1' }, session: { id: 'session-1' } },
     };
@@ -80,7 +86,44 @@ describe('StaffPermissionsGuard', () => {
       guardFor([], { ...staffAccess, authMethod: 'credential' }).canActivate(
         contextFor(request),
       ),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    ).resolves.toBe(true);
+  });
+
+  it('demands step-up on a strong-auth route', async () => {
+    const request = {
+      session: { user: { id: 'staff-1' }, session: { id: 'session-1' } },
+    };
+    await expect(
+      guardFor(
+        [],
+        { ...staffAccess, authMethod: 'credential' },
+        false,
+        true,
+      ).canActivate(contextFor(request)),
+    ).rejects.toMatchObject({ response: { code: 'STAFF_STEP_UP_REQUIRED' } });
+  });
+
+  it('rejects a passkey that skipped user verification as a strong factor', async () => {
+    const request = {
+      session: { user: { id: 'staff-1' }, session: { id: 'session-1' } },
+    };
+    await expect(
+      guardFor(
+        [],
+        { ...staffAccess, authMethod: 'passkey-unverified' },
+        false,
+        true,
+      ).canActivate(contextFor(request)),
+    ).rejects.toMatchObject({ response: { code: 'STAFF_STEP_UP_REQUIRED' } });
+  });
+
+  it('accepts a user-verified passkey as a strong factor', async () => {
+    const request = {
+      session: { user: { id: 'staff-1' }, session: { id: 'session-1' } },
+    };
+    await expect(
+      guardFor([], staffAccess, false, true).canActivate(contextFor(request)),
+    ).resolves.toBe(true);
   });
 
   it('rejects a missing registered permission', async () => {

@@ -23,7 +23,16 @@ services:
     working_dir: /workspace
     command: >
       sh -lc "
-        bun install &&
+        bun install
+        # Dev compiles routes on first request, which makes the first click on
+        # a link look like it did nothing. Warm the common entry points.
+        (
+          until wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1; do sleep 2; done
+          for route in /sign-in /sign-up /properties /agents /account /admin; do
+            wget -qO- \"http://127.0.0.1:3000$$route\" >/dev/null 2>&1 || true
+          done
+          echo 'Warmed the common routes.'
+        ) &
         exec bun --cwd apps/web dev --hostname 0.0.0.0
       "
     environment:

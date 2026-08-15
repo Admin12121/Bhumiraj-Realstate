@@ -6,6 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { isStrongAuthMethod } from '@real-estate/auth/method';
 import { apiEnv } from '../../bootstrap-env';
 import {
   StaffAccessService,
@@ -14,6 +15,7 @@ import {
 import {
   STAFF_FRESH_SESSION_KEY,
   STAFF_PERMISSIONS_KEY,
+  STAFF_STRONG_AUTH_KEY,
 } from './staff-permissions.decorator';
 
 // Matches the Better Auth `freshAge` window configured for the platform.
@@ -32,16 +34,26 @@ export class StaffPermissionsGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const targets = [context.getHandler(), context.getClass()];
     const required =
-      this.reflector.getAllAndOverride<string[]>(STAFF_PERMISSIONS_KEY, [
-        context.getHandler(),
-        context.getClass(),
-      ]) ?? [];
-    const requiresFreshSession =
-      this.reflector.getAllAndOverride<boolean>(STAFF_FRESH_SESSION_KEY, [
-        context.getHandler(),
-        context.getClass(),
-      ]) ?? false;
+      this.reflector.getAllAndOverride<string[]>(
+        STAFF_PERMISSIONS_KEY,
+        targets,
+      ) ?? [];
+    const freshSessionRequired =
+      this.reflector.getAllAndOverride<boolean>(
+        STAFF_FRESH_SESSION_KEY,
+        targets,
+      ) ?? false;
+    // A fresh-session route is by definition also a strong-auth route.
+    const strongAuthRequired =
+      freshSessionRequired ||
+      (this.reflector.getAllAndOverride<boolean>(
+        STAFF_STRONG_AUTH_KEY,
+        targets,
+      ) ??
+        false);
+
     const request = context.switchToHttp().getRequest<StaffAuthorizedRequest>();
     const userId = request.session?.user?.id;
     if (!userId) throw new UnauthorizedException();
@@ -57,19 +69,17 @@ export class StaffPermissionsGuard implements CanActivate {
       });
     }
 
-    if (!apiEnv.E2E_MODE) {
-      const strongAuthentication =
-        access.authMethod === 'credential+2fa' ||
-        access.authMethod === 'passkey';
-      if (!strongAuthentication) {
+    // Entry to administration needs only an active staff session. Step-up is
+    // demanded per action so routine work is not gated behind enrolment.
+    if (strongAuthRequired && !apiEnv.E2E_MODE) {
+      if (!isStrongAuthMethod(access.authMethod)) {
         throw new ForbiddenException({
           code: 'STAFF_STEP_UP_REQUIRED',
           message:
-            'Staff access requires a passkey or a password session completed with two-factor authentication.',
+            'Confirm your identity to continue. This action needs a passkey or a two-factor code.',
         });
       }
-
-      if (requiresFreshSession && !this.isFreshSession(access)) {
+      if (freshSessionRequired && !this.isFreshSession(access)) {
         throw new ForbiddenException({
           code: 'STAFF_FRESH_SESSION_REQUIRED',
           message:
