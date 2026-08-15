@@ -5,6 +5,7 @@ export default function Page() {
     <AdminShell
       title="Platform settings"
       description="Controlled production defaults"
+      permission="admin.settings.read"
     >
       <SettingsPanel />
     </AdminShell>

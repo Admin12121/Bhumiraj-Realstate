@@ -11,7 +11,13 @@ import {
   StaffAccessService,
   type StaffAccessSnapshot,
 } from './staff-access.service';
-import { STAFF_PERMISSIONS_KEY } from './staff-permissions.decorator';
+import {
+  STAFF_FRESH_SESSION_KEY,
+  STAFF_PERMISSIONS_KEY,
+} from './staff-permissions.decorator';
+
+// Matches the Better Auth `freshAge` window configured for the platform.
+const FRESH_SESSION_MAX_AGE_MS = 30 * 60 * 1_000;
 
 export type StaffAuthorizedRequest = {
   session?: { user?: { id?: string }; session?: { id?: string } };
@@ -31,6 +37,11 @@ export class StaffPermissionsGuard implements CanActivate {
         context.getHandler(),
         context.getClass(),
       ]) ?? [];
+    const requiresFreshSession =
+      this.reflector.getAllAndOverride<boolean>(STAFF_FRESH_SESSION_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) ?? false;
     const request = context.switchToHttp().getRequest<StaffAuthorizedRequest>();
     const userId = request.session?.user?.id;
     if (!userId) throw new UnauthorizedException();
@@ -57,6 +68,14 @@ export class StaffPermissionsGuard implements CanActivate {
             'Staff access requires a passkey or a password session completed with two-factor authentication.',
         });
       }
+
+      if (requiresFreshSession && !this.isFreshSession(access)) {
+        throw new ForbiddenException({
+          code: 'STAFF_FRESH_SESSION_REQUIRED',
+          message:
+            'Sign in again to confirm this action. It requires a session established within the last 30 minutes.',
+        });
+      }
     }
 
     const missing = required.filter(
@@ -72,5 +91,12 @@ export class StaffPermissionsGuard implements CanActivate {
 
     request.staffAccess = access;
     return true;
+  }
+
+  private isFreshSession(access: StaffAccessSnapshot): boolean {
+    if (!access.sessionCreatedAt) return false;
+    return (
+      Date.now() - access.sessionCreatedAt.getTime() < FRESH_SESSION_MAX_AGE_MS
+    );
   }
 }

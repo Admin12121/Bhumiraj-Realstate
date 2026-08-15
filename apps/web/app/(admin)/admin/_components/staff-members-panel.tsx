@@ -23,6 +23,7 @@ import {
   setStaffMemberStatus,
   setStaffMemberRoles,
 } from "@/features/admin/api/admin-api"
+import { useHasStaffPermission } from "./admin-shell"
 import {
   AlertDialog,
   AlertDialogClose,
@@ -105,6 +106,7 @@ export function StaffMembersPanel() {
   })
   const manageableRoles =
     catalog.data?.roles.filter(({ manageable }) => manageable) ?? []
+  const canManage = useHasStaffPermission("admin.staff.manage")
   const refresh = async () => {
     await Promise.all([
       client.invalidateQueries({ queryKey: ["admin", "staff"] }),
@@ -190,15 +192,17 @@ export function StaffMembersPanel() {
             custom roles.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            resetPromotion()
-            setPromoting(true)
-          }}
-        >
-          <Plus />
-          Add staff member
-        </Button>
+        {canManage && (
+          <Button
+            onClick={() => {
+              resetPromotion()
+              setPromoting(true)
+            }}
+          >
+            <Plus />
+            Add staff member
+          </Button>
+        )}
       </div>
       <div className="border-b p-4">
         <div className="relative max-w-md">

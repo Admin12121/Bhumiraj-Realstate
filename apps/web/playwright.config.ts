@@ -7,7 +7,7 @@ export default defineConfig({
   ...(process.env.CI ? { workers: 1 } : {}),
   retries: process.env.CI ? 2 : 0,
   reporter: [["html", { outputFolder: "playwright-report", open: "never" }], ["list"]],
-  use: { baseURL: process.env.E2E_BASE_URL ?? "http://localhost:8080", trace: "retain-on-failure", screenshot: "only-on-failure", video: "retain-on-failure" },
+  use: { baseURL: process.env.E2E_BASE_URL ?? "http://localhost", trace: "retain-on-failure", screenshot: "only-on-failure", video: "retain-on-failure" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }, { name: "mobile", use: { ...devices["Pixel 7"] }, testIgnore: /passkey|admin|live-bidding/ }],
   globalSetup: "./e2e/global-setup.ts",
 });

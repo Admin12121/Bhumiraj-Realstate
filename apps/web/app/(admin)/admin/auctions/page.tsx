@@ -5,6 +5,7 @@ export default function Page() {
     <AdminShell
       title="Auctions"
       description="Monitor live bidding and auction settlement."
+      permission="admin.auctions.read"
     >
       <AdminAuctionsTable />
     </AdminShell>

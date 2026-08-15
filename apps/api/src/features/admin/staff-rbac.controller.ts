@@ -24,7 +24,10 @@ import {
   staffCandidatesQuerySchema,
   updateStaffRoleSchema,
 } from '@real-estate/contracts';
-import { StaffPermissions } from '../../shared/auth/staff-permissions.decorator';
+import {
+  FreshStaffSession,
+  StaffPermissions,
+} from '../../shared/auth/staff-permissions.decorator';
 import {
   StaffPermissionsGuard,
   type StaffAuthorizedRequest,
@@ -88,6 +91,7 @@ export class StaffRbacController {
 
   @Put('roles/:id/permissions')
   @StaffPermissions(ADMIN_PERMISSIONS.ROLES_MANAGE)
+  @FreshStaffSession()
   setRolePermissions(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,

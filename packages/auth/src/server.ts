@@ -22,6 +22,45 @@ export type AuthDependencies = {
   }) => Promise<void>;
 };
 
+export type AuthMethod =
+  | "credential+2fa"
+  | "credential"
+  | "passkey"
+  | "social"
+  | "unknown";
+
+/**
+ * Classifies the route that established a session. Matching stays substring
+ * based so a Better Auth path revision does not silently downgrade a session
+ * to `unknown`, which staff step-up treats as a failed strong authentication.
+ */
+export function classifyAuthMethod(path: string): AuthMethod {
+  const normalized = path.toLowerCase();
+  if (
+    normalized.includes("two-factor") ||
+    normalized.includes("two_factor") ||
+    normalized.includes("verify-totp") ||
+    normalized.includes("verify-backup-code") ||
+    normalized.includes("otp")
+  ) {
+    return "credential+2fa";
+  }
+  if (normalized.includes("passkey") || normalized.includes("webauthn")) {
+    return "passkey";
+  }
+  if (
+    normalized.startsWith("/callback/") ||
+    normalized.includes("oauth") ||
+    normalized.includes("sign-in/social")
+  ) {
+    return "social";
+  }
+  if (normalized.includes("sign-in/email") || normalized.includes("sign-up")) {
+    return "credential";
+  }
+  return "unknown";
+}
+
 export function createAuth(dependencies: AuthDependencies = {}) {
   const env = dependencies.env ?? loadServerEnv();
   const appUrl = env.APP_URL;
@@ -146,21 +185,13 @@ export function createAuth(dependencies: AuthDependencies = {}) {
         const newSession = ctx.context.newSession;
         if (!newSession) return;
 
-        let authMethod = "unknown";
-        if (
-          ctx.path.includes("two-factor/verify-totp") ||
-          ctx.path.includes("two-factor/verify-backup-code")
-        ) {
-          authMethod = "credential+2fa";
-        } else if (ctx.path === "/sign-in/email") {
-          authMethod = "credential";
-        } else if (ctx.path.includes("passkey")) {
-          authMethod = "passkey";
-        } else if (
-          ctx.path.startsWith("/callback/") ||
-          ctx.path.includes("oauth")
-        ) {
-          authMethod = "social";
+        const authMethod = classifyAuthMethod(ctx.path);
+        if (authMethod === "unknown") {
+          // Staff step-up reads this column, so an unclassified sign-in route
+          // locks every staff member out of administration at once.
+          console.warn(
+            `Unclassified authentication route "${ctx.path}"; session recorded as unknown.`,
+          );
         }
 
         await prisma.session.updateMany({

@@ -194,9 +194,20 @@ export const platformInvitationsQuerySchema = adminPaginationQuerySchema.extend(
 export const platformInvitationsResponseSchema = adminPageSchema(
   platformInvitationSchema,
 );
+const invitationEmailSchema = z.string().trim().toLowerCase().email().max(320);
+
+// The request schemas omit `type`: the route decides it, so a client cannot
+// submit one type's role rules and have the handler relabel it as the other.
+export const createStaffInvitationSchema = z.object({
+  email: invitationEmailSchema,
+  roleIds: z.array(idSchema).min(1).max(20),
+});
+export const createAgentInvitationSchema = z.object({
+  email: invitationEmailSchema,
+});
 export const createPlatformInvitationSchema = z
   .object({
-    email: z.string().trim().toLowerCase().email().max(320),
+    email: invitationEmailSchema,
     type: platformInvitationTypeSchema,
     roleIds: z.array(idSchema).max(20).default([]),
   })

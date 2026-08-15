@@ -78,7 +78,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
-      E2E_BASE_URL: http://localhost:8080
+      E2E_BASE_URL: http://localhost
       E2E_SETUP_KEY: local-e2e-setup-key-change-me
       E2E_ADMIN_EMAIL: admin.e2e@bhumiraj.test
       E2E_ADMIN_PASSWORD: AdminTest!234567

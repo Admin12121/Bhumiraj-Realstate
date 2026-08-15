@@ -22,10 +22,12 @@ const staffAccess: StaffAccessSnapshot = {
   roleIds: ['role-1'],
   highestRolePosition: 50,
   authMethod: 'passkey',
+  sessionCreatedAt: new Date(),
 };
 
 describe('PlatformGovernanceService owner boundary', () => {
-  const service = new PlatformGovernanceService({} as never);
+  const accessService = { invalidate: jest.fn() };
+  const service = new PlatformGovernanceService(accessService as never);
 
   afterEach(() => jest.clearAllMocks());
 

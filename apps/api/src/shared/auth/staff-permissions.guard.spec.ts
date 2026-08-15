@@ -11,6 +11,7 @@ import {
   StaffPermissionsGuard,
   type StaffAuthorizedRequest,
 } from './staff-permissions.guard';
+import { STAFF_FRESH_SESSION_KEY } from './staff-permissions.decorator';
 
 jest.mock('../../bootstrap-env', () => ({ apiEnv: { E2E_MODE: false } }));
 jest.mock('@real-estate/database', () => ({
@@ -24,6 +25,7 @@ const staffAccess: StaffAccessSnapshot = {
   roleIds: ['role-1'],
   highestRolePosition: 50,
   authMethod: 'passkey',
+  sessionCreatedAt: new Date(),
 };
 
 function contextFor(request: StaffAuthorizedRequest): ExecutionContext {
@@ -34,9 +36,15 @@ function contextFor(request: StaffAuthorizedRequest): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
-function guardFor(required: string[], resolved: StaffAccessSnapshot | null) {
+function guardFor(
+  required: string[],
+  resolved: StaffAccessSnapshot | null,
+  freshSessionRequired = false,
+) {
   const reflector = {
-    getAllAndOverride: jest.fn().mockReturnValue(required),
+    getAllAndOverride: jest.fn((key: string) =>
+      key === STAFF_FRESH_SESSION_KEY ? freshSessionRequired : required,
+    ),
   } as unknown as Reflector;
   const accessService = {
     resolve: jest.fn().mockResolvedValue(resolved),
@@ -84,6 +92,30 @@ describe('StaffPermissionsGuard', () => {
         contextFor(request),
       ),
     ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('rejects a stale session on a route demanding a fresh one', async () => {
+    const request = {
+      session: { user: { id: 'staff-1' }, session: { id: 'session-1' } },
+    };
+    const stale = {
+      ...staffAccess,
+      sessionCreatedAt: new Date(Date.now() - 60 * 60 * 1_000),
+    };
+    await expect(
+      guardFor([], stale, true).canActivate(contextFor(request)),
+    ).rejects.toMatchObject({
+      response: { code: 'STAFF_FRESH_SESSION_REQUIRED' },
+    });
+  });
+
+  it('accepts a recent session on a route demanding a fresh one', async () => {
+    const request = {
+      session: { user: { id: 'staff-1' }, session: { id: 'session-1' } },
+    };
+    await expect(
+      guardFor([], staffAccess, true).canActivate(contextFor(request)),
+    ).resolves.toBe(true);
   });
 
   it('attaches access after all checks pass', async () => {

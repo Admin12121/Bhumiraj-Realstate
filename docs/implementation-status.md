@@ -15,9 +15,9 @@
 
 ## Release gates still requiring an environment
 
-This source archive does not contain installed dependencies or a generated `bun.lock`. Before production deployment, an engineer must execute the full verification matrix on the target Node/Bun/Docker versions:
+Dependencies resolve and `bun.lock` is generated locally, but it is not yet committed. Before production deployment, an engineer must execute the full verification matrix on the target Node/Bun/Docker versions:
 
-1. Resolve dependencies and commit `bun.lock`.
+1. Commit `bun.lock` and switch CI to a frozen installation policy.
 2. Run Prisma generation and migrations against disposable PostgreSQL/PostGIS.
 3. Run lint, TypeScript, unit, API integration, Playwright and k6 tests.
 4. Complete real Google and GitHub OAuth callbacks with dedicated test applications in staging.

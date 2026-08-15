@@ -13,6 +13,7 @@ import {
   setStaffRolePermissions,
   updateStaffRole,
 } from "@/features/admin/api/admin-api"
+import { useHasStaffPermission } from "./admin-shell"
 import {
   AlertDialog,
   AlertDialogClose,
@@ -74,6 +75,7 @@ export function StaffRolesPanel() {
   const [editing, setEditing] = useState<StaffRole | "new" | null>(null)
   const [deleting, setDeleting] = useState<StaffRole | null>(null)
   const [draft, setDraft] = useState<RoleDraft>(emptyDraft)
+  const canManage = useHasStaffPermission("admin.roles.manage")
 
   const refresh = async () =>
     client.invalidateQueries({ queryKey: ["admin", "rbac"] })
@@ -141,15 +143,17 @@ export function StaffRolesPanel() {
             Permissions combine when a staff member has multiple roles.
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setDraft(emptyDraft)
-            setEditing("new")
-          }}
-        >
-          <Plus />
-          Create role
-        </Button>
+        {canManage && (
+          <Button
+            onClick={() => {
+              setDraft(emptyDraft)
+              setEditing("new")
+            }}
+          >
+            <Plus />
+            Create role
+          </Button>
+        )}
       </div>
       <Table>
         <TableHeader>

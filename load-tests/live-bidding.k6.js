@@ -5,7 +5,7 @@ export default function () {
   const auctionId = __ENV.AUCTION_ID;
   const token = __ENV.SESSION_COOKIE;
   const amount = Number(__ENV.BASE_AMOUNT_MINOR || 10000000) + __VU * Number(__ENV.INCREMENT_MINOR || 100000);
-  const response = http.post(`${__ENV.BASE_URL || "http://localhost:8080"}/api/v1/auctions/${auctionId}/bids`, JSON.stringify({ amountMinor: String(amount) }), { headers: { "content-type": "application/json", cookie: token, "idempotency-key": `k6-${__VU}-${Date.now()}` } });
+  const response = http.post(`${__ENV.BASE_URL || "http://localhost"}/api/v1/auctions/${auctionId}/bids`, JSON.stringify({ amountMinor: String(amount) }), { headers: { "content-type": "application/json", cookie: token, "idempotency-key": `k6-${__VU}-${Date.now()}` } });
   check(response, { "accepted or business rejection": (r) => [200, 201, 409].includes(r.status) });
   sleep(0.1);
 }

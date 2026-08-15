@@ -1,9 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import { useEffect, type ReactNode } from "react"
+import { createContext, useContext, useEffect, type ReactNode } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
+import { HttpError } from "@real-estate/http"
 import {
   BarChart3,
   Bell,
@@ -121,6 +122,53 @@ function isActiveRoute(pathname: string, href: string): boolean {
     : pathname === href || pathname.startsWith(`${href}/`)
 }
 
+const StaffPermissionsContext = createContext<ReadonlySet<string>>(new Set())
+
+/** Permission keys granted to the signed-in staff member. */
+export function useStaffPermissions(): ReadonlySet<string> {
+  return useContext(StaffPermissionsContext)
+}
+
+export function useHasStaffPermission(permission: string): boolean {
+  return useStaffPermissions().has(permission)
+}
+
+/** Renders children only when the staff member holds every listed permission. */
+export function RequireStaffPermission({
+  permission,
+  fallback = null,
+  children,
+}: {
+  permission: string | string[]
+  fallback?: ReactNode
+  children: ReactNode
+}) {
+  const permissions = useStaffPermissions()
+  const required = Array.isArray(permission) ? permission : [permission]
+  if (!required.every((key) => permissions.has(key))) return <>{fallback}</>
+  return <>{children}</>
+}
+
+function AccessNotice({
+  title,
+  description,
+  action,
+}: {
+  title: string
+  description: string
+  action?: ReactNode
+}) {
+  return (
+    <div className="grid min-h-screen place-items-center px-6">
+      <div className="max-w-md space-y-3 text-center">
+        <h1 className="text-lg font-semibold">{title}</h1>
+        <p className="text-sm text-muted-foreground">{description}</p>
+        {action}
+      </div>
+    </div>
+  )
+}
+
 function AdminNavigation({
   pathname,
   permissions,
@@ -166,10 +214,13 @@ function AdminNavigation({
 export function AdminShell({
   title,
   description,
+  permission,
   children,
 }: {
   title: string
   description?: string
+  /** Permission required to view this page; omit for pages open to any staff. */
+  permission?: string
   children: ReactNode
 }) {
   const pathname = usePathname()
@@ -183,14 +234,45 @@ export function AdminShell({
     staleTime: 30_000,
   })
 
+  const accessCode =
+    access.error instanceof HttpError ? access.error.code : undefined
+  // A staff member who only needs to strengthen their sign-in must be told so
+  // rather than being bounced home as though they were never staff.
+  const recoverable =
+    accessCode === "STAFF_STEP_UP_REQUIRED" ||
+    accessCode === "STAFF_FRESH_SESSION_REQUIRED"
+
   useEffect(() => {
     if (session.isPending) return
     if (!session.data) {
       router.replace(`/sign-in?callbackURL=${encodeURIComponent(pathname)}`)
       return
     }
-    if (access.isError) router.replace("/")
-  }, [access.isError, pathname, router, session.data, session.isPending])
+    if (access.isError && !recoverable) router.replace("/")
+  }, [
+    access.isError,
+    pathname,
+    recoverable,
+    router,
+    session.data,
+    session.isPending,
+  ])
+
+  if (access.isError && recoverable) {
+    return (
+      <AccessNotice
+        title="Stronger sign-in required"
+        description={
+          access.error instanceof HttpError
+            ? access.error.message
+            : "Administration requires a passkey or a password sign-in completed with two-factor authentication."
+        }
+        action={
+          <Button render={<Link href="/account/security">Manage sign-in security</Link>} />
+        }
+      />
+    )
+  }
 
   if (session.isPending || access.isPending || !session.data || !access.data) {
     return (
@@ -201,6 +283,9 @@ export function AdminShell({
   }
 
   const permissions = new Set(access.data.permissions)
+  // The page still renders inside the shell so a staff member who lands on a
+  // page they cannot see keeps the navigation they can.
+  const denied = Boolean(permission && !permissions.has(permission))
   const handleSignOut = () =>
     signOut({ fetchOptions: { onSuccess: () => location.assign("/") } })
   const nav = <AdminNavigation pathname={pathname} permissions={permissions} />
@@ -215,6 +300,7 @@ export function AdminShell({
   )
 
   return (
+    <StaffPermissionsContext.Provider value={permissions}>
     <div className="min-h-screen bg-[#f7f9f7]">
       <aside className="fixed inset-y-0 left-0 hidden w-[258px] border-r bg-white p-5 lg:flex lg:flex-col">
         {nav}
@@ -236,8 +322,10 @@ export function AdminShell({
               className="shrink-0 lg:hidden [&_img]:size-9 [&_img]:rounded-xl"
             />
             <div className="flex-1">
-              <h1 className="text-lg font-semibold">{title}</h1>
-              {description && (
+              <h1 className="text-lg font-semibold">
+                {denied ? "Access restricted" : title}
+              </h1>
+              {!denied && description && (
                 <p className="text-xs text-muted-foreground">{description}</p>
               )}
             </div>
@@ -277,7 +365,21 @@ export function AdminShell({
             </div>
           </div>
         </header>
-        <main id="main-content" className="p-5 lg:p-8">{children}</main>
+        <main id="main-content" className="p-5 lg:p-8">
+          {denied ? (
+            <div className="mx-auto max-w-md space-y-3 py-16 text-center">
+              <h2 className="text-lg font-semibold">
+                You do not have access to this page
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Your staff roles do not include the permission this page
+                requires. Ask an administrator if you need it.
+              </p>
+            </div>
+          ) : (
+            children
+          )}
+        </main>
       </div>
       <MobileBottomNavigation
         ariaLabel="Admin navigation"
@@ -286,5 +388,6 @@ export function AdminShell({
         onSignOut={handleSignOut}
       />
     </div>
+    </StaffPermissionsContext.Provider>
   )
 }

@@ -5,6 +5,7 @@ export default function Page() {
     <AdminShell
       title="Agents"
       description="Agent onboarding, approval, availability, and retirement"
+      permission="admin.agents.read"
     >
       <AgentGovernancePanel />
     </AdminShell>

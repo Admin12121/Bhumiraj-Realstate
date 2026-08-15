@@ -17,7 +17,7 @@ async function waitForApi(baseURL: string) {
 export default async function setup(config: FullConfig) {
   const baseURL =
     (config.projects[0]?.use.baseURL as string | undefined) ??
-    "http://localhost:8080";
+    "http://localhost";
   await waitForApi(baseURL);
 
   const users = [

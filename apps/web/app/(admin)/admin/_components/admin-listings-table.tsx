@@ -6,8 +6,10 @@ import { toast } from "sonner";
 import { decideAdminListing, getAdminListings } from "@/features/admin/api/admin-api";
 import { formatMinorAmount } from "@/shared/utilities/money";
 import { AdminPagination } from "./admin-pagination";
+import { useHasStaffPermission } from "./admin-shell";
 
 export function AdminListingsTable() {
+  const canModerate = useHasStaffPermission("admin.listings.moderate");
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("PENDING_REVIEW");
@@ -86,7 +88,8 @@ export function AdminListingsTable() {
                 <td className="px-5 py-4"><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{row.status}</span></td>
                 <td className="px-5 py-4 text-xs text-slate-500">{new Date(row.createdAt).toLocaleDateString()}</td>
                 <td className="px-5 py-4 text-right">
-                  {row.status === "PENDING_REVIEW" || row.status === "REJECTED" ? (
+                  {canModerate &&
+                  (row.status === "PENDING_REVIEW" || row.status === "REJECTED") ? (
                     <div className="flex justify-end gap-2">
                       <button disabled={decision.isPending} onClick={() => decision.mutate({ id: row.id, action: "PUBLISH" })} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white">Publish</button>
                       <button disabled={decision.isPending} onClick={() => decision.mutate({ id: row.id, action: "REJECT" })} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700">Reject</button>

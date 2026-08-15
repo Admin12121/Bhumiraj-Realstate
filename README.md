@@ -40,7 +40,7 @@ docker compose up -d --build
 
 Open:
 
-- Application: `http://localhost:8080`
+- Application: `http://localhost`
 - MinIO console: `http://localhost:9001`
 
 The API container applies Prisma migrations and bootstraps MinIO buckets before serving. Owner seeding is off by default and runs only when `SEED_ADMIN_ON_START=true` with explicit credentials; it refuses to replace an existing owner. PostgreSQL/PostGIS, Redis, MinIO and ClamAV are local-only dependencies. Local MinIO uses global CORS via `MINIO_API_CORS_ALLOW_ORIGIN`; per-bucket CORS is opt-in with `S3_CONFIGURE_BUCKET_CORS=true` for S3 backends that support it cleanly.

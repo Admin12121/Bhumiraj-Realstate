@@ -40,6 +40,7 @@ export class AccountLifecycleReconciler implements OnModuleInit, OnModuleDestroy
 
     try {
       await this.restoreExpiredBans();
+      await this.expirePlatformInvitations();
       await this.schedulePersonalMediaPurges();
 
       const graceDays = workerEnv.ACCOUNT_DELETION_GRACE_DAYS;
@@ -65,6 +66,16 @@ export class AccountLifecycleReconciler implements OnModuleInit, OnModuleDestroy
     }
   }
 
+
+  private async expirePlatformInvitations(): Promise<void> {
+    const expired = await prisma.platformInvitation.updateMany({
+      where: { status: "PENDING", expiresAt: { lte: new Date() } },
+      data: { status: "EXPIRED" },
+    });
+    if (expired.count) {
+      this.logger.log(`Expired ${expired.count} pending platform invitations`);
+    }
+  }
 
   private async schedulePersonalMediaPurges(): Promise<void> {
     const owners = await prisma.mediaAsset.findMany({

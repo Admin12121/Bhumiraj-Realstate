@@ -1,5 +1,6 @@
 import {
   AdminShell,
+  RequireStaffPermission,
   StaffGovernancePanel,
   StaffMembersPanel,
 } from "../_components"
@@ -9,10 +10,13 @@ export default function Page() {
     <AdminShell
       title="Staff management"
       description="Promote customers and assign custom operational roles."
+      permission="admin.staff.read"
     >
       <div className="space-y-6">
         <StaffMembersPanel />
-        <StaffGovernancePanel />
+        <RequireStaffPermission permission="admin.staff.manage">
+          <StaffGovernancePanel />
+        </RequireStaffPermission>
       </div>
     </AdminShell>
   )

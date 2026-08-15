@@ -222,6 +222,7 @@ export class StaffRbacService {
   ) {
     this.assertRolePositionManageable(access, input.position);
     this.assertGrantablePermissions(access, input.permissionKeys);
+    await this.assertUniqueRoleName(input.name);
     const slug = await this.uniqueSlug(input.name);
 
     return prisma.$transaction(async (tx) => {
@@ -261,19 +262,7 @@ export class StaffRbacService {
   ) {
     const role = await this.requireManageableRole(access, roleId);
     this.assertRolePositionManageable(access, input.position);
-    const duplicate = await prisma.staffRole.findFirst({
-      where: {
-        name: { equals: input.name, mode: 'insensitive' },
-        id: { not: roleId },
-      },
-      select: { id: true },
-    });
-    if (duplicate) {
-      throw new ConflictException({
-        code: 'STAFF_ROLE_NAME_EXISTS',
-        message: 'A staff role with this name already exists.',
-      });
-    }
+    await this.assertUniqueRoleName(input.name, roleId);
 
     const updated = await prisma.$transaction(async (tx) => {
       const result = await tx.staffRole.update({
@@ -303,6 +292,7 @@ export class StaffRbacService {
       });
       return result;
     });
+    this.accessService.invalidateAll();
     return { id: updated.id };
   }
 
@@ -347,6 +337,7 @@ export class StaffRbacService {
         },
       });
     });
+    this.accessService.invalidateAll();
     return { id: role.id };
   }
 
@@ -356,14 +347,31 @@ export class StaffRbacService {
     roleId: string,
   ) {
     const role = await this.requireManageableRole(access, roleId);
-    const memberCount = await prisma.staffUserRole.count({ where: { roleId } });
+    const [memberCount, invitationCount] = await prisma.$transaction([
+      prisma.staffUserRole.count({ where: { roleId } }),
+      prisma.platformInvitationStaffRole.count({
+        where: { roleId, invitation: { status: 'PENDING' } },
+      }),
+    ]);
     if (memberCount > 0) {
       throw new ConflictException({
         code: 'STAFF_ROLE_IN_USE',
         message: 'Remove this role from every staff member before deleting it.',
       });
     }
+    // PlatformInvitationStaffRole restricts deletion, so an unchecked delete
+    // would surface as an opaque foreign-key failure instead of this message.
+    if (invitationCount > 0) {
+      throw new ConflictException({
+        code: 'STAFF_ROLE_INVITED',
+        message:
+          'Revoke the pending staff invitations that use this role before deleting it.',
+      });
+    }
     await prisma.$transaction(async (tx) => {
+      // Settled invitations keep their own audit record, so their role links
+      // are dropped here rather than blocking deletion forever.
+      await tx.platformInvitationStaffRole.deleteMany({ where: { roleId } });
       await tx.staffRole.delete({ where: { id: roleId } });
       await tx.auditLog.create({
         data: {
@@ -375,6 +383,7 @@ export class StaffRbacService {
         },
       });
     });
+    this.accessService.invalidateAll();
     return { id: roleId };
   }
 
@@ -405,7 +414,7 @@ export class StaffRbacService {
       );
     }
 
-    return prisma.$transaction(async (tx) => {
+    const created = await prisma.$transaction(async (tx) => {
       const target = await tx.user.findUnique({
         where: { id: input.userId },
         select: { id: true, role: true, banned: true, lifecycleStatus: true },
@@ -466,6 +475,8 @@ export class StaffRbacService {
       });
       return { id: target.id, accountType: 'STAFF' as const };
     });
+    this.accessService.invalidate(input.userId);
+    return created;
   }
 
   async assignRole(
@@ -497,6 +508,7 @@ export class StaffRbacService {
         },
       });
     });
+    this.accessService.invalidate(userId);
     return { userId, roleId };
   }
 
@@ -541,6 +553,7 @@ export class StaffRbacService {
       },
       { isolationLevel: 'Serializable' },
     );
+    this.accessService.invalidate(userId);
     return { userId, roleId };
   }
 
@@ -621,6 +634,7 @@ export class StaffRbacService {
       },
       { isolationLevel: 'Serializable' },
     );
+    this.accessService.invalidate(userId);
     return { userId, roleIds: uniqueRoleIds };
   }
 
@@ -681,6 +695,7 @@ export class StaffRbacService {
       },
       { isolationLevel: 'Serializable' },
     );
+    this.accessService.invalidate(userId);
     return { userId, status };
   }
 
@@ -744,6 +759,7 @@ export class StaffRbacService {
       },
       { isolationLevel: 'Serializable' },
     );
+    this.accessService.invalidate(userId);
     return { id: userId, accountType: 'USER' as const };
   }
 
@@ -798,6 +814,22 @@ export class StaffRbacService {
           unheld,
         });
       }
+    }
+  }
+
+  private async assertUniqueRoleName(name: string, excludeRoleId?: string) {
+    const duplicate = await prisma.staffRole.findFirst({
+      where: {
+        name: { equals: name, mode: 'insensitive' },
+        ...(excludeRoleId ? { id: { not: excludeRoleId } } : {}),
+      },
+      select: { id: true },
+    });
+    if (duplicate) {
+      throw new ConflictException({
+        code: 'STAFF_ROLE_NAME_EXISTS',
+        message: 'A staff role with this name already exists.',
+      });
     }
   }
 

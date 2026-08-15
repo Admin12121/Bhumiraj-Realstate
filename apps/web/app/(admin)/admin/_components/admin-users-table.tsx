@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
 import { AdminPagination } from "./admin-pagination"
+import { useHasStaffPermission } from "./admin-shell"
 
 const accountTypes = ["USER", "AGENT"] as const
 const accountTypeFilters = ["ALL", "OWNER", "STAFF", "AGENT", "USER"] as const
@@ -62,6 +63,8 @@ const statusItems = statuses.map((value) => ({
 }))
 
 export function AdminUsersTable() {
+  const canManageType = useHasStaffPermission("admin.users.type.manage")
+  const canManageStatus = useHasStaffPermission("admin.users.status.manage")
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
@@ -200,7 +203,9 @@ export function AdminUsersTable() {
                 </p>
               </TableCell>
               <TableCell className="px-5 py-4">
-                {user.accountType === "USER" || user.accountType === "AGENT" ? (
+                {canManageType &&
+                (user.accountType === "USER" ||
+                  user.accountType === "AGENT") ? (
                   <Select
                     items={accountTypeItems}
                     value={user.accountType}
@@ -258,18 +263,20 @@ export function AdminUsersTable() {
                 {new Date(user.createdAt).toLocaleDateString()}
               </TableCell>
               <TableCell className="px-5 py-4 text-right">
-                <Button
-                  size="sm"
-                  variant={user.banned ? "outline" : "destructive-outline"}
-                  loading={action.isPending}
-                  onClick={() =>
-                    user.banned
-                      ? action.mutate({ id: user.id, kind: "unban" })
-                      : setSuspending({ id: user.id, email: user.email })
-                  }
-                >
-                  {user.banned ? "Restore" : "Suspend"}
-                </Button>
+                {canManageStatus && (
+                  <Button
+                    size="sm"
+                    variant={user.banned ? "outline" : "destructive-outline"}
+                    loading={action.isPending}
+                    onClick={() =>
+                      user.banned
+                        ? action.mutate({ id: user.id, kind: "unban" })
+                        : setSuspending({ id: user.id, email: user.email })
+                    }
+                  >
+                    {user.banned ? "Restore" : "Suspend"}
+                  </Button>
+                )}
               </TableCell>
             </TableRow>
           ))}

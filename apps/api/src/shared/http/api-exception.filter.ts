@@ -44,6 +44,16 @@ function databaseHttpError(error: unknown):
       },
     };
   }
+  if (code === "P2003") {
+    return {
+      status: HttpStatus.CONFLICT,
+      payload: {
+        code: "RESOURCE_REFERENCED",
+        message:
+          "Another record still references this resource. Remove those references first.",
+      },
+    };
+  }
   if (code === "P2034" || code === "40001" || code === "40P01") {
     return {
       status: HttpStatus.CONFLICT,

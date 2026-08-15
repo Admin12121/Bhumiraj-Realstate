@@ -5,6 +5,7 @@ export default function AdminPage() {
     <AdminShell
       title="Platform overview"
       description="Operational health and marketplace activity."
+      permission="admin.overview.read"
     >
       <AdminOverview />
     </AdminShell>

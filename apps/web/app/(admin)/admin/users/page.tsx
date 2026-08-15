@@ -5,6 +5,7 @@ export default function Page() {
     <AdminShell
       title="User management"
       description="Customer and agent account types, security status and lifecycle."
+      permission="admin.users.read"
     >
       <AdminUsersTable />
     </AdminShell>

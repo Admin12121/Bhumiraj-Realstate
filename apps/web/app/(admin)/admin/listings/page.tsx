@@ -5,6 +5,7 @@ export default function Page() {
     <AdminShell
       title="Listings"
       description="Review, publish and moderate property listings."
+      permission="admin.listings.read"
     >
       <AdminListingsTable />
     </AdminShell>

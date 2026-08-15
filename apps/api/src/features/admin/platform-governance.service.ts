@@ -1,11 +1,16 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
-import { prisma, type Prisma } from '@real-estate/database';
+import {
+  prisma,
+  type PlatformInvitationStatus,
+  type Prisma,
+} from '@real-estate/database';
 import { sendResendEmail } from '@real-estate/email';
 import type { z } from 'zod';
 import {
@@ -29,14 +34,12 @@ export class PlatformGovernanceService {
     query: z.infer<typeof platformInvitationsQuerySchema>,
     forcedType?: 'STAFF' | 'AGENT',
   ) {
-    await prisma.platformInvitation.updateMany({
-      where: { status: 'PENDING', expiresAt: { lte: new Date() } },
-      data: { status: 'EXPIRED' },
-    });
+    // Reads stay side-effect free; the worker reconciler persists expiry.
+    const now = new Date();
     const invitationType = forcedType ?? query.type;
     const where: Prisma.PlatformInvitationWhereInput = {
       ...(invitationType ? { type: invitationType } : {}),
-      ...(query.status ? { status: query.status } : {}),
+      ...this.statusFilter(query.status, now),
       ...(query.search
         ? { email: { contains: query.search, mode: 'insensitive' } }
         : {}),
@@ -64,7 +67,7 @@ export class PlatformGovernanceService {
         id: invitation.id,
         email: invitation.email,
         type: invitation.type,
-        status: invitation.status,
+        status: this.effectiveStatus(invitation.status, invitation.expiresAt, now),
         roleIds: invitation.staffRoles.map(({ role }) => role.id),
         roles: invitation.staffRoles.map(({ role }) => role),
         expiresAt: invitation.expiresAt.toISOString(),
@@ -102,6 +105,12 @@ export class PlatformGovernanceService {
 
     const roleIds = [...new Set(input.roleIds)];
     if (input.type === 'STAFF') {
+      if (roleIds.length === 0) {
+        throw new BadRequestException({
+          code: 'STAFF_INVITATION_ROLE_REQUIRED',
+          message: 'A staff invitation requires at least one role.',
+        });
+      }
       const roles = await prisma.staffRole.findMany({
         where: { id: { in: roleIds } },
         include: {
@@ -200,10 +209,22 @@ export class PlatformGovernanceService {
   ) {
     const invitation = await prisma.platformInvitation.findUnique({
       where: { id: invitationId },
-      select: { id: true, email: true, type: true, status: true },
+      select: {
+        id: true,
+        email: true,
+        type: true,
+        status: true,
+        expiresAt: true,
+      },
     });
     if (!invitation || invitation.type !== type) throw new NotFoundException();
-    if (invitation.status !== 'PENDING') {
+    if (
+      this.effectiveStatus(
+        invitation.status,
+        invitation.expiresAt,
+        new Date(),
+      ) !== 'PENDING'
+    ) {
       throw new ConflictException({
         code: 'INVITATION_NOT_PENDING',
         message: 'Only a pending invitation can be revoked.',
@@ -252,7 +273,7 @@ export class PlatformGovernanceService {
       });
     }
 
-    return prisma.$transaction(
+    const accepted = await prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`
           SELECT pg_advisory_xact_lock(
@@ -389,6 +410,8 @@ export class PlatformGovernanceService {
       },
       { isolationLevel: 'Serializable', maxWait: 5_000, timeout: 10_000 },
     );
+    this.accessService.invalidate(userId);
+    return accepted;
   }
 
   async transferOwnership(
@@ -406,7 +429,7 @@ export class PlatformGovernanceService {
       throw new ConflictException('The owner already owns the platform.');
     }
     const roleIds = [...new Set(input.previousOwnerRoleIds)];
-    return prisma.$transaction(
+    const result = await prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`
           SELECT pg_advisory_xact_lock(
@@ -546,6 +569,36 @@ export class PlatformGovernanceService {
       },
       { isolationLevel: 'Serializable', maxWait: 5_000, timeout: 15_000 },
     );
+    this.accessService.invalidate(actorId);
+    this.accessService.invalidate(input.targetUserId);
+    return result;
+  }
+
+  private statusFilter(
+    status: PlatformInvitationStatus | undefined,
+    now: Date,
+  ): Prisma.PlatformInvitationWhereInput {
+    if (!status) return {};
+    if (status === 'PENDING') {
+      return { status: 'PENDING', expiresAt: { gt: now } };
+    }
+    if (status === 'EXPIRED') {
+      return {
+        OR: [
+          { status: 'EXPIRED' },
+          { status: 'PENDING', expiresAt: { lte: now } },
+        ],
+      };
+    }
+    return { status };
+  }
+
+  private effectiveStatus(
+    status: PlatformInvitationStatus,
+    expiresAt: Date,
+    now: Date,
+  ): PlatformInvitationStatus {
+    return status === 'PENDING' && expiresAt <= now ? 'EXPIRED' : status;
   }
 
   private hashToken(token: string): string {

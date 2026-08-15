@@ -18,7 +18,8 @@
     "@better-auth/passkey": "catalog:",
     "@real-estate/database": "workspace:*",
     "better-auth": "catalog:",
-    "@real-estate/config": "workspace:*"
+    "@real-estate/config": "workspace:*",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "typescript": "catalog:"

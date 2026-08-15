@@ -13,12 +13,16 @@ import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
 import type { z } from 'zod';
 import {
   acceptPlatformInvitationSchema,
-  createPlatformInvitationSchema,
+  createAgentInvitationSchema,
+  createStaffInvitationSchema,
   idSchema,
   platformInvitationsQuerySchema,
   transferOwnershipSchema,
 } from '@real-estate/contracts';
-import { StaffPermissions } from '../../shared/auth/staff-permissions.decorator';
+import {
+  FreshStaffSession,
+  StaffPermissions,
+} from '../../shared/auth/staff-permissions.decorator';
 import {
   StaffPermissionsGuard,
   type StaffAuthorizedRequest,
@@ -46,13 +50,13 @@ export class PlatformGovernanceAdminController {
   createStaffInvitation(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
-    @Body(new ZodValidationPipe(createPlatformInvitationSchema))
-    body: z.infer<typeof createPlatformInvitationSchema>,
+    @Body(new ZodValidationPipe(createStaffInvitationSchema))
+    body: z.infer<typeof createStaffInvitationSchema>,
   ) {
     return this.service.createInvitation(
       session.user.id,
       this.requireAccess(request),
-      { ...body, type: 'STAFF' },
+      { email: body.email, roleIds: body.roleIds, type: 'STAFF' },
     );
   }
 
@@ -79,13 +83,13 @@ export class PlatformGovernanceAdminController {
   createAgentInvitation(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
-    @Body(new ZodValidationPipe(createPlatformInvitationSchema))
-    body: z.infer<typeof createPlatformInvitationSchema>,
+    @Body(new ZodValidationPipe(createAgentInvitationSchema))
+    body: z.infer<typeof createAgentInvitationSchema>,
   ) {
     return this.service.createInvitation(
       session.user.id,
       this.requireAccess(request),
-      { ...body, type: 'AGENT', roleIds: [] },
+      { email: body.email, type: 'AGENT', roleIds: [] },
     );
   }
 
@@ -100,6 +104,7 @@ export class PlatformGovernanceAdminController {
 
   @Post('owner/transfer')
   @StaffPermissions(ADMIN_PERMISSIONS.STAFF_MANAGE)
+  @FreshStaffSession()
   transferOwnership(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,

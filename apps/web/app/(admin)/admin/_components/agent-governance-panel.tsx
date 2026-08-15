@@ -24,6 +24,7 @@ import {
   setAgentAvailability,
   setAgentStatus,
 } from "@/features/admin/api/admin-api"
+import { useHasStaffPermission } from "./admin-shell"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -106,6 +107,7 @@ export function AgentGovernancePanel() {
     queryKey: ["admin", "agent-invitations"],
     queryFn: () => getAgentInvitations(1),
   })
+  const canManage = useHasStaffPermission("admin.agents.manage")
   const refresh = async () => {
     await Promise.all([
       client.invalidateQueries({ queryKey: ["admin", "agents"] }),
@@ -185,14 +187,16 @@ export function AgentGovernancePanel() {
               Agents are platform accounts, never staff roles.
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => setInviting(true)}>
-              <MailPlus /> Invite agent
-            </Button>
-            <Button onClick={() => setAdding(true)}>
-              <Plus /> Add customer
-            </Button>
-          </div>
+          {canManage && (
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setInviting(true)}>
+                <MailPlus /> Invite agent
+              </Button>
+              <Button onClick={() => setAdding(true)}>
+                <Plus /> Add customer
+              </Button>
+            </div>
+          )}
         </div>
         <div className="border-b p-4">
           <div className="relative max-w-md">
@@ -249,7 +253,7 @@ export function AgentGovernancePanel() {
                 <TableCell>{agent.maxActiveCases}</TableCell>
                 <TableCell className="px-5">
                   <div className="flex justify-end gap-2">
-                    {agent.status !== "ACTIVE" &&
+                    {canManage && agent.status !== "ACTIVE" &&
                       agent.status !== "RETIRED" && (
                         <Button
                           size="sm"
@@ -259,7 +263,7 @@ export function AgentGovernancePanel() {
                           <ShieldCheck /> Approve
                         </Button>
                       )}
-                    {agent.status === "ACTIVE" && (
+                    {canManage && agent.status === "ACTIVE" && (
                       <Button
                         size="icon"
                         variant="outline"
@@ -273,7 +277,7 @@ export function AgentGovernancePanel() {
                         <Settings2 />
                       </Button>
                     )}
-                    {agent.status !== "SUSPENDED" &&
+                    {canManage && agent.status !== "SUSPENDED" &&
                       agent.status !== "RETIRED" && (
                         <Button
                           size="icon"
@@ -284,7 +288,7 @@ export function AgentGovernancePanel() {
                           <UserRoundX />
                         </Button>
                       )}
-                    {agent.status !== "RETIRED" && (
+                    {canManage && agent.status !== "RETIRED" && (
                       <Button
                         size="sm"
                         variant="destructive-outline"
@@ -351,7 +355,7 @@ export function AgentGovernancePanel() {
                   <Button
                     size="sm"
                     variant="destructive-outline"
-                    disabled={item.status !== "PENDING"}
+                    disabled={!canManage || item.status !== "PENDING"}
                     onClick={() => revokeInvite.mutate(item.id)}
                   >
                     Revoke

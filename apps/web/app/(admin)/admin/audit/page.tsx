@@ -5,6 +5,7 @@ export default function Page() {
     <AdminShell
       title="Audit log"
       description="Immutable administrative and security events"
+      permission="admin.audit.read"
     >
       <AuditPanel />
     </AdminShell>

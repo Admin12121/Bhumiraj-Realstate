@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { formatMinorAmount } from "@/shared/utilities/money";
 import { actOnAdminAuction, getAdminAuctions } from "@/features/admin/api/admin-api";
 import { AdminPagination } from "./admin-pagination";
+import { useHasStaffPermission } from "./admin-shell";
 
 const auctionStatuses = [
   "DRAFT",
@@ -20,6 +21,7 @@ const auctionStatuses = [
 
 export function AdminAuctionsTable() {
   const queryClient = useQueryClient();
+  const canManage = useHasStaffPermission("admin.auctions.manage");
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState("");
 
@@ -104,7 +106,7 @@ export function AdminAuctionsTable() {
                 </td>
                 <td className="px-5 py-4 text-right">
                   <div className="flex justify-end gap-2">
-                    {row.status === "LIVE" && (
+                    {canManage && row.status === "LIVE" && (
                       <button
                         type="button"
                         disabled={action.isPending}
@@ -114,7 +116,7 @@ export function AdminAuctionsTable() {
                         Pause
                       </button>
                     )}
-                    {row.status === "PAUSED" && (
+                    {canManage && row.status === "PAUSED" && (
                       <button
                         type="button"
                         disabled={action.isPending}
@@ -124,9 +126,10 @@ export function AdminAuctionsTable() {
                         Resume
                       </button>
                     )}
-                    {(["DRAFT", "SCHEDULED", "LIVE", "PAUSED"] as const).includes(
-                      row.status as "DRAFT" | "SCHEDULED" | "LIVE" | "PAUSED",
-                    ) && (
+                    {canManage &&
+                      (["DRAFT", "SCHEDULED", "LIVE", "PAUSED"] as const).includes(
+                        row.status as "DRAFT" | "SCHEDULED" | "LIVE" | "PAUSED",
+                      ) && (
                       <button
                         type="button"
                         disabled={action.isPending}
