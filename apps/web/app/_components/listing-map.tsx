@@ -53,7 +53,7 @@ export function ListingMap({ listings }: { listings: ListingCard[] }) {
         }}
         mapStyle={
           process.env.NEXT_PUBLIC_MAP_STYLE_URL ??
-          "https://demotiles.maplibre.org/style.json"
+          "https://tiles.openfreemap.org/styles/liberty"
         }
         attributionControl={{ compact: true }}
         reuseMaps

@@ -1,8 +1,16 @@
 ﻿import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Instrument_Sans } from "next/font/google";
 import { ConnectivityStatus } from "@/app/_components/connectivity-status";
 import { AppProviders } from "@/shared/providers/app-providers";
 import "./globals.css";
+
+// The reference design's measurements assume Instrument Sans metrics.
+const instrumentSans = Instrument_Sans({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-instrument-sans",
+});
 
 export const metadata: Metadata = {
   title: { default: "Bhumiraj Estates", template: "%s · Bhumiraj Estates" },
@@ -11,7 +19,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="antialiased">
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`antialiased ${instrumentSans.variable}`}
+    >
       <body className="bg-white">
         <a
           href="#main-content"

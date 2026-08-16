@@ -53,7 +53,7 @@ function contentSecurityPolicy(): string {
   );
   const mapStyle = parseUrl(
     process.env.NEXT_PUBLIC_MAP_STYLE_URL ??
-      "https://demotiles.maplibre.org/style.json",
+      "https://tiles.openfreemap.org/styles/liberty",
     "NEXT_PUBLIC_MAP_STYLE_URL",
   );
   const developmentScript =
@@ -98,6 +98,10 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
+  // Bind-mounted source on Windows does not deliver inotify events, so the
+  // dev server polls instead. Without this, new routes are missing from the
+  // manifest until a file is touched by hand.
+  watchOptions: { pollIntervalMs: 1000 },
   poweredByHeader: false,
   images: {
     remotePatterns: [

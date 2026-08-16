@@ -19,7 +19,7 @@ services:
         NEXT_PUBLIC_APP_URL: "http://localhost"
         NEXT_PUBLIC_CDN_BASE_URL: "http://localhost:9000/bhumiraj-public"
         NEXT_PUBLIC_UPLOAD_ORIGIN: "http://localhost:9000"
-        NEXT_PUBLIC_MAP_STYLE_URL: "https://demotiles.maplibre.org/style.json"
+        NEXT_PUBLIC_MAP_STYLE_URL: "https://tiles.openfreemap.org/styles/liberty"
     working_dir: /workspace
     command: >
       sh -lc "
@@ -43,6 +43,8 @@ services:
       APP_URL: http://localhost
       NEXT_PUBLIC_APP_URL: http://localhost
       NEXT_PUBLIC_CDN_BASE_URL: http://localhost:9000/bhumiraj-public
+      # Runtime override so changing the basemap does not need an image rebuild.
+      NEXT_PUBLIC_MAP_STYLE_URL: ${NEXT_PUBLIC_MAP_STYLE_URL:-https://tiles.openfreemap.org/styles/liberty}
       API_INTERNAL_URL: http://api:3001
     healthcheck:
       # The first request compiles the route in dev mode; a short timeout kills

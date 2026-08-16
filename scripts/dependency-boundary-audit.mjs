@@ -46,6 +46,16 @@ for (const packageRoot of packageRoots) {
     ...Object.keys(manifest.optionalDependencies ?? {}),
   ]);
 
+  // A DefinitelyTyped package supplies the module it types, so `@types/geojson`
+  // satisfies `import type ... from "geojson"`.
+  for (const name of [...declared]) {
+    if (!name.startsWith("@types/")) continue;
+    const typed = name.slice("@types/".length);
+    declared.add(
+      typed.includes("__") ? `@${typed.replace("__", "/")}` : typed,
+    );
+  }
+
   for (const file of walk(packageRoot)) {
     const text = readFileSync(file, "utf8");
     const patterns = [

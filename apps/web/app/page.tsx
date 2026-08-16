@@ -1,5 +1,10 @@
-import { Home } from "./_components";
+import { HomeHero, PublicHeader } from "./_components";
 
 export default function HomePage() {
-  return <Home />;
+  return (
+    <>
+      <PublicHeader />
+      <HomeHero />
+    </>
+  );
 }

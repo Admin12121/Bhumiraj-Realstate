@@ -135,8 +135,8 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
           }
         }}
       >
-        <DialogPanel>
-          <DialogPopup className="sm:max-w-md">
+        <DialogPopup className="sm:max-w-md">
+          <DialogPanel>
             <DialogHeader>
               <DialogTitle>Confirm it&apos;s you</DialogTitle>
               <DialogDescription>
@@ -231,8 +231,8 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
                 </Button>
               )}
             </DialogFooter>
-          </DialogPopup>
-        </DialogPanel>
+          </DialogPanel>
+        </DialogPopup>
       </Dialog>
     </StepUpContext.Provider>
   )

@@ -5,10 +5,26 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Breakpoints from the aera-stays-ui reference. They differ from the Tailwind
+   defaults at every step above `sm`, so ported markup needs them to line up. */
+@theme {
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 46.5rem;
+  --breakpoint-lg: 65rem;
+  --breakpoint-xl: 80.5rem;
+  --breakpoint-2xl: 90rem;
+  --breakpoint-3xl: 104.75rem;
+  --breakpoint-4xl: 120.5rem;
+}
+
 @theme inline {
-  --font-heading: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  --shadow-review: 0 3px 11px rgba(26, 26, 26, 0.12);
+  --shadow-wander:
+    0 8px 16px -4px rgba(0, 0, 0, 0.1), 0 4px 8px -2px rgba(0, 0, 0, 0.1);
+  --ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -237,6 +253,24 @@
   html {
     @apply font-sans;
   }
+  .maplibregl-popup-content {
+    @apply bg-transparent! shadow-none! p-0! rounded-none!;
+  }
+  .maplibregl-popup-tip {
+    @apply hidden!;
+  }
+  .maplibregl-ctrl-attrib {
+    @apply bg-background! text-muted-foreground! border-border! rounded-md! border! shadow-sm!;
+  }
+  .maplibregl-ctrl-attrib a {
+    @apply text-muted-foreground!;
+  }
+  .maplibregl-ctrl-attrib a:hover {
+    @apply text-foreground!;
+  }
+  .maplibregl-ctrl-attrib-button {
+    @apply bg-transparent! dark:invert;
+  }
 }
 :root {
   --brand: #006437;
@@ -297,4 +331,52 @@ body {
 /* Scoped to AnimatedThemeToggler — the toggler sets the data-attribute and the variable only during a theme toggle. */
 html[data-magicui-theme-vt="active"]::view-transition-group(root) {
   animation-duration: var(--magicui-theme-toggle-vt-duration);
+}
+
+/* Review marquee and concierge chat, ported from the reference project. */
+@keyframes reviews-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.review-marquee { animation: reviews-marquee 60s linear infinite; }
+
+@keyframes chat-open {
+  from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Dual-thumb price range used by the search filters. Both inputs stack on one
+   track, so the track itself ignores pointer events and only thumbs take them. */
+.wander-dual-range {
+  pointer-events: none;
+  height: 24px;
+}
+.wander-dual-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: auto;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .16), 0 0 0 1px rgba(0, 0, 0, .05);
+  cursor: grab;
+}
+.wander-dual-range::-moz-range-thumb {
+  pointer-events: auto;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .16), 0 0 0 1px rgba(0, 0, 0, .05);
+  cursor: grab;
+}
+.wander-dual-range::-webkit-slider-runnable-track { background: transparent; }
+.wander-dual-range::-moz-range-track { background: transparent; }
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: .45;
+  cursor: pointer;
 }

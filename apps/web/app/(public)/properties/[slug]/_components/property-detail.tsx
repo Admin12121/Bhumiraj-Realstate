@@ -28,6 +28,7 @@ import {
   getListingDetail,
   recordListingView,
 } from "@/features/listings/api/listing-detail-api";
+import { PropertyGallery } from "./property-gallery";
 
 const favoriteResponseSchema = z.object({ saved: z.boolean() });
 
@@ -141,7 +142,6 @@ export function PropertyDetail({ slug }: { slug: string }) {
     : listing.auction
       ? formatMinorAmount(listing.auction.currentAmountMinor, "NPR")
       : "Contact agent";
-  const gallery = listing.media.slice(1, 5);
   const fallbackGallery = Array.from({ length: 4 }, (_, index) => ({
     id: `fallback-${index}`,
     url: "/assets/property-modern.svg",
@@ -183,37 +183,22 @@ export function PropertyDetail({ slug }: { slug: string }) {
         </div>
       </header>
 
-      <div className="mx-auto max-w-7xl px-5 py-7">
-        <div className="grid gap-3 lg:grid-cols-[2fr_1fr]">
-          <div className="relative aspect-[16/9] overflow-hidden rounded-2xl bg-slate-100">
-            <Image
-              src={listing.media[0]?.url ?? "/assets/property-modern.svg"}
-              fill
-              priority
-              alt={listing.media[0]?.altText ?? listing.title}
-              sizes="(max-width: 1024px) 100vw, 850px"
-              className="object-cover"
-            />
-          </div>
-          <div className="grid min-h-64 grid-cols-2 gap-3">
-            {(gallery.length ? gallery : fallbackGallery).map((image) => (
-              <div
-                key={image.id}
-                className="relative min-h-32 overflow-hidden rounded-2xl bg-slate-100"
-              >
-                <Image
-                  src={image.url}
-                  fill
-                  alt={image.altText ?? listing.title}
-                  sizes="(max-width: 1024px) 50vw, 210px"
-                  className="object-cover"
-                />
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Reference proportions: 1832px content system, 7fr/5fr detail split. */}
+      <div className="mx-auto max-w-[1832px] px-6 py-8 lg:px-8 lg:py-10 2xl:px-12">
+        <PropertyGallery
+          photos={
+            listing.media.length
+              ? listing.media
+              : fallbackGallery.map((image) => ({
+                  id: image.id,
+                  url: image.url,
+                  altText: image.altText,
+                }))
+          }
+          title={listing.title}
+        />
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
+        <div className="grid gap-8 lg:grid-cols-[7fr_5fr]">
           <section className="space-y-5">
             <div className="surface rounded-2xl p-6">
               <div className="flex flex-col justify-between gap-4 sm:flex-row">
@@ -277,7 +262,7 @@ export function PropertyDetail({ slug }: { slug: string }) {
             </div>
           </section>
 
-          <aside className="surface h-fit rounded-2xl p-5">
+          <aside className="surface h-fit rounded-2xl p-5 lg:sticky lg:top-[88px]">
             <Link
               href={`/users/${listing.agent.id}`}
               className="flex items-center gap-3 rounded-xl p-1 hover:bg-slate-50"
