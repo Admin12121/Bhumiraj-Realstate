@@ -159,7 +159,7 @@ export function SiteFooter() {
     <>
       <footer className="relative w-full bg-[#f7f7f7] text-[14px] leading-5 text-black">
         <div className="border-t border-black/[.05] py-8">
-          <div className="mx-auto flex max-w-[1832px] flex-wrap items-center gap-x-8 gap-y-3 px-6 lg:px-8 2xl:px-12">
+          <div className="mx-auto flex max-w-site flex-wrap items-center gap-x-8 gap-y-3 px-6 lg:px-8 2xl:px-12">
             <p className="w-full font-[550] text-[#202020] md:w-auto">
               Follow us @bhumiraj
             </p>
@@ -178,7 +178,7 @@ export function SiteFooter() {
         </div>
 
         <div className="border-t border-black/[.05] py-12">
-          <div className="mx-auto grid min-h-[240px] max-w-[1832px] grid-cols-2 gap-x-4 gap-y-6 px-6 md:grid-cols-6 lg:grid-cols-12 lg:px-8 2xl:px-12">
+          <div className="mx-auto grid min-h-[240px] max-w-site grid-cols-2 gap-x-4 gap-y-6 px-6 md:grid-cols-6 lg:grid-cols-12 lg:px-8 2xl:px-12">
             <div className="col-span-full mb-6 flex items-start lg:col-span-4 lg:mb-0">
               <Link href="/">
                 <BrandMark />
@@ -215,8 +215,7 @@ export function SiteFooter() {
         </div>
 
         <div className="border-t border-black/[.05]">
-          <div className="mx-auto flex max-w-[1832px] flex-wrap items-center gap-x-6 gap-y-3 px-6 py-8 text-[#636363] lg:px-8 2xl:px-12">
-            <span>Find your place in Nepal ®</span>
+          <div className="mx-auto flex max-w-site flex-wrap items-center gap-x-6 gap-y-3 px-6 py-8 text-[#636363] lg:px-8 2xl:px-12">
             <span>© 2026 Bhumiraj Estates.</span>
           </div>
         </div>

@@ -1,13 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { PhotoLightbox } from "@/app/_components/photo-lightbox"
+import { PropertyCardCarousel } from "@/app/_components/residence-card"
 import { Play } from "lucide-react"
-import {
-  Dialog,
-  DialogPanel,
-  DialogPopup,
-  DialogTitle,
-} from "@/components/ui/dialog"
 
 const imageShadow =
   "shadow-[0_8px_16px_-4px_rgba(0,0,0,0.10),0_4px_8px_-2px_rgba(0,0,0,0.10)]"
@@ -26,54 +22,26 @@ export function StayGallery({
   return (
     <>
       <div id="section-photos">
-        <div className="relative mt-5 mb-9 lg:hidden">
-          <div className="-m-5 w-screen snap-x snap-mandatory overflow-x-auto scroll-smooth overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <div className="flex w-fit items-start gap-2 px-5">
-              {slots.map((src, index) => {
-                const isLast = index === 4
-                return (
-                  <div
-                    key={`${src}-${index}`}
-                    className="relative my-4 h-[112vw] max-h-[55vh] w-[89vw] shrink-0 snap-start"
-                  >
-                    <button
-                      type="button"
-                      aria-label={
-                        isLast
-                          ? `View all ${photos.length} photos`
-                          : `Open image gallery: ${title} photo ${index + 1}`
-                      }
-                      onClick={() => setOpen(true)}
-                      className="h-full w-full border-none bg-transparent p-0"
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={src}
-                        alt={`${title} photo ${index + 1}`}
-                        className="h-full w-full rounded-xl object-cover shadow-[0_4px_8px_0px_rgba(0,0,0,0.16)]"
-                      />
-                      {isLast && (
-                        <>
-                          <div className="absolute inset-0 z-10 rounded-xl bg-black/50" />
-                          <div className="absolute inset-0 z-20 flex items-center justify-center">
-                            <span className="inline-flex h-10 items-center rounded-full bg-white px-4 text-[14px] font-medium text-[#202020]">
-                              View all {photos.length} photos
-                            </span>
-                          </div>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-
-          <div className="pointer-events-none absolute bottom-8 left-[calc(89vw-1rem)] z-10 -translate-x-full">
-            <span className="inline-flex h-7 items-center rounded-full bg-white px-2 text-[14px] font-medium text-[#202020] shadow-sm">
-              <span className="px-1">1/{photos.length}</span>
-            </span>
-          </div>
+        {/* Mobile uses the same swipeable card carousel as the feed posts, so
+            the gallery reads consistently across the product. */}
+        <div className="-mx-5 mt-3 mb-6 lg:hidden">
+          <PropertyCardCarousel
+            href={`#`}
+            images={photos}
+            fallbackImage={photos[0] ?? "/images/featured-1.webp"}
+            alt={title}
+            aspectRatio="4 / 3"
+            className="bg-[#f1f1ef]"
+            topRight={
+              <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="mt-3 mr-3 inline-flex h-8 items-center rounded-full bg-black/55 px-3 text-[12px] font-medium text-white backdrop-blur-md"
+              >
+                View all {photos.length}
+              </button>
+            }
+          />
         </div>
 
         <div className="relative mb-6 hidden w-full grid-cols-[7fr_5fr] gap-2 lg:grid 2xl:grid-cols-[6fr_4fr]">
@@ -171,24 +139,12 @@ export function StayGallery({
         </div>
       </div>
 
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogPopup className="max-h-[90vh] w-[min(1100px,calc(100vw-32px))]">
-          <DialogPanel>
-            <DialogTitle>{title}</DialogTitle>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              {photos.map((src, index) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={`${src}-${index}`}
-                  src={src}
-                  alt={`${title} photo ${index + 1}`}
-                  className="aspect-[3/2] w-full rounded-lg object-cover"
-                />
-              ))}
-            </div>
-          </DialogPanel>
-        </DialogPopup>
-      </Dialog>
+      <PhotoLightbox
+        photos={photos}
+        title={title}
+        open={open}
+        onClose={() => setOpen(false)}
+      />
     </>
   )
 }

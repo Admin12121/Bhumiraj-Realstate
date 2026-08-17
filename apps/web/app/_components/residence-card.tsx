@@ -2,8 +2,9 @@
 
 import Link from "next/link"
 import { useMemo, useRef, useState, type ReactNode, type TouchEvent } from "react"
-import { ChevronLeft, ChevronRight, Heart } from "lucide-react"
+import { ChevronLeft, ChevronRight } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { SaveButton } from "./save-button"
 
 /** The reference's swipeable card media: slides, arrows and a progress pill. */
 export function PropertyCardCarousel({
@@ -147,6 +148,8 @@ export function PropertyCardCarousel({
 }
 
 export type Residence = {
+  /** Database id; absent for sample residences, which cannot be saved. */
+  listingId?: string | undefined
   slug: string
   image: string
   images?: string[]
@@ -160,7 +163,6 @@ export type Residence = {
 
 /** The reference's residence card, used for both real and sample listings. */
 export function ResidenceCard({ residence }: { residence: Residence }) {
-  const [saved, setSaved] = useState(false)
   const href = `/properties/${residence.slug}`
 
   return (
@@ -181,24 +183,11 @@ export function ResidenceCard({ residence }: { residence: Residence }) {
           ) : null
         }
         topRight={
-          <button
-            type="button"
-            aria-label={saved ? "Remove from saved homes" : "Save residence"}
-            aria-pressed={saved}
-            onClick={(event) => {
-              event.preventDefault()
-              event.stopPropagation()
-              setSaved((value) => !value)
-            }}
+          <SaveButton
+            listingId={residence.listingId}
             className="mt-3 mr-3 inline-flex size-8 items-center justify-center rounded-full border-0 bg-transparent p-0"
-          >
-            <Heart
-              className={`size-[21px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.65)] ${
-                saved ? "fill-white" : "fill-transparent"
-              }`}
-              strokeWidth={1.7}
-            />
-          </button>
+            iconClassName="size-[21px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.65)]"
+          />
         }
       />
 

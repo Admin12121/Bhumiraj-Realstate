@@ -51,7 +51,7 @@ export function BhumirajDifference() {
       id="difference"
       className="mt-20 border-t border-white/10 bg-black py-20 text-[#f7f7f7] md:mt-[104px] md:pt-[104px] md:pb-[120px]"
     >
-      <div className="mx-auto grid w-full max-w-[1832px] grid-cols-2 gap-x-4 px-6 lg:grid-cols-12 lg:px-8 2xl:px-12">
+      <div className="mx-auto grid w-full max-w-site grid-cols-2 gap-x-4 px-6 lg:grid-cols-12 lg:px-8 2xl:px-12">
         <div className="col-span-full lg:col-span-6 lg:pr-10">
           <p className="mb-4 text-[15px] leading-6 text-white/55">
             The Bhumiraj difference

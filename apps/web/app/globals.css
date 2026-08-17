@@ -8,6 +8,10 @@
 /* Breakpoints from the aera-stays-ui reference. They differ from the Tailwind
    defaults at every step above `sm`, so ported markup needs them to line up. */
 @theme {
+  /* One page container width for every surface: header, feed, sections, footer.
+     Use `max-w-site` rather than a literal so the nav and body never drift. */
+  --container-site: 1832px;
+
   --breakpoint-sm: 40rem;
   --breakpoint-md: 46.5rem;
   --breakpoint-lg: 65rem;
@@ -22,6 +26,8 @@
   --font-sans: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
   --shadow-review: 0 3px 11px rgba(26, 26, 26, 0.12);
+  --shadow-card-hover:
+    0 0 0 1px rgba(0, 0, 0, 0.08), 0 6px 20px rgba(0, 0, 0, 0.10);
   --shadow-wander:
     0 8px 16px -4px rgba(0, 0, 0, 0.1), 0 4px 8px -2px rgba(0, 0, 0, 0.1);
   --ease-out-cubic: cubic-bezier(0.33, 1, 0.68, 1);
@@ -379,4 +385,18 @@ html[data-magicui-theme-vt="active"]::view-transition-group(root) {
 input[type="date"]::-webkit-calendar-picker-indicator {
   opacity: .45;
   cursor: pointer;
+}
+/* Result cards animate individually so a changing list never swaps wholesale. */
+@keyframes card-enter {
+  from { opacity: 0; transform: translateY(8px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes card-exit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-6px) scale(.985); }
+}
+.card-enter { animation: card-enter .26s cubic-bezier(.33, 1, .68, 1) both; }
+.card-exit {
+  animation: card-exit .22s cubic-bezier(.33, 1, .68, 1) both;
+  pointer-events: none;
 }

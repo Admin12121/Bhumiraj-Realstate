@@ -184,7 +184,7 @@ export function PropertyDetail({ slug }: { slug: string }) {
       </header>
 
       {/* Reference proportions: 1832px content system, 7fr/5fr detail split. */}
-      <div className="mx-auto max-w-[1832px] px-6 py-8 lg:px-8 lg:py-10 2xl:px-12">
+      <div className="mx-auto max-w-site px-6 py-8 lg:px-8 lg:py-10 2xl:px-12">
         <PropertyGallery
           photos={
             listing.media.length

@@ -92,7 +92,7 @@ export function PublicHeader() {
             : "border-transparent bg-transparent text-white",
       )}
     >
-      <div className="mx-auto flex h-full max-w-[1832px] items-center justify-between gap-5 px-6 lg:px-8 2xl:px-12">
+      <div className="mx-auto flex h-full max-w-site items-center justify-between gap-5 px-6 lg:px-8 2xl:px-12">
         <div className="flex min-w-0 items-center">
           <Link href="/" className="flex shrink-0 items-center gap-2.5">
             <Image

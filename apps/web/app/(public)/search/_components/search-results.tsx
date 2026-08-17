@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState, useTransition } from "react"
+import { useAnimatedList } from "@/hooks/use-animated-list"
 import type { ListingFeedQuery } from "@real-estate/contracts"
 import { DEMO_RESIDENCES } from "@/app/_components/demo-residences"
 import { PublicHeader } from "@/app/_components/public-header"
@@ -10,12 +11,18 @@ import {
   MapSurface,
   type MapBounds,
   type MapMarkerData,
-} from "./map-surface"
+} from "@/app/_components/property-map"
 import { SearchHeaderControls } from "./search-header-controls"
-import { ResultCard, type SearchResult } from "./result-card"
+import {
+  ResultCard,
+  ResultCardSkeleton,
+  type SearchResult,
+} from "./result-card"
 
 /** Cards revealed per infinite-scroll batch. */
 const PAGE_SIZE = 8
+/** Hard ceiling on rendered cards. Beyond this the map is the way to narrow. */
+const MAX_CARDS = 20
 
 export type SearchCriteria = {
   type?: string
@@ -57,6 +64,10 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
         image: listing.coverImageUrl ?? "/images/featured-1.webp",
         bedrooms: listing.specifications.bedrooms ?? undefined,
         bathrooms: listing.specifications.bathrooms ?? undefined,
+        area: listing.specifications.areaSqFt
+          ? `${listing.specifications.areaSqFt.toLocaleString()} sq ft`
+          : undefined,
+        propertyType: listing.propertyType,
         price: listing.price
           ? formatMinorAmount(listing.price.amountMinor, listing.price.currency)
           : undefined,
@@ -70,6 +81,8 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
         ...(residence.images ? { images: residence.images } : {}),
         bedrooms: parseSpec(residence.rooms, "bedrooms"),
         bathrooms: parseSpec(residence.rooms, "baths"),
+        area: residence.rooms.split(" · ").at(-1),
+        propertyType: "House",
         price: "NPR 4,25,00,000",
         originalPrice: "NPR 4,80,00,000",
         priceLabel: "Guide price",
@@ -123,6 +136,9 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
 
   // Map viewport drives which results the panel shows, Zillow-style.
   const [bounds, setBounds] = useState<MapBounds | null>(null)
+  // Bounds changes re-render the whole list, so they run as a transition: React
+  // reports genuine pending work instead of us faking a delay.
+  const [reflowing, startReflow] = useTransition()
   const [hoveredSlug, setHoveredSlug] = useState<string | null>(null)
 
   const coordsBySlug = useMemo(() => {
@@ -151,10 +167,30 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
     })
   }, [bounds, coordsBySlug, results])
 
+  // Only the closest results to the middle of the view are rendered. This is
+  // what keeps the panel bounded when an area holds hundreds of properties.
+  const capped = useMemo(() => {
+    if (!bounds || inView.length <= MAX_CARDS) return inView.slice(0, MAX_CARDS)
+    const centreLng = (bounds.west + bounds.east) / 2
+    const centreLat = (bounds.south + bounds.north) / 2
+    return [...inView]
+      .sort((a, b) => {
+        const pa = coordsBySlug.get(a.slug)
+        const pb = coordsBySlug.get(b.slug)
+        if (!pa || !pb) return 0
+        const da = (pa.longitude - centreLng) ** 2 + (pa.latitude - centreLat) ** 2
+        const db = (pb.longitude - centreLng) ** 2 + (pb.latitude - centreLat) ** 2
+        return da - db
+      })
+      .slice(0, MAX_CARDS)
+  }, [bounds, coordsBySlug, inView])
+
+  const overflowed = inView.length > capped.length
+
   // Reference behaviour: reveal in batches as the sentinel comes into view.
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const sentinelRef = useRef<HTMLDivElement>(null)
-  const hasMore = visibleCount < inView.length || Boolean(feed.hasNextPage)
+  const hasMore = visibleCount < capped.length || Boolean(feed.hasNextPage)
 
   // Re-panning or re-filtering starts the list over rather than keeping a stale
   // depth. Adjusting during render avoids a second paint at the old count.
@@ -180,8 +216,8 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
       ([entry]) => {
         if (!entry?.isIntersecting) return
         setVisibleCount((count) => {
-          if (count < inView.length) {
-            return Math.min(count + PAGE_SIZE, inView.length)
+          if (count < capped.length) {
+            return Math.min(count + PAGE_SIZE, capped.length)
           }
           if (hasNextPage && !isFetchingNextPage) void fetchNextPage()
           return count
@@ -192,9 +228,10 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
 
     observer.observe(sentinel)
     return () => observer.disconnect()
-  }, [fetchNextPage, hasMore, hasNextPage, inView.length, isFetchingNextPage])
+  }, [capped.length, fetchNextPage, hasMore, hasNextPage, isFetchingNextPage])
 
-  const visible = inView.slice(0, visibleCount)
+  const visible = capped.slice(0, visibleCount)
+  const { entries, onExited } = useAnimatedList(visible, (item) => item.slug)
   const heading = criteria.district
     ? `Residences in ${criteria.district}`
     : "Explore all residences"
@@ -227,34 +264,57 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
               <SearchHeaderControls criteria={criteria} />
             </div>
 
-            {listings.length === 0 && !feed.isPending && (
-              <p className="mb-5 text-[13px] text-[#8a8a8a]">
-                No published listings match this search yet — sample residences
-                are shown.
-              </p>
-            )}
-
             {feed.isPending ? (
               <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2 xl:gap-x-5">
                 {Array.from({ length: 4 }, (_, index) => (
-                  <div key={index} className="pb-8">
-                    <div className="aspect-[4/3.25] animate-pulse rounded-lg bg-[#f1f1ef]" />
+                  <ResultCardSkeleton key={index} />
+                ))}
+              </div>
+            ) : entries.length === 0 ? (
+              /* Panning past every pin is a normal outcome, not loading and not
+                 the end of the list. */
+              <div className="flex flex-col items-center gap-2 rounded-2xl bg-[#f7f7f6] px-6 py-14 text-center">
+                <p className="text-[15px] font-medium text-[#202020]">
+                  No properties in this part of the map
+                </p>
+                <p className="max-w-[320px] text-[13px] leading-5 text-[#8a8a8a]">
+                  Zoom out or drag the map to bring listings back into view.
+                </p>
+              </div>
+            ) : (
+              <div
+                className={`grid grid-cols-1 gap-x-4 transition-opacity duration-200 sm:grid-cols-2 xl:gap-x-5 ${
+                  reflowing ? "opacity-60" : "opacity-100"
+                }`}
+              >
+                {entries.map((entry) => (
+                  <div
+                    key={entry.key}
+                    className={entry.exiting ? "card-exit" : "card-enter"}
+                    style={{
+                      animationDelay: `${Math.min(entry.order, 6) * 35}ms`,
+                    }}
+                    onAnimationEnd={() => {
+                      if (entry.exiting) onExited(entry.key)
+                    }}
+                  >
+                    <ResultCard
+                      result={entry.item}
+                      index={entry.order}
+                      highlighted={hoveredSlug === entry.item.slug}
+                      onHoverChange={setHoveredSlug}
+                    />
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2 xl:gap-x-5">
-                {visible.map((result, index) => (
-                  <ResultCard
-                    key={result.slug}
-                    result={result}
-                    index={index}
-                    highlighted={hoveredSlug === result.slug}
-                    onHoverChange={setHoveredSlug}
-                  />
-                ))}
-              </div>
             )}
+
+            {overflowed ? (
+              <p className="mt-4 rounded-xl bg-[#f7f7f6] px-4 py-3 text-center text-[13px] text-[#636363]">
+                Showing the {capped.length} closest of {inView.length} properties
+                here — zoom in to see the rest.
+              </p>
+            ) : null}
 
             <div
               ref={sentinelRef}
@@ -266,7 +326,7 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
                   Loading more residences…
                 </div>
               )}
-              {!hasMore && !feed.isPending && (
+              {!hasMore && !feed.isPending && !overflowed && capped.length > 0 && (
                 <span className="text-[13px] text-[#9a9a9a]">
                   You&apos;ve reached the end
                 </span>
@@ -279,7 +339,7 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
               markers={mapMarkers}
               hoveredSlug={hoveredSlug}
               onHoverChange={setHoveredSlug}
-              onBoundsChange={setBounds}
+              onBoundsChange={(next) => startReflow(() => setBounds(next))}
             />
           </aside>
         </div>

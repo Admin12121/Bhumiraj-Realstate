@@ -1,7 +1,21 @@
 "use client"
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
+import {
+  Bath,
+  BedDouble,
+  Building2,
+  CalendarRange,
+  CookingPot,
+  Layers,
+  Phone,
+  Route,
+  Ruler,
+  Sofa,
+} from "lucide-react"
 import { PublicHeader } from "@/app/_components/public-header"
+import { ShareMenu } from "@/app/_components/share-menu"
+import { EnquiryNudge } from "@/app/_components/enquiry-nudge"
 import { SiteFooter } from "@/app/_components/site-footer"
 import type { Residence } from "@/app/_components/residence-card"
 import { StayBookingCard } from "./stay-booking-card"
@@ -11,13 +25,12 @@ import { StaySections, StayThingsToKnow } from "./stay-sections"
 const tabs = [
   ["Photos", "section-photos"],
   ["About", "section-about"],
-  ["Sleep", "section-sleep"],
-  ["Amenities", "section-amenities"],
+  ["Features", "section-amenities"],
   ["Location", "section-location"],
-  ["Rules", "section-rules"],
+  ["Details", "section-rules"],
 ] as const
 
-function PropertySectionBar() {
+function PropertySectionBar({ price }: { price: string }) {
   const [visible, setVisible] = useState(false)
   const [activeIndex, setActiveIndex] = useState(0)
   const [manualScroll, setManualScroll] = useState(false)
@@ -115,7 +128,7 @@ function PropertySectionBar() {
       }`}
     >
       <div className="flex h-[65px] w-full items-center justify-center border-b border-black/[.08] bg-white">
-        <div className="mx-auto grid w-full max-w-[1832px] grid-cols-12 gap-4 px-8 2xl:px-12">
+        <div className="mx-auto grid w-full max-w-site grid-cols-12 gap-4 px-8 2xl:px-12">
           <div className="col-span-10 col-start-2 flex items-center justify-between 3xl:col-span-8 3xl:col-start-3">
           <nav aria-label="Property sections">
             <div
@@ -156,10 +169,10 @@ function PropertySectionBar() {
           <div className="relative top-0.5 flex items-center justify-center gap-3">
             <div className="flex flex-col items-start justify-center">
               <div className="pt-[5px] text-[16px] leading-5 font-medium">
-                $1,198
+                {price}
               </div>
               <div className="text-[12px] leading-5 font-normal text-[#636363]">
-                for 2 nights
+                Guide price
               </div>
             </div>
             <button
@@ -169,9 +182,10 @@ function PropertySectionBar() {
                   .getElementById("property-booking")
                   ?.scrollIntoView({ behavior: "smooth", block: "start" })
               }
-              className="ml-3 h-10 w-[125px] rounded-full bg-[#00733d] px-2 py-1.5 text-[16px] leading-[18px] font-medium text-white hover:bg-[#006134]"
+              className="ml-3 inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#00733d] px-4 text-[15px] leading-[18px] font-medium text-white hover:bg-[#006134]"
             >
-              Reserve
+              <Phone className="size-4" strokeWidth={1.9} />
+              Contact agent
             </button>
           </div>
           </div>
@@ -182,22 +196,93 @@ function PropertySectionBar() {
 }
 
 export function StayPage({ residence }: { residence: Residence }) {
+  const [highlight, setHighlight] = useState<"contact" | "viewing" | null>(null)
   const photos = residence.images ?? [residence.image]
+  const price = "NPR 4,25,00,000"
+  const facts = residence.rooms.split(" · ")
+  const bedrooms = facts[0] ?? "—"
+  const bathrooms = facts[1] ?? "—"
+  const area = facts[2] ?? "—"
+
+  const detail = [
+    { icon: Building2, label: "Property Type", value: "House" },
+    { icon: Ruler, label: "Area", value: area },
+    { icon: BedDouble, label: "Bedroom", value: bedrooms },
+    { icon: Bath, label: "Bathroom", value: bathrooms },
+    { icon: CookingPot, label: "Kitchen", value: "2 Kitchen" },
+    { icon: Sofa, label: "Living Room", value: "2 Rooms" },
+    { icon: Layers, label: "Storey", value: "2.5" },
+    { icon: Route, label: "Road Access", value: "20 ft" },
+    { icon: CalendarRange, label: "Built Year", value: "2023" },
+  ]
+
+  const overview = [
+    { label: "Property Face", value: "North East" },
+    { label: "Furnishing", value: "Semi furnished" },
+    { label: "City & Area", value: `${residence.city}, Nepal` },
+  ]
+
+  const nearby = [
+    { label: "School", distance: "1 km" },
+    { label: "College", distance: "1 km" },
+    { label: "Hospital", distance: "1 km" },
+    { label: "Pharmacy", distance: "1 km" },
+    { label: "Public transport", distance: "0.5 km" },
+    { label: "Supermarket", distance: "3.3 km" },
+    { label: "Bank", distance: "1 km" },
+    { label: "Ward office", distance: "2 km" },
+    { label: "Police station", distance: "1 km" },
+    { label: "Airport", distance: "11 km" },
+  ]
+  const description = `${residence.title} is a ${residence.rooms.toLowerCase()} property in ${residence.city}. Ownership documents are verified against land-registry records, the plot has direct road access, and municipal water and electricity are already connected. The building is ready to occupy, with no outstanding dues or disputes on the title. An appointed Bhumiraj agent can arrange a viewing, walk you through the lalpurja and survey drawing, and handle negotiation and transfer end to end.`
+  const agent = { name: "Bishap Jaisi", verified: true }
+  const contact = {
+    slug: residence.slug,
+    title: residence.title,
+    location: `${residence.city}, Nepal`,
+    price,
+    specs: [
+      { label: "Property type", value: "House" },
+      { label: "Listing", value: "For sale" },
+      ...facts.map((fact, index) => ({
+        label: ["Bedrooms", "Bathrooms", "Land area"][index] ?? "Detail",
+        value: fact,
+      })),
+    ],
+    agent,
+  }
 
   return (
     <>
       <PublicHeader />
-      <PropertySectionBar />
+      <PropertySectionBar price={price} />
       <main className="bg-white">
-        <div className="mx-auto grid max-w-[1832px] grid-cols-2 gap-4 px-6 pt-[73px] pb-[calc(81px+env(safe-area-inset-bottom))] md:grid-cols-6 lg:grid-cols-12 lg:px-8 lg:pt-[88px] lg:pb-0 2xl:px-12">
+        <div className="mx-auto grid max-w-site grid-cols-2 gap-4 px-6 pt-[73px] pb-[calc(81px+env(safe-area-inset-bottom))] md:grid-cols-6 lg:grid-cols-12 lg:px-8 lg:pt-[88px] lg:pb-0 2xl:px-12">
           <div className="col-span-full md:col-span-6 lg:col-span-12 xl:col-span-10 xl:col-start-2 3xl:col-span-8 3xl:col-start-3">
             <StayGallery photos={photos} title={residence.title} />
 
             <div className="lg:grid lg:grid-cols-[7fr_5fr] lg:gap-4 3xl:grid-cols-[6fr_4fr] 4xl:grid-cols-[5fr_3fr]">
-              <StaySections title={residence.title} location={residence.city} />
+              <StaySections
+                title={residence.title}
+                location={residence.city}
+                slug={residence.slug}
+                description={description}
+                detail={detail}
+                overview={overview}
+                nearby={nearby}
+                {...(residence.latitude != null && residence.longitude != null
+                  ? {
+                      coordinates: {
+                        latitude: residence.latitude,
+                        longitude: residence.longitude,
+                      },
+                    }
+                  : {})}
+                coverImage={photos[0]}
+              />
               <div className="flex items-start justify-end lg:pb-14">
                 <div className="hidden w-full max-w-[400px] lg:block">
-                  <StayBookingCard />
+                  <StayBookingCard details={contact} highlight={highlight} />
                 </div>
               </div>
             </div>
@@ -209,13 +294,27 @@ export function StayPage({ residence }: { residence: Residence }) {
 
       <div className="fixed inset-x-0 bottom-0 z-40 flex min-h-[81px] items-center justify-between gap-4 border-t border-black/[.08] bg-white px-5 pb-[env(safe-area-inset-bottom)] lg:hidden">
         <div>
-          <div className="text-[16px] font-[550]">$1,198</div>
-          <div className="mt-0.5 text-[12px] text-[#636363]">for 2 nights</div>
+          <div className="text-[16px] font-[550]">{price}</div>
+          <div className="mt-0.5 text-[12px] text-[#636363]">Guide price</div>
         </div>
-        <button className="h-12 min-w-[145px] rounded-full bg-[#00733d] px-5 text-[16px] font-[550] text-white">
-          Reserve
-        </button>
+        <div className="flex items-center gap-2">
+          <ShareMenu
+            iconOnly
+            details={{
+              title: residence.title,
+              text: `${price} · ${residence.city}, Nepal`,
+              path: `/properties/${residence.slug}`,
+            }}
+            className="grid size-12 place-items-center rounded-full border border-black/[.12] bg-white text-[#202020]"
+          />
+          <button className="inline-flex h-12 min-w-[145px] items-center justify-center gap-2 rounded-full bg-[#00733d] px-5 text-[16px] font-[550] text-white">
+            <Phone className="size-4" strokeWidth={1.9} />
+            Contact agent
+          </button>
+        </div>
       </div>
+
+      <EnquiryNudge agentName={agent.name} onHighlight={setHighlight} />
 
       <SiteFooter />
     </>
