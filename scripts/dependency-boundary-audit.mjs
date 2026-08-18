@@ -15,7 +15,18 @@ const builtins = new Set([
   ...builtinModules,
   ...builtinModules.map((name) => `node:${name}`),
 ]);
-const ignored = new Set(["node_modules", ".next", "dist", "coverage", ".turbo"]);
+const ignored = new Set([
+  "node_modules",
+  ".next",
+  "dist",
+  "coverage",
+  ".turbo",
+  // Vendored reference projects, not workspace members.
+  "CodeSandbox",
+  "aera-stays-ui",
+  "agency",
+  "room24",
+]);
 const errors = [];
 
 function walk(directory) {

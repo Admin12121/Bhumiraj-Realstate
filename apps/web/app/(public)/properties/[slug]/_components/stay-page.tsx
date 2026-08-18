@@ -5,20 +5,24 @@ import {
   Bath,
   BedDouble,
   Building2,
+  CalendarDays,
   CalendarRange,
+  Car,
   CookingPot,
+  LandPlot,
   Layers,
   Phone,
   Route,
   Ruler,
-  Sofa,
 } from "lucide-react"
 import { PublicHeader } from "@/app/_components/public-header"
 import { ShareMenu } from "@/app/_components/share-menu"
 import { EnquiryNudge } from "@/app/_components/enquiry-nudge"
 import { SiteFooter } from "@/app/_components/site-footer"
-import type { Residence } from "@/app/_components/residence-card"
+import { formatMinorAmount } from "@/shared/utilities/money"
+import type { ListingDetail } from "@real-estate/contracts"
 import { StayBookingCard } from "./stay-booking-card"
+import { ViewingScheduler } from "./viewing-scheduler"
 import { StayGallery } from "./stay-gallery"
 import { StaySections, StayThingsToKnow } from "./stay-sections"
 
@@ -195,61 +199,163 @@ function PropertySectionBar({ price }: { price: string }) {
   )
 }
 
-export function StayPage({ residence }: { residence: Residence }) {
+const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  HOUSE: "House",
+  APARTMENT: "Apartment",
+  LAND: "Land",
+  COMMERCIAL: "Commercial",
+  OFFICE: "Office",
+  WAREHOUSE: "Warehouse",
+}
+
+const RENT_PERIOD_LABELS: Record<string, string> = {
+  MONTHLY: "per month",
+  QUARTERLY: "per quarter",
+  YEARLY: "per year",
+}
+
+/** Title case for the enum values the API stores in SCREAMING_SNAKE. */
+function humanise(value: string): string {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ")
+}
+
+function amount(value: number, unit: string): string {
+  return value.toLocaleString("en-IN") + " " + unit
+}
+
+type DetailRow = { icon: typeof Building2; label: string; value: string }
+type OverviewRow = { label: string; value: string }
+
+export function StayPage({ listing }: { listing: ListingDetail }) {
   const [highlight, setHighlight] = useState<"contact" | "viewing" | null>(null)
-  const photos = residence.images ?? [residence.image]
-  const price = "NPR 4,25,00,000"
-  const facts = residence.rooms.split(" · ")
-  const bedrooms = facts[0] ?? "—"
-  const bathrooms = facts[1] ?? "—"
-  const area = facts[2] ?? "—"
+  const [schedulerOpen, setSchedulerOpen] = useState(false)
 
-  const detail = [
-    { icon: Building2, label: "Property Type", value: "House" },
-    { icon: Ruler, label: "Area", value: area },
-    { icon: BedDouble, label: "Bedroom", value: bedrooms },
-    { icon: Bath, label: "Bathroom", value: bathrooms },
-    { icon: CookingPot, label: "Kitchen", value: "2 Kitchen" },
-    { icon: Sofa, label: "Living Room", value: "2 Rooms" },
-    { icon: Layers, label: "Storey", value: "2.5" },
-    { icon: Route, label: "Road Access", value: "20 ft" },
-    { icon: CalendarRange, label: "Built Year", value: "2023" },
+  const photos = listing.media.length
+    ? listing.media.map((item) => item.url)
+    : listing.coverImageUrl
+      ? [listing.coverImageUrl]
+      : []
+
+  const price = listing.price
+    ? formatMinorAmount(listing.price.amountMinor, listing.price.currency)
+    : "Price on request"
+  const priceLabel =
+    listing.listingType === "RENT" && listing.rentPeriod
+      ? (RENT_PERIOD_LABELS[listing.rentPeriod] ?? "Rent")
+      : listing.listingType === "AUCTION"
+        ? "Opening bid"
+        : "Guide price"
+
+  const area = listing.location.locality + ", " + listing.location.district
+  const specs = listing.specifications
+  const extra = listing.details
+
+  // Rows the owner left blank are dropped rather than guessed at.
+  const detail = (
+    [
+      {
+        icon: Building2,
+        label: "Property type",
+        value:
+          PROPERTY_TYPE_LABELS[listing.propertyType] ??
+          humanise(listing.propertyType),
+      },
+      specs.areaSqFt != null && {
+        icon: Ruler,
+        label: "Built-up area",
+        value: amount(specs.areaSqFt, "sq ft"),
+      },
+      extra.landAreaAana != null && {
+        icon: LandPlot,
+        label: "Land area",
+        value: amount(extra.landAreaAana, "aana"),
+      },
+      specs.bedrooms != null && {
+        icon: BedDouble,
+        label: "Bedrooms",
+        value: String(specs.bedrooms),
+      },
+      specs.bathrooms != null && {
+        icon: Bath,
+        label: "Bathrooms",
+        value: String(specs.bathrooms),
+      },
+      extra.kitchens != null && {
+        icon: CookingPot,
+        label: "Kitchens",
+        value: String(extra.kitchens),
+      },
+      specs.parkingSpaces != null && {
+        icon: Car,
+        label: "Parking",
+        value: amount(
+          specs.parkingSpaces,
+          specs.parkingSpaces === 1 ? "space" : "spaces",
+        ),
+      },
+      extra.floors != null && {
+        icon: Layers,
+        label: "Storeys",
+        value: String(extra.floors),
+      },
+      extra.roadAccessFeet != null && {
+        icon: Route,
+        label: "Road access",
+        value: amount(extra.roadAccessFeet, "ft"),
+      },
+      extra.builtYear != null && {
+        icon: CalendarRange,
+        label: "Built year",
+        value: String(extra.builtYear),
+      },
+    ] as (DetailRow | false)[]
+  ).filter((row): row is DetailRow => row !== false)
+
+  const overview = (
+    [
+      extra.facing ? { label: "Property face", value: extra.facing } : null,
+      extra.furnishing
+        ? { label: "Furnishing", value: humanise(extra.furnishing) }
+        : null,
+      {
+        label: "City & area",
+        value: listing.address.municipality + ", " + listing.address.district,
+      },
+      listing.address.ward
+        ? { label: "Ward", value: listing.address.ward }
+        : null,
+    ] as (OverviewRow | null)[]
+  ).filter((row): row is OverviewRow => row !== null)
+
+  const breadcrumb = [
+    { label: "Home", href: "/" },
+    {
+      label: listing.address.province,
+      href: `/search?type=${listing.listingType}&province=${encodeURIComponent(listing.address.province)}`,
+    },
+    {
+      label: listing.address.district,
+      href: `/search?type=${listing.listingType}&district=${encodeURIComponent(listing.address.district)}`,
+    },
   ]
 
-  const overview = [
-    { label: "Property Face", value: "North East" },
-    { label: "Furnishing", value: "Semi furnished" },
-    { label: "City & Area", value: `${residence.city}, Nepal` },
-  ]
-
-  const nearby = [
-    { label: "School", distance: "1 km" },
-    { label: "College", distance: "1 km" },
-    { label: "Hospital", distance: "1 km" },
-    { label: "Pharmacy", distance: "1 km" },
-    { label: "Public transport", distance: "0.5 km" },
-    { label: "Supermarket", distance: "3.3 km" },
-    { label: "Bank", distance: "1 km" },
-    { label: "Ward office", distance: "2 km" },
-    { label: "Police station", distance: "1 km" },
-    { label: "Airport", distance: "11 km" },
-  ]
-  const description = `${residence.title} is a ${residence.rooms.toLowerCase()} property in ${residence.city}. Ownership documents are verified against land-registry records, the plot has direct road access, and municipal water and electricity are already connected. The building is ready to occupy, with no outstanding dues or disputes on the title. An appointed Bhumiraj agent can arrange a viewing, walk you through the lalpurja and survey drawing, and handle negotiation and transfer end to end.`
-  const agent = { name: "Bishap Jaisi", verified: true }
+  const agent = listing.agent
   const contact = {
-    slug: residence.slug,
-    title: residence.title,
-    location: `${residence.city}, Nepal`,
+    slug: listing.slug,
+    title: listing.title,
+    location: area,
     price,
-    specs: [
-      { label: "Property type", value: "House" },
-      { label: "Listing", value: "For sale" },
-      ...facts.map((fact, index) => ({
-        label: ["Bedrooms", "Bathrooms", "Land area"][index] ?? "Detail",
-        value: fact,
-      })),
-    ],
-    agent,
+    priceLabel,
+    agent: {
+      ...(agent ? { id: agent.id } : {}),
+      name: agent?.name ?? "Bhumiraj Estates",
+      role: agent ? "Appointed agent" : "Awaiting an agent",
+      verified: agent?.verified ?? false,
+    },
   }
 
   return (
@@ -259,35 +365,47 @@ export function StayPage({ residence }: { residence: Residence }) {
       <main className="bg-white">
         <div className="mx-auto grid max-w-site grid-cols-2 gap-4 px-6 pt-[73px] pb-[calc(81px+env(safe-area-inset-bottom))] md:grid-cols-6 lg:grid-cols-12 lg:px-8 lg:pt-[88px] lg:pb-0 2xl:px-12">
           <div className="col-span-full md:col-span-6 lg:col-span-12 xl:col-span-10 xl:col-start-2 3xl:col-span-8 3xl:col-start-3">
-            <StayGallery photos={photos} title={residence.title} />
+            <StayGallery photos={photos} title={listing.title} />
 
             <div className="lg:grid lg:grid-cols-[7fr_5fr] lg:gap-4 3xl:grid-cols-[6fr_4fr] 4xl:grid-cols-[5fr_3fr]">
               <StaySections
-                title={residence.title}
-                location={residence.city}
-                slug={residence.slug}
-                description={description}
+                title={listing.title}
+                location={area}
+                slug={listing.slug}
+                listingId={listing.id}
+                verified={listing.isVerified}
+                description={listing.description}
                 detail={detail}
                 overview={overview}
-                nearby={nearby}
-                {...(residence.latitude != null && residence.longitude != null
+                amenities={listing.amenities.map((item) => item.name)}
+                nearby={[]}
+                {...(listing.location.latitude != null &&
+                listing.location.longitude != null
                   ? {
                       coordinates: {
-                        latitude: residence.latitude,
-                        longitude: residence.longitude,
+                        latitude: listing.location.latitude,
+                        longitude: listing.location.longitude,
                       },
                     }
                   : {})}
-                coverImage={photos[0]}
+                {...(photos[0] ? { coverImage: photos[0] } : {})}
               />
               <div className="flex items-start justify-end lg:pb-14">
                 <div className="hidden w-full max-w-[400px] lg:block">
-                  <StayBookingCard details={contact} highlight={highlight} />
+                  <StayBookingCard
+                    details={contact}
+                    highlight={highlight}
+                    onBookViewing={() => setSchedulerOpen(true)}
+                  />
                 </div>
               </div>
             </div>
 
-            <StayThingsToKnow title={residence.title} />
+            <StayThingsToKnow
+              ownershipVerified={listing.ownershipVerified}
+              title={listing.title}
+              breadcrumb={breadcrumb}
+            />
           </div>
         </div>
       </main>
@@ -295,26 +413,38 @@ export function StayPage({ residence }: { residence: Residence }) {
       <div className="fixed inset-x-0 bottom-0 z-40 flex min-h-[81px] items-center justify-between gap-4 border-t border-black/[.08] bg-white px-5 pb-[env(safe-area-inset-bottom)] lg:hidden">
         <div>
           <div className="text-[16px] font-[550]">{price}</div>
-          <div className="mt-0.5 text-[12px] text-[#636363]">Guide price</div>
+          <div className="mt-0.5 text-[12px] text-[#636363]">{priceLabel}</div>
         </div>
         <div className="flex items-center gap-2">
           <ShareMenu
             iconOnly
             details={{
-              title: residence.title,
-              text: `${price} · ${residence.city}, Nepal`,
-              path: `/properties/${residence.slug}`,
+              title: listing.title,
+              text: price + " · " + area,
+              path: "/properties/" + listing.slug,
             }}
             className="grid size-12 place-items-center rounded-full border border-black/[.12] bg-white text-[#202020]"
           />
-          <button className="inline-flex h-12 min-w-[145px] items-center justify-center gap-2 rounded-full bg-[#00733d] px-5 text-[16px] font-[550] text-white">
-            <Phone className="size-4" strokeWidth={1.9} />
-            Contact agent
+          <button
+            type="button"
+            onClick={() => setSchedulerOpen(true)}
+            className="inline-flex h-12 min-w-[145px] items-center justify-center gap-2 rounded-full bg-[#00733d] px-5 text-[16px] font-[550] text-white"
+          >
+            <CalendarDays className="size-4" strokeWidth={1.9} />
+            Book a viewing
           </button>
         </div>
       </div>
 
-      <EnquiryNudge agentName={agent.name} onHighlight={setHighlight} />
+      <ViewingScheduler
+        slug={listing.slug}
+        open={schedulerOpen}
+        onClose={() => setSchedulerOpen(false)}
+      />
+
+      {agent ? (
+        <EnquiryNudge agentName={agent.name} onHighlight={setHighlight} />
+      ) : null}
 
       <SiteFooter />
     </>

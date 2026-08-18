@@ -17,7 +17,12 @@ const ignoredDirectories = new Set([
   "playwright-report",
   "test-results",
   "generated",
+  // Reference projects checked out inside the tree for design/logic comparison.
+  // They ship their own stacks and must not be audited as our source.
   "CodeSandbox",
+  "aera-stays-ui",
+  "agency",
+  "room24",
   ".bun-cache",
   ".codex-tmp",
 ]);

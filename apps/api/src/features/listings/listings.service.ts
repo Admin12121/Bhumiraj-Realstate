@@ -41,6 +41,7 @@ export class ListingsService {
     const row = await this.repository.detailBySlug(slug, userId);
     if (!row) throw new NotFoundException();
 
+    const specification = row.property.specification;
     return {
       ...this.toCard({
         ...row,
@@ -67,6 +68,23 @@ export class ListingsService {
       },
       amenities: row.property.amenities.map(({ amenity }) => amenity),
       ownershipVerified: row.property.ownershipStatus === "VERIFIED",
+      // Nullable throughout: the detail page omits a fact rather than
+      // inventing one when the owner did not supply it.
+      details: {
+        kitchens: specification?.kitchens ?? null,
+        floors: specification?.floors ?? null,
+        builtYear: specification?.builtYear ?? null,
+        furnishing: specification?.furnishing ?? null,
+        facing: specification?.facing ?? null,
+        roadAccessFeet:
+          specification?.roadAccessFeet == null
+            ? null
+            : Number(specification.roadAccessFeet),
+        landAreaAana:
+          specification?.landAreaAana == null
+            ? null
+            : Number(specification.landAreaAana),
+      },
     };
   }
 
@@ -405,6 +423,7 @@ export class ListingsService {
   }
 
   private toCard(row: ListingCardRow) {
+    const assigned = row.assignments?.[0];
     return {
       id: row.id,
       slug: row.slug,
@@ -450,12 +469,16 @@ export class ListingsService {
       viewCount: row.viewCount.toString(),
       isVerified: row.isVerified,
       isSaved: Array.isArray(row.favorites) && row.favorites.length > 0,
-      agent: {
-        id: row.createdBy.id,
-        name: row.createdBy.name,
-        image: row.createdBy.image,
-        verified: Boolean(row.createdBy.agentProfile?.verifiedAt),
-      },
+      // Null until an agent accepts the offer: an unrepresented listing has
+      // nobody to contact, and naming the submitter would be misleading.
+      agent: assigned
+        ? {
+            id: assigned.agent.user.id,
+            name: assigned.agent.user.name,
+            image: assigned.agent.user.image,
+            verified: assigned.agent.verifiedAt !== null,
+          }
+        : null,
       publishedAt: row.publishedAt?.toISOString() ?? null,
       createdAt: row.createdAt.toISOString(),
       auction: row.auction

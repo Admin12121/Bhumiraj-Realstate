@@ -2,6 +2,7 @@
 import type { ReactNode } from "react";
 import { Instrument_Sans } from "next/font/google";
 import { ConnectivityStatus } from "@/app/_components/connectivity-status";
+import { SupportChat } from "@/app/_components/support-chat";
 import { AppProviders } from "@/shared/providers/app-providers";
 import "./globals.css";
 
@@ -34,6 +35,7 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         <AppProviders>
           <ConnectivityStatus />
           {children}
+          <SupportChat />
         </AppProviders>
       </body>
     </html>

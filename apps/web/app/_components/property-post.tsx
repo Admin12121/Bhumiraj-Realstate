@@ -1,5 +1,7 @@
 "use client"
 
+import type { ReactNode } from "react"
+
 import Link from "next/link"
 import { useEffect, useRef, useState } from "react"
 import {
@@ -9,7 +11,6 @@ import {
   MapPin,
   Phone,
   Ruler,
-  Share2,
   Tag,
 } from "lucide-react"
 import {
@@ -19,8 +20,9 @@ import {
 } from "@/components/ui/card"
 import { PropertyCardCarousel } from "./residence-card"
 import { SaveButton } from "./save-button"
+import { ShareMenu } from "./share-menu"
 import { Frame, FrameDescription, FrameFooter, FrameHeader, FramePanel } from "@/components/ui/frame"
-import { Button, buttonVariants } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export type PropertyPostData = {
@@ -28,7 +30,12 @@ export type PropertyPostData = {
   title: string
   description: string
   images: string[]
-  agent: { name: string; image?: string | null; verified?: boolean }
+  agent: {
+    id?: string | undefined
+    name: string
+    image?: string | null
+    verified?: boolean
+  }
   publishedAt?: string | null
   reference?: string | undefined
   price?: string | undefined
@@ -40,6 +47,15 @@ export type PropertyPostData = {
   listingId?: string | undefined
   latitude?: number | undefined
   longitude?: number | undefined
+}
+
+/** SCREAMING_SNAKE enums read as prose in the card. */
+function humanise(value: string): string {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ")
 }
 
 /** "12 hours ago" style stamp; falls back to nothing when the date is absent. */
@@ -89,6 +105,17 @@ function DetailField({
  * A listing presented as a social post: framed header, description, gallery and
  * a details grid, matching the reviewed card-frame layout.
  */
+function AgentLink({
+  agentId,
+  children,
+}: {
+  agentId?: string | undefined
+  children: ReactNode
+}) {
+  if (!agentId) return <>{children}</>
+  return <Link href={`/agents/${agentId}`}>{children}</Link>
+}
+
 export function PropertyPost({ post }: { post: PropertyPostData }) {
   const [expanded, setExpanded] = useState(false)
   const [clamped, setClamped] = useState(false)
@@ -120,7 +147,7 @@ export function PropertyPost({ post }: { post: PropertyPostData }) {
     post.price ? { icon: Tag, label: "Price", value: post.price } : null,
     { icon: MapPin, label: "Location", value: post.location },
     post.propertyType
-      ? { icon: Building2, label: "Type", value: post.propertyType }
+      ? { icon: Building2, label: "Type", value: humanise(post.propertyType) }
       : null,
     post.area ? { icon: Ruler, label: "Size", value: post.area } : null,
     post.category
@@ -133,25 +160,29 @@ export function PropertyPost({ post }: { post: PropertyPostData }) {
       <FrameHeader>
         <div className="flex items-center justify-between w-full">          
           <div className="flex min-w-0 items-center gap-3">
-            <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-[#efece9] text-[14px] font-semibold text-[#5b524c]">
-              {post.agent.image ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={post.agent.image}
-                  alt=""
-                  className="size-full object-cover"
-                />
-              ) : (
-                post.agent.name.slice(0, 1).toUpperCase()
-              )}
-            </span>
+            <AgentLink agentId={post.agent.id}>
+              <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-[#efece9] text-[14px] font-semibold text-[#5b524c]">
+                {post.agent.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={post.agent.image}
+                    alt=""
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  post.agent.name.slice(0, 1).toUpperCase()
+                )}
+              </span>
+            </AgentLink>
             <div className="min-w-0">
-              <CardFrameTitle className="flex items-center gap-1 truncate text-[15px]">
-                {post.agent.name}
-                {post.agent.verified ? (
-                  <BadgeCheck className="size-4 shrink-0 text-emerald-700" />
-                ) : null}
-              </CardFrameTitle>
+              <AgentLink agentId={post.agent.id}>
+                <CardFrameTitle className="flex items-center gap-1 truncate text-[15px] hover:underline">
+                  {post.agent.name}
+                  {post.agent.verified ? (
+                    <BadgeCheck className="size-4 shrink-0 text-emerald-700" />
+                  ) : null}
+                </CardFrameTitle>
+              </AgentLink>
               <CardFrameDescription className="truncate text-[13px]">
                 Property Agent
               </CardFrameDescription>
@@ -164,15 +195,17 @@ export function PropertyPost({ post }: { post: PropertyPostData }) {
               className="inline-flex size-9 items-center justify-center rounded-md bg-secondary text-secondary-foreground transition-colors hover:bg-secondary/80"
               iconClassName="size-[18px]"
             />
-            <Button
-              type="button"
-              size={"icon"}
-              aria-label="Share property"
-              onClick={() => window.open(href, "_blank")}
-              variant={"secondary"}
-            >
-              <Share2 className="size-4" strokeWidth={1.8} />
-            </Button>
+            <ShareMenu
+              iconOnly
+              details={{
+                title: post.title,
+                text: post.price
+                  ? `${post.price} · ${post.location}`
+                  : post.location,
+                path: href,
+              }}
+              className="inline-flex size-9 items-center justify-center rounded-md bg-secondary text-secondary-foreground transition-colors hover:bg-secondary/80"
+            />
             <Link
               href={href}
               className={cn(buttonVariants({ variant: "default" }))}

@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { useAnimatedList } from "@/hooks/use-animated-list"
 import type { ListingFeedQuery } from "@real-estate/contracts"
-import { DEMO_RESIDENCES } from "@/app/_components/demo-residences"
 import { PublicHeader } from "@/app/_components/public-header"
 import { useListingFeed } from "@/features/listings/queries/use-listing-feed"
 import { formatMinorAmount } from "@/shared/utilities/money"
@@ -29,11 +28,6 @@ export type SearchCriteria = {
   district?: string
   propertyType?: string
   sort?: string
-}
-
-function parseSpec(rooms: string, label: string): number | undefined {
-  const match = rooms.match(new RegExp(`([\\d.]+)\\s+${label}`, "i"))
-  return match ? Number(match[1]) : undefined
 }
 
 export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
@@ -72,21 +66,9 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
           ? formatMinorAmount(listing.price.amountMinor, listing.price.currency)
           : undefined,
         priceLabel: listing.listingType === "RENT" ? "Per month" : "Guide price",
+        verified: listing.isVerified,
       }))
-    : DEMO_RESIDENCES.map((residence) => ({
-        slug: residence.slug,
-        title: residence.title,
-        city: residence.city,
-        image: residence.image,
-        ...(residence.images ? { images: residence.images } : {}),
-        bedrooms: parseSpec(residence.rooms, "bedrooms"),
-        bathrooms: parseSpec(residence.rooms, "baths"),
-        area: residence.rooms.split(" · ").at(-1),
-        propertyType: "House",
-        price: "NPR 4,25,00,000",
-        originalPrice: "NPR 4,80,00,000",
-        priceLabel: "Guide price",
-      }))), [listings])
+    : []), [listings])
 
   // Only listings with a geocoded address can carry a pin.
   const mapMarkers: MapMarkerData[] = useMemo(() => (listings.length
@@ -109,37 +91,31 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
               listing.listingType === "RENT" ? "Per month" : "Guide price",
             bedrooms: listing.specifications.bedrooms ?? undefined,
             bathrooms: listing.specifications.bathrooms ?? undefined,
+            area: listing.specifications.areaSqFt
+              ? `${listing.specifications.areaSqFt.toLocaleString()} sq ft`
+              : undefined,
             latitude,
             longitude,
           },
         ]
       })
-    : DEMO_RESIDENCES.flatMap((residence) =>
-        residence.latitude == null || residence.longitude == null
-          ? []
-          : [
-              {
-                slug: residence.slug,
-                title: residence.title,
-                city: residence.city,
-                image: residence.image,
-                price: "NPR 4,25,00,000",
-                originalPrice: "NPR 4,80,00,000",
-                priceLabel: "Guide price",
-                bedrooms: parseSpec(residence.rooms, "bedrooms"),
-                bathrooms: parseSpec(residence.rooms, "baths"),
-                latitude: residence.latitude,
-                longitude: residence.longitude,
-              },
-            ],
-      )), [listings])
+    : []), [listings])
 
   // Map viewport drives which results the panel shows, Zillow-style.
   const [bounds, setBounds] = useState<MapBounds | null>(null)
+  // Blocked tiles or a failed style would otherwise leave the panel waiting on
+  // a viewport that never arrives, so the list falls back to unfiltered.
+  const [mapTimedOut, setMapTimedOut] = useState(false)
   // Bounds changes re-render the whole list, so they run as a transition: React
   // reports genuine pending work instead of us faking a delay.
   const [reflowing, startReflow] = useTransition()
   const [hoveredSlug, setHoveredSlug] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (bounds) return
+    const timer = window.setTimeout(() => setMapTimedOut(true), 4_000)
+    return () => window.clearTimeout(timer)
+  }, [bounds])
 
   const coordsBySlug = useMemo(() => {
     const index = new Map<string, { latitude: number; longitude: number }>()
@@ -154,7 +130,7 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
 
   // A result with no coordinates cannot be placed, so it is never filtered out.
   const inView = useMemo(() => {
-    if (!bounds) return results
+    if (!bounds) return mapTimedOut ? results : []
     return results.filter((result) => {
       const point = coordsBySlug.get(result.slug)
       if (!point) return true
@@ -165,7 +141,7 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
         point.latitude <= bounds.north
       )
     })
-  }, [bounds, coordsBySlug, results])
+  }, [bounds, coordsBySlug, mapTimedOut, results])
 
   // Only the closest results to the middle of the view are rendered. This is
   // what keeps the panel bounded when an area holds hundreds of properties.
@@ -252,9 +228,9 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
                 </h1>
               </div>
               <span className="shrink-0 pb-0.5 text-[13px] text-[#8a8a8a]">
-                {feed.isPending
+                {feed.isPending || (!bounds && !mapTimedOut)
                   ? "…"
-                  : bounds && inView.length !== results.length
+                  : inView.length !== results.length
                     ? `${inView.length} of ${results.length} homes in view`
                     : `${inView.length} homes`}
               </span>
@@ -264,7 +240,7 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
               <SearchHeaderControls criteria={criteria} />
             </div>
 
-            {feed.isPending ? (
+            {feed.isPending || (!bounds && !mapTimedOut) ? (
               <div className="grid grid-cols-1 gap-x-4 sm:grid-cols-2 xl:gap-x-5">
                 {Array.from({ length: 4 }, (_, index) => (
                   <ResultCardSkeleton key={index} />
@@ -300,7 +276,7 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
                   >
                     <ResultCard
                       result={entry.item}
-                      index={entry.order}
+
                       highlighted={hoveredSlug === entry.item.slug}
                       onHoverChange={setHoveredSlug}
                     />

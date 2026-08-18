@@ -1,8 +1,10 @@
 import type { ComponentType } from "react";
 import {
   Bell,
+  CalendarDays,
   Bookmark,
   Gavel,
+  Handshake,
   Home,
   HousePlus,
   KeyRound,
@@ -25,7 +27,7 @@ export type NavigationItem = {
 
 export const authenticatedMarketplaceNavigation: NavigationItem[] = [
   { label: "Home", icon: Home, href: "/" },
-  { label: "Explore", icon: Search, href: "/properties" },
+  { label: "Explore", icon: Search, href: "/search?type=SALE" },
   { label: "Saved", icon: Bookmark, href: "/account/saved" },
   { label: "Messages", icon: MessageCircle, href: "/account/messages" },
   { label: "Alerts", icon: Bell, href: "/account/alerts" },
@@ -39,7 +41,7 @@ export const authenticatedMarketplaceNavigation: NavigationItem[] = [
 
 export const guestMarketplaceNavigation: NavigationItem[] = [
   { label: "Home", icon: Home, href: "/" },
-  { label: "Explore", icon: Search, href: "/properties" },
+  { label: "Explore", icon: Search, href: "/search?type=SALE" },
 ];
 
 export const accountNavigation: NavigationItem[] = [
@@ -52,9 +54,15 @@ export const accountNavigation: NavigationItem[] = [
   { label: "Alerts", icon: Bell, href: "/account/alerts" },
 ];
 
+/** Appended to the account nav only when the signed-in user is an agent. */
+export const agentNavigation: NavigationItem[] = [
+  { label: "Property offers", icon: Handshake, href: "/account/offers" },
+  { label: "Viewings", icon: CalendarDays, href: "/account/viewings" },
+];
+
 export const authenticatedMobilePrimaryNavigation: NavigationItem[] = [
   { label: "Home", icon: Home, href: "/" },
-  { label: "Explore", icon: Search, href: "/properties" },
+  { label: "Explore", icon: Search, href: "/search?type=SALE" },
   {
     label: "Post",
     icon: HousePlus,
@@ -75,7 +83,7 @@ export const authenticatedMobileMoreNavigation: NavigationItem[] = [
 
 export const guestMobilePrimaryNavigation: NavigationItem[] = [
   { label: "Home", icon: Home, href: "/" },
-  { label: "Explore", icon: Search, href: "/properties" },
+  { label: "Explore", icon: Search, href: "/search?type=SALE" },
   {
     label: "Post",
     icon: HousePlus,
@@ -86,7 +94,7 @@ export const guestMobilePrimaryNavigation: NavigationItem[] = [
 ];
 
 export const guestMobileMoreNavigation: NavigationItem[] = [
-  { label: "Live auctions", icon: Gavel, href: "/properties?type=AUCTION" },
+  { label: "Live auctions", icon: Gavel, href: "/search?type=AUCTION" },
   { label: "Sign in", icon: LogIn, href: "/sign-in" },
 ];
 

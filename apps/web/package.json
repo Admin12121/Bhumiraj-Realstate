@@ -24,6 +24,7 @@
     "@real-estate/auth": "workspace:*",
     "@real-estate/contracts": "workspace:*",
     "@real-estate/http": "workspace:*",
+    "@shadcn/react": "0.3.0",
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-query-devtools": "5.101.4",
     "better-auth": "catalog:",

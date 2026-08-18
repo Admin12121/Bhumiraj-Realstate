@@ -49,10 +49,12 @@ function AgentIdentity({
 export function StayBookingCard({
   details,
   highlight = null,
+  onBookViewing,
 }: {
   details: ContactAgentDetails
   /** Which CTA the timed nudge is currently pointing at, if any. */
   highlight?: "contact" | "viewing" | null
+  onBookViewing?: () => void
 }) {
   return (
     <aside
@@ -72,7 +74,7 @@ export function StayBookingCard({
 
           {details.agent.id ? (
             <Link
-              href={`/users/${details.agent.id}`}
+              href={`/agents/${details.agent.id}`}
               className="flex items-center gap-3 rounded-lg border border-black/[.10] p-3 transition-colors hover:bg-[#f7f7f6]"
             >
               <AgentIdentity agent={details.agent} />
@@ -98,6 +100,7 @@ export function StayBookingCard({
             </button>
             <button
               type="button"
+              onClick={onBookViewing}
               className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-black/[.12] bg-white px-5 text-[16px] font-[550] text-[#202020] transition-all hover:bg-[#f7f7f6] ${
                 highlight === "viewing"
                   ? "ring-2 ring-[#00733d] ring-offset-2"

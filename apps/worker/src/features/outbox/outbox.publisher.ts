@@ -1,5 +1,8 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { InjectQueue } from "@nestjs/bullmq";
+import type { Queue } from "bullmq";
 import { prisma } from "@real-estate/database";
+import { QUEUES } from "@real-estate/queue";
 import { createRedis } from "@real-estate/redis";
 import { workerEnv } from "../../bootstrap-env";
 
@@ -13,6 +16,10 @@ export class OutboxPublisher implements OnModuleInit, OnModuleDestroy {
   private readonly redis = createRedis(workerEnv.REDIS_CRITICAL_URL, "critical");
   private timer?: ReturnType<typeof setInterval>;
   private running = false;
+
+  constructor(
+    @InjectQueue(QUEUES.NOTIFICATIONS) private readonly notifications: Queue,
+  ) {}
 
   async onModuleInit(): Promise<void> {
     await this.redis.connect();
@@ -62,6 +69,28 @@ export class OutboxPublisher implements OnModuleInit, OnModuleDestroy {
             "payload",
             payload,
           );
+          // A notification is realtime *and* email. Enqueuing here rather than
+          // at each call site means every producer gets delivery, retries and
+          // the NotificationDelivery audit row for free.
+          if (event.eventType === "notification.created") {
+            const notificationId = (event.payload as { notificationId?: string })
+              ?.notificationId;
+            if (notificationId) {
+              await this.notifications.add(
+                "email",
+                { notificationId, channel: "EMAIL" as const },
+                {
+                  // The outbox is at-least-once, so a replay must not resend.
+                  jobId: `notification:${notificationId}:EMAIL`,
+                  attempts: 5,
+                  backoff: { type: "exponential", delay: 5_000 },
+                  removeOnComplete: 1_000,
+                  removeOnFail: 5_000,
+                },
+              );
+            }
+          }
+
           await prisma.outboxEvent.update({
             where: { id: event.id },
             data: {

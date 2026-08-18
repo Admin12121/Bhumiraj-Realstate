@@ -7,11 +7,14 @@ import {
   bigintQuerySchema,
   moneySchema,
   positiveMinorAmountSchema,
+  userIdSchema,
 } from "./common";
 
 export const listingStatusSchema = z.enum([
   "DRAFT",
+  "AWAITING_PAYMENT",
   "PENDING_REVIEW",
+  "AWAITING_AGENT",
   "PUBLISHED",
   "REJECTED",
   "WITHDRAWN",
@@ -106,12 +109,14 @@ export const listingCardSchema = z.object({
   viewCount: z.string().regex(/^\d+$/),
   isVerified: z.boolean(),
   isSaved: z.boolean().default(false),
-  agent: z.object({
-    id: idSchema,
-    name: z.string(),
-    image: z.string().url().nullable(),
-    verified: z.boolean(),
-  }),
+  agent: z
+    .object({
+      id: userIdSchema,
+      name: z.string(),
+      image: z.string().url().nullable(),
+      verified: z.boolean(),
+    })
+    .nullable(),
   publishedAt: isoDateSchema.nullable(),
   createdAt: isoDateSchema,
   auction: z
@@ -128,7 +133,8 @@ export const listingCardSchema = z.object({
 export const listingFeedQuerySchema = cursorQuerySchema.extend({
   type: listingTypeSchema.optional(),
   propertyType: propertyTypeSchema.optional(),
-  agentId: idSchema.optional(),
+  agentId: userIdSchema.optional(),
+  province: z.string().trim().max(80).optional(),
   district: z.string().trim().max(80).optional(),
   minPriceMinor: bigintQuerySchema.optional(),
   maxPriceMinor: bigintQuerySchema.optional(),
@@ -278,5 +284,14 @@ export const listingDetailSchema = listingCardSchema.extend({
     }),
   ),
   ownershipVerified: z.boolean(),
+  details: z.object({
+    kitchens: z.number().int().nullable(),
+    floors: z.number().nullable(),
+    builtYear: z.number().int().nullable(),
+    furnishing: z.string().nullable(),
+    facing: z.string().nullable(),
+    roadAccessFeet: z.number().nullable(),
+    landAreaAana: z.number().nullable(),
+  }),
 });
 export type ListingDetail = z.infer<typeof listingDetailSchema>;

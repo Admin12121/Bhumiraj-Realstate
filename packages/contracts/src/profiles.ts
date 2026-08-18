@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { idSchema, isoDateSchema } from "./common";
+import { idSchema, isoDateSchema, userIdSchema } from "./common";
 
 export const userProfileSchema = z.object({
   id: idSchema,
@@ -44,7 +44,7 @@ export const followProfileResponseSchema = z.object({
 
 export const publicAgentSchema = z.object({
   id: idSchema,
-  userId: idSchema,
+  userId: userIdSchema,
   name: z.string(),
   username: z.string().nullable(),
   image: z.string().url().nullable(),
@@ -69,3 +69,50 @@ export const publicAgentsResponseSchema = z.object({
   nextCursor: z.string().nullable(),
   hasMore: z.boolean(),
 });
+
+/** Full agent profile: identity, standing, and the properties they represent. */
+export const agentProfileDetailSchema = z.object({
+  id: idSchema,
+  userId: userIdSchema,
+  name: z.string(),
+  username: z.string().nullable(),
+  image: z.url().nullable(),
+  headline: z.string().nullable(),
+  about: z.string().nullable(),
+  verified: z.boolean(),
+  status: z.string(),
+  availabilityStatus: z.string(),
+  averageRating: z.number().min(0).max(5),
+  reviewCount: z.number().int().nonnegative(),
+  followerCount: z.number().int().nonnegative(),
+  followedByMe: z.boolean(),
+  isSelf: z.boolean(),
+  joinedAt: isoDateSchema,
+  /** Properties currently represented by this agent. */
+  listings: z.array(
+    z.object({
+      id: idSchema,
+      slug: z.string(),
+      title: z.string(),
+      coverImageUrl: z.url().nullable(),
+      locality: z.string(),
+      district: z.string(),
+      priceMinor: z.string().nullable(),
+      currency: z.string().nullable(),
+      listingType: z.string(),
+      bedrooms: z.number().int().nullable(),
+      bathrooms: z.number().int().nullable(),
+    }),
+  ),
+  reviews: z.array(
+    z.object({
+      id: idSchema,
+      rating: z.number().int().min(1).max(5),
+      comment: z.string().nullable(),
+      authorName: z.string(),
+      createdAt: isoDateSchema,
+    }),
+  ),
+});
+
+export type AgentProfileDetail = z.infer<typeof agentProfileDetailSchema>;

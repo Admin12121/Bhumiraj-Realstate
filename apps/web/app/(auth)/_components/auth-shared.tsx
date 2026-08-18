@@ -41,10 +41,22 @@ export function GoogleMark() {
 export function AuthFrame({
   children,
   note = "By continuing, you agree to the Terms of Service and Privacy Policy.",
+  bare = false,
 }: {
   children: ReactNode
   note?: ReactNode
+  /** Inside the split layout the logo and heading already exist above. */
+  bare?: boolean
 }) {
+  if (bare) {
+    return (
+      <div className="flex w-full flex-col gap-6">
+        {children}
+        <FieldNote className="text-center">{note}</FieldNote>
+      </div>
+    )
+  }
+
   return (
     <div className="flex w-full flex-col gap-6">
       <Frame className="border-none py-5">
@@ -55,7 +67,7 @@ export function AuthFrame({
             aria-label="Bhumiraj Estates home"
           >
             <Image
-              src="/Bhumiraj Logo.png"
+              src="/Logo.webp"
               alt=""
               width={56}
               height={56}

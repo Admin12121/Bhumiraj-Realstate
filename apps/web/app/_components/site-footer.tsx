@@ -23,7 +23,7 @@ function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5 font-semibold tracking-[-0.04em] text-black">
       <Image
-        src="/Bhumiraj Logo.png"
+        src="/Logo.webp"
         alt=""
         width={32}
         height={32}
@@ -72,7 +72,7 @@ function ConciergeChat({
         </button>
 
         <Image
-          src="/Bhumiraj Logo.png"
+          src="/Logo.webp"
           alt=""
           width={58}
           height={51}
@@ -216,7 +216,7 @@ export function SiteFooter() {
 
         <div className="border-t border-black/[.05]">
           <div className="mx-auto flex max-w-site flex-wrap items-center gap-x-6 gap-y-3 px-6 py-8 text-[#636363] lg:px-8 2xl:px-12">
-            <span>© 2026 Bhumiraj Estates.</span>
+            <span>© {new Date().getFullYear()} Bhumiraj Estates.</span>
           </div>
         </div>
       </footer>

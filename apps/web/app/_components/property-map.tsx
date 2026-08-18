@@ -6,6 +6,7 @@ import { Home } from "lucide-react"
 import { setWorkerUrl } from "maplibre-gl"
 import type { GeoJSONSource, MapMouseEvent } from "maplibre-gl"
 import { cn } from "@/lib/utils"
+import { PropertyCardCarousel } from "./residence-card"
 import {
   Map,
   MapControls,
@@ -34,6 +35,8 @@ export type MapMarkerData = {
   priceLabel?: string | undefined
   bedrooms?: number | undefined
   bathrooms?: number | undefined
+  area?: string | undefined
+  images?: string[] | undefined
   latitude: number
   longitude: number
 }
@@ -282,54 +285,42 @@ function PropertyClusterLayer({
   return null
 }
 
-/** The card shown when a single (unclustered) property pin is clicked. */
+/** Popup card. Location is omitted — the pin already answers "where". */
 function PropertyPopupCard({ marker }: { marker: MapMarkerData }) {
-  const specs = [
-    marker.bedrooms != null ? `${marker.bedrooms} bedrooms` : null,
-    marker.bathrooms != null ? `${marker.bathrooms} baths` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ")
-
   return (
     <Link
       href={`/properties/${marker.slug}`}
-      className="block w-[268px] text-[#1d1919]"
+      className="block w-[248px] text-[#1d1919]"
     >
-      <span className="relative block overflow-hidden rounded-xl bg-[#f1f1ef]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={marker.image}
+      <span className="block overflow-hidden rounded-xl">
+        <PropertyCardCarousel
+          href={`/properties/${marker.slug}`}
+          images={marker.images ?? [marker.image]}
+          fallbackImage={marker.image}
           alt={marker.title}
-          className="block aspect-[4/3] w-full object-cover"
+          aspectRatio="4 / 3"
+          className="bg-[#f1f1ef]"
         />
       </span>
 
-      <span className="block px-1.5 pt-3 pb-1.5">
+      <span className="block px-1.5 pt-2.5 pb-1">
         <span className="block truncate text-[15px] leading-normal font-medium tracking-[-0.015em]">
           {marker.title}
         </span>
-        <span className="mt-0.5 block truncate text-[13px] leading-normal text-[#737373]">
-          {marker.city}
-        </span>
-        {specs ? (
-          <span className="mt-0.5 block truncate text-[13px] leading-normal text-[#737373]">
-            {specs}
-          </span>
-        ) : null}
-        {marker.price ? (
-          <span className="mt-1.5 block text-[14px] leading-normal font-medium">
-            {marker.originalPrice ? (
-              <span className="mr-1.5 text-[12px] font-normal text-[#737373] line-through">
-                {marker.originalPrice}
-              </span>
-            ) : null}
-            {marker.price}
-            <span className="ml-1.5 text-[12px] font-normal text-[#737373]">
-              {marker.priceLabel ?? "Guide price"}
+        <span className="mt-1 flex items-baseline justify-between gap-3">
+          {marker.area ? (
+            <span className="truncate text-[13px] leading-normal text-[#737373]">
+              {marker.area}
             </span>
-          </span>
-        ) : null}
+          ) : (
+            <span />
+          )}
+          {marker.price ? (
+            <span className="shrink-0 text-[14px] leading-normal font-medium">
+              {marker.price}
+            </span>
+          ) : null}
+        </span>
       </span>
     </Link>
   )

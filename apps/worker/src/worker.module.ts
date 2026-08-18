@@ -7,6 +7,7 @@ import { AuctionsWorkerModule } from "./features/auctions/auctions-worker.module
 import { MediaWorkerModule } from "./features/media/media-worker.module";
 import { NotificationsWorkerModule } from "./features/notifications/notifications-worker.module";
 import { AccountsWorkerModule } from "./features/accounts/accounts-worker.module";
+import { SupportWorkerModule } from "./features/support/support-worker.module";
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { AccountsWorkerModule } from "./features/accounts/accounts-worker.module
     MediaWorkerModule,
     NotificationsWorkerModule,
     AccountsWorkerModule,
+    SupportWorkerModule,
   ],
 })
 export class WorkerModule {}

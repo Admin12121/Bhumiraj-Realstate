@@ -3,6 +3,17 @@ import { z } from "zod";
 const POSTGRES_BIGINT_MAX = 9_223_372_036_854_775_807n;
 
 export const idSchema = z.uuid();
+
+/**
+ * A user id, which is minted by Better Auth rather than Postgres: a 32-char
+ * base62 string, not a UUID. The Prisma `@default(uuid())` on `User.id` never
+ * fires because Better Auth always supplies the id itself.
+ */
+export const userIdSchema = z
+  .string()
+  .min(1)
+  .max(64)
+  .regex(/^[A-Za-z0-9_-]+$/, "Not a valid user id.");
 export const isoDateSchema = z.iso.datetime({ offset: true });
 
 export const minorAmountSchema = z

@@ -1,6 +1,12 @@
 import { Module } from "@nestjs/common";
-import { ViewingsController } from "./viewings.controller";
+import {
+  AgentViewingsController,
+  ViewingsController,
+} from "./viewings.controller";
 import { ViewingsService } from "./viewings.service";
 
-@Module({ controllers: [ViewingsController], providers: [ViewingsService] })
+@Module({
+  controllers: [ViewingsController, AgentViewingsController],
+  providers: [ViewingsService],
+})
 export class ViewingsModule {}

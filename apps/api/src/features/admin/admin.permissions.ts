@@ -62,6 +62,36 @@ export const ADMIN_PERMISSIONS = defineStaffPermissions({
     group: 'Listings',
     description: 'Publish or reject submitted listings.',
   },
+  PAYMENTS_READ: {
+    key: 'admin.payments.read',
+    label: 'View listing payments',
+    group: 'Listings',
+    description: 'View submitted listing-fee payment proofs.',
+  },
+  PAYMENTS_REVIEW: {
+    key: 'admin.payments.review',
+    label: 'Verify listing payments',
+    group: 'Listings',
+    description: 'Approve or reject listing-fee payment proofs.',
+  },
+  ASSIGNMENTS_MANAGE: {
+    key: 'admin.assignments.manage',
+    label: 'Assign listings to agents',
+    group: 'Listings',
+    description: 'Offer verified listings to agents and revoke offers.',
+  },
+  SUPPORT_READ: {
+    key: 'admin.support.read',
+    label: 'View support chats',
+    group: 'Support',
+    description: 'View general enquiry conversations from the website.',
+  },
+  SUPPORT_REPLY: {
+    key: 'admin.support.reply',
+    label: 'Reply to support chats',
+    group: 'Support',
+    description: 'Reply to, assign and close support conversations.',
+  },
   AUCTIONS_READ: {
     key: 'admin.auctions.read',
     label: 'View auctions',

@@ -5,6 +5,7 @@ import { createContext, useContext, useEffect, type ReactNode } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import {
+  BadgeDollarSign,
   BarChart3,
   Bell,
   Building2,
@@ -50,10 +51,22 @@ const sections = [
         permission: "admin.listings.read",
       },
       {
+        label: "Payments",
+        icon: BadgeDollarSign,
+        href: "/admin/payments",
+        permission: "admin.payments.read",
+      },
+      {
         label: "Auctions",
         icon: Gavel,
         href: "/admin/auctions",
         permission: "admin.auctions.read",
+      },
+      {
+        label: "Support",
+        icon: MessageSquare,
+        href: "/admin/support",
+        permission: "admin.support.read",
       },
       {
         label: "Moderation",

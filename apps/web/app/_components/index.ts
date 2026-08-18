@@ -1,11 +1,9 @@
 export * from "./app-sidebar";
 export * from "./connectivity-status";
-export * from "./home";
 export * from "./property-post";
 export * from "./home-rail";
 export * from "./property-search";
 export * from "./public-header";
-export * from "./demo-residences";
 export * from "./residence-card";
 export * from "./home-hero";
 export * from "./home-sections";
@@ -19,3 +17,4 @@ export * from "./nav-user";
 export * from "./property-card";
 export * from "./site-footer";
 export * from "./site-header";
+export * from "./support-chat";

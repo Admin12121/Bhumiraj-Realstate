@@ -5,6 +5,7 @@ import {
   idSchema,
   isoDateSchema,
   queryBooleanSchema,
+  userIdSchema,
 } from "./common";
 
 export const accountTypeSchema = z.enum(["OWNER", "STAFF", "AGENT", "USER"]);
@@ -137,7 +138,7 @@ export const setStaffRolePermissionsSchema = z.object({
   permissionKeys: z.array(z.string()).max(100),
 });
 export const createStaffMemberSchema = z.object({
-  userId: idSchema,
+  userId: userIdSchema,
   roleIds: z.array(idSchema).min(1).max(20),
 });
 export const setStaffMemberRolesSchema = z.object({
@@ -339,7 +340,7 @@ export const moderationDecisionSchema = z.object({
 
 export const adminAgentSchema = z.object({
   id: idSchema,
-  userId: idSchema,
+  userId: userIdSchema,
   name: z.string(),
   email: z.string().email(),
   licenseNumber: z.string().nullable(),
@@ -354,7 +355,7 @@ export const adminAgentSchema = z.object({
   createdAt: isoDateSchema,
 });
 export const adminAgentsResponseSchema = adminPageSchema(adminAgentSchema);
-export const createAgentSchema = z.object({ userId: idSchema });
+export const createAgentSchema = z.object({ userId: userIdSchema });
 export const setAgentStatusSchema = z
   .object({
     status: z.enum(["PENDING", "ACTIVE", "SUSPENDED", "RETIRED"]),
@@ -483,6 +484,12 @@ export const adminOverviewSchema = z.object({
     verifiedAgents: z.number().int().nonnegative(),
     bidsToday: z.number().int().nonnegative(),
     outboxBacklog: z.number().int().nonnegative(),
+    /** Owner payments waiting on a moderator. */
+    paymentsAwaitingReview: z.number().int().nonnegative(),
+    /** Verified listings with no agent offered yet. */
+    listingsAwaitingAgent: z.number().int().nonnegative(),
+    /** Offers sent but not yet answered by an agent. */
+    openAgentOffers: z.number().int().nonnegative(),
   }),
   recentActivity: z.array(
     z.object({

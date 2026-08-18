@@ -85,11 +85,42 @@ enum ListingType {
 
 enum ListingStatus {
   DRAFT
+  AWAITING_PAYMENT
   PENDING_REVIEW
+  AWAITING_AGENT
   PUBLISHED
   REJECTED
   WITHDRAWN
   ARCHIVED
+}
+
+/// Who wrote a support message.
+enum SupportAuthorRole {
+  VISITOR
+  STAFF
+}
+
+/// Lifecycle of a general-enquiry support thread.
+enum SupportThreadStatus {
+  OPEN
+  ASSIGNED
+  CLOSED
+}
+
+/// Review state of an owner-submitted payment screenshot.
+enum PaymentProofStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+/// Lifecycle of an agent offer for a listing.
+enum ListingAssignmentStatus {
+  OFFERED
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
 }
 
 enum Furnishing {
@@ -113,6 +144,7 @@ enum MediaPurpose {
   AGENT_LICENSE
   AGENCY_LOGO
   MESSAGE_ATTACHMENT
+  PAYMENT_PROOF
 }
 
 enum MediaStatus {
@@ -231,6 +263,13 @@ enum AuditAction {
   LISTING_PUBLISHED
   LISTING_REJECTED
   LISTING_WITHDRAWN
+  LISTING_PAYMENT_SUBMITTED
+  LISTING_PAYMENT_APPROVED
+  LISTING_PAYMENT_REJECTED
+  LISTING_AGENT_ASSIGNED
+  LISTING_AGENT_ACCEPTED
+  LISTING_AGENT_DECLINED
+  LISTING_AGENT_ASSIGNMENT_REVOKED
   AUCTION_CREATED
   AUCTION_STARTED
   AUCTION_PAUSED
@@ -317,6 +356,13 @@ model User {
   auctionSettlementsAsSeller    AuctionSettlement[]       @relation("SettlementSeller")
   auctionStatusChanges          AuctionStatusHistory[]    @relation("AuctionStatusActor")
   settingsUpdated               SystemSetting[]           @relation("SystemSettingUpdater")
+  paymentProofsSubmitted        ListingPaymentProof[]     @relation("PaymentProofSubmitter")
+  paymentProofsReviewed         ListingPaymentProof[]     @relation("PaymentProofReviewer")
+  listingAssignmentsMade        ListingAssignment[]       @relation("ListingAssignmentAssigner")
+  listingAssignmentsRevoked     ListingAssignment[]       @relation("ListingAssignmentRevoker")
+  supportThreads                SupportThread[]           @relation("SupportThreadVisitor")
+  supportThreadsAssigned        SupportThread[]           @relation("SupportThreadAssignee")
+  supportMessages               SupportMessage[]          @relation("SupportMessageAuthor")
   staffRolesCreated             StaffRole[]               @relation("StaffRoleCreator")
   staffRolesUpdated             StaffRole[]               @relation("StaffRoleUpdater")
   staffRoleAssignments          StaffUserRole[]           @relation("StaffRoleMember")
@@ -598,7 +644,7 @@ model AgentProfile {
   verifiedAt         DateTime?               @db.Timestamptz(3)
   status             AgentStatus             @default(PENDING)
   availabilityStatus AgentAvailabilityStatus @default(UNAVAILABLE)
-  maxActiveCases     Int                     @default(10)
+  maxActiveCases     Int                     @default(20)
   statusReason       String?                 @db.VarChar(500)
   suspendedAt        DateTime?               @db.Timestamptz(3)
   retiredAt          DateTime?               @db.Timestamptz(3)
@@ -612,6 +658,9 @@ model AgentProfile {
   createdBy          User?                   @relation("AgentProfileCreator", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy          User?                   @relation("AgentProfileUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
   reviews            AgentReview[]
+  assignments        ListingAssignment[]
+  availability       AgentAvailabilityWindow[]
+  viewings           ViewingRequest[]
 
   @@index([verifiedAt, averageRating])
   @@index([status, availabilityStatus, createdAt])
@@ -777,6 +826,8 @@ model Listing {
   auction         Auction?
   views           ListingView[]
   reports         ListingReport[]
+  paymentProofs   ListingPaymentProof[]
+  assignments     ListingAssignment[]
 
   @@index([status, publishedAt(sort: Desc), id(sort: Desc)])
   @@index([status, type, priceMinor, id])
@@ -833,6 +884,8 @@ model ListingStatusHistory {
 
 model MediaAsset {
   id                 String              @id @default(uuid())
+  /// Tiny inline AVIF data URI shown while the full image loads.
+  blurDataUrl        String?             @db.VarChar(4000)
   ownerId            String
   purpose            MediaPurpose
   visibility         Visibility
@@ -850,6 +903,7 @@ model MediaAsset {
   updatedAt          DateTime            @updatedAt @db.Timestamptz(3)
   readyAt            DateTime?           @db.Timestamptz(3)
   owner              User                @relation(fields: [ownerId], references: [id], onDelete: Restrict)
+  listingPaymentProof ListingPaymentProof?
   variants           MediaVariant[]
   listingMedia       ListingMedia[]
   propertyDocument   PropertyDocument?
@@ -945,19 +999,42 @@ model ListingInquiry {
 }
 
 model ViewingRequest {
-  id          String        @id @default(uuid())
-  listingId   String
-  requesterId String
-  scheduledAt DateTime      @db.Timestamptz(3)
-  status      ViewingStatus @default(REQUESTED)
-  notes       String?
-  createdAt   DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime      @updatedAt @db.Timestamptz(3)
-  listing     Listing       @relation(fields: [listingId], references: [id], onDelete: Restrict)
-  requester   User          @relation(fields: [requesterId], references: [id], onDelete: Restrict)
+  id              String        @id @default(uuid())
+  listingId       String
+  requesterId     String
+  agentId         String?
+  scheduledAt     DateTime      @db.Timestamptz(3)
+  durationMinutes Int           @default(30)
+  status          ViewingStatus @default(REQUESTED)
+  notes           String?
+  responseNote    String?       @db.VarChar(500)
+  respondedAt     DateTime?     @db.Timestamptz(3)
+  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @db.Timestamptz(3)
+  listing         Listing       @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  requester       User          @relation(fields: [requesterId], references: [id], onDelete: Restrict)
+  agent           AgentProfile? @relation(fields: [agentId], references: [id], onDelete: SetNull)
 
   @@index([listingId, scheduledAt])
   @@index([requesterId, status, scheduledAt])
+  @@index([agentId, status, scheduledAt])
+}
+
+/// A recurring weekly window an agent is willing to show properties in.
+/// Minutes are local to Asia/Kathmandu, which has no daylight saving, so the
+/// offset is a constant and a slot maps to one instant without a tz database.
+model AgentAvailabilityWindow {
+  id          String       @id @default(uuid())
+  agentId     String
+  dayOfWeek   Int
+  startMinute Int
+  endMinute   Int
+  createdAt   DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(3)
+  agent       AgentProfile @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([agentId, dayOfWeek, startMinute])
+  @@index([agentId, dayOfWeek])
 }
 
 model Conversation {
@@ -1172,6 +1249,7 @@ model PaymentIntent {
   user              User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
   deposits          AuctionDeposit[]
   transactions      PaymentTransaction[]
+  listingPaymentProof ListingPaymentProof?
 
   @@index([userId, status, createdAt])
   @@index([provider, providerReference])
@@ -1340,4 +1418,111 @@ model SystemSetting {
   updatedBy   User?    @relation("SystemSettingUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@index([updatedById, updatedAt(sort: Desc)])
+}
+
+
+/// Screenshot-backed proof for a manually settled listing fee. Kept separate
+/// from PaymentIntent so the review queue has its own audited columns rather
+/// than untyped metadata.
+model ListingPaymentProof {
+  id              String             @id @default(uuid())
+  listingId       String
+  submittedById   String
+  paymentIntentId String?            @unique
+  mediaAssetId    String             @unique
+  method          String
+  reference       String?            @db.VarChar(120)
+  amountMinor     BigInt
+  currency        String             @db.Char(3)
+  status          PaymentProofStatus @default(SUBMITTED)
+  reviewedById    String?
+  reviewedAt      DateTime?          @db.Timestamptz(3)
+  rejectionReason String?            @db.VarChar(500)
+  createdAt       DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @db.Timestamptz(3)
+
+  listing       Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  submittedBy   User           @relation("PaymentProofSubmitter", fields: [submittedById], references: [id], onDelete: Restrict)
+  reviewedBy    User?          @relation("PaymentProofReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  mediaAsset    MediaAsset     @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+  paymentIntent PaymentIntent? @relation(fields: [paymentIntentId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([listingId, createdAt(sort: Desc)])
+  @@index([submittedById, createdAt(sort: Desc)])
+  @@index([reviewedById, reviewedAt(sort: Desc)])
+}
+
+/// An administrator's offer of a listing to an agent, and the agent's response.
+model ListingAssignment {
+  id           String                  @id @default(uuid())
+  listingId    String
+  agentId      String
+  assignedById String
+  status       ListingAssignmentStatus @default(OFFERED)
+  offeredAt    DateTime                @default(now()) @db.Timestamptz(3)
+  respondedAt  DateTime?               @db.Timestamptz(3)
+  expiresAt    DateTime?               @db.Timestamptz(3)
+  responseNote String?                 @db.VarChar(500)
+  revokedById  String?
+  createdAt    DateTime                @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime                @updatedAt @db.Timestamptz(3)
+
+  listing    Listing      @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  agent      AgentProfile @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  assignedBy User         @relation("ListingAssignmentAssigner", fields: [assignedById], references: [id], onDelete: Restrict)
+  revokedBy  User?        @relation("ListingAssignmentRevoker", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  @@unique([listingId, agentId, offeredAt])
+  @@index([agentId, status, offeredAt(sort: Desc)])
+  @@index([listingId, status, offeredAt(sort: Desc)])
+  @@index([status, expiresAt])
+  @@index([assignedById, createdAt(sort: Desc)])
+  @@index([revokedById, updatedAt(sort: Desc)])
+}
+
+
+/// General site enquiry, separate from agent conversations. Works for signed-out
+/// visitors, so it cannot reuse Conversation (which requires a User on both
+/// sides). Anonymous threads carry a hard expiry and are erased on sweep.
+model SupportThread {
+  id           String              @id @default(uuid())
+  /// Opaque first-party identifier for a signed-out visitor. Never derived from
+  /// IP or user agent: those collide behind shared networks and would show one
+  /// stranger another's messages.
+  visitorKey   String?             @unique
+  userId       String?
+  status       SupportThreadStatus @default(OPEN)
+  assignedToId String?
+  subject      String?             @db.VarChar(160)
+  lastMessageAt DateTime           @default(now()) @db.Timestamptz(3)
+  /// Set only for anonymous threads. Null once a visitor signs in and the thread
+  /// becomes part of their account.
+  expiresAt    DateTime?           @db.Timestamptz(3)
+  createdAt    DateTime            @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime            @updatedAt @db.Timestamptz(3)
+
+  user       User?            @relation("SupportThreadVisitor", fields: [userId], references: [id], onDelete: Cascade)
+  assignedTo User?            @relation("SupportThreadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages   SupportMessage[]
+
+  @@index([status, lastMessageAt(sort: Desc)])
+  @@index([assignedToId, status, lastMessageAt(sort: Desc)])
+  @@index([userId, lastMessageAt(sort: Desc)])
+  @@index([expiresAt])
+}
+
+model SupportMessage {
+  id         String            @id @default(uuid())
+  threadId   String
+  authorRole SupportAuthorRole
+  authorId   String?
+  body       String            @db.VarChar(4000)
+  createdAt  DateTime          @default(now()) @db.Timestamptz(3)
+
+  thread SupportThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author User?         @relation("SupportMessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([threadId, createdAt, id])
+  @@index([authorId, createdAt])
 }

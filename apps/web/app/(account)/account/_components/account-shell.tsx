@@ -10,8 +10,10 @@ import { signOut, useSession } from "@real-estate/auth/client";
 import { MarketplaceMobileNavigation } from "@/app/_components/mobile-bottom-navigation";
 import {
   accountNavigation,
+  agentNavigation,
   isActivePath,
 } from "@/app/_components/navigation-model";
+import { useAgentSummary } from "@/features/listings/queries/use-agent-workspace";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BrandLogo } from "@/shared/components/brand-logo";
@@ -28,6 +30,7 @@ export function AccountShell({
   const pathname = usePathname();
   const router = useRouter();
   const session = useSession();
+  const agent = useAgentSummary();
 
   useEffect(() => {
     if (!session.isPending && !session.data) {
@@ -42,6 +45,12 @@ export function AccountShell({
       </div>
     );
   }
+
+  // Agents get one extra section; everyone else sees the plain account nav.
+  const navigation = agent.data?.isAgent
+    ? [...accountNavigation, ...agentNavigation]
+    : accountNavigation;
+  const pendingOffers = agent.data?.isAgent ? agent.data.pendingOffers : 0;
 
   const handleSignOut = () =>
     signOut({ fetchOptions: { onSuccess: () => location.assign("/") } });
@@ -69,7 +78,7 @@ export function AccountShell({
       <div className="mx-auto grid max-w-7xl gap-7 px-4 py-6 sm:px-5 lg:grid-cols-[240px_minmax(0,1fr)] lg:py-8">
         <aside className="surface hidden h-fit rounded-2xl p-3 lg:block">
           <nav className="space-y-1" aria-label="Account settings">
-            {accountNavigation.map((item) => {
+            {navigation.map((item) => {
               const Icon = item.icon;
               const active = isActivePath(pathname, item.href);
               return (
@@ -85,6 +94,11 @@ export function AccountShell({
                 >
                   <Icon />
                   {item.label}
+                  {item.href === "/account/offers" && pendingOffers > 0 ? (
+                    <span className="ml-auto grid size-5 place-items-center rounded-full bg-emerald-700 text-[11px] font-semibold text-white">
+                      {pendingOffers}
+                    </span>
+                  ) : null}
                 </Button>
               );
             })}

@@ -40,7 +40,7 @@ export function AppSidebar({
               tooltip="Bhumiraj Estates"
             >
               <Image
-                src="/Bhumiraj Logo.png"
+                src="/Logo.webp"
                 alt="Bhumiraj Estates"
                 width={32}
                 height={32}

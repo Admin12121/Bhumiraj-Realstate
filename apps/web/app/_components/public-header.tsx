@@ -51,9 +51,9 @@ export function PublicHeader() {
   const isScrolled = propertyPage ? false : scrolled
   const solid =
     searchPage || (!homePage && !propertyPage) || (homePage && isScrolled)
-  // Reference rule: the search page keeps a white bar but only draws its
-  // divider once the results scroll under it.
-  const showDivider = searchPage ? isScrolled : solid
+  // The divider is a scroll affordance everywhere, not page chrome: a solid bar
+  // sits flush until content passes beneath it.
+  const showDivider = isScrolled
   const inverse = homePage && !solid
   const authenticated = Boolean(session.data)
   const userName: string | null = session.data?.user?.name ?? null

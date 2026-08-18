@@ -1,12 +1,21 @@
 "use client"
 
 import { useState } from "react"
+import { ImageOff } from "lucide-react"
 import { PhotoLightbox } from "@/app/_components/photo-lightbox"
 import { PropertyCardCarousel } from "@/app/_components/residence-card"
-import { Play } from "lucide-react"
 
 const imageShadow =
   "shadow-[0_8px_16px_-4px_rgba(0,0,0,0.10),0_4px_8px_-2px_rgba(0,0,0,0.10)]"
+
+function EmptyTile({ className = "" }: { className?: string }) {
+  return (
+    <div
+      className={`rounded-lg bg-[#f1f1ef] ${className}`}
+      aria-hidden="true"
+    />
+  )
+}
 
 /** Reference gallery: mobile snap rail, desktop 7fr/5fr lead plus 2×2 grid. */
 export function StayGallery({
@@ -17,7 +26,27 @@ export function StayGallery({
   title: string
 }) {
   const [open, setOpen] = useState(false)
-  const slots = Array.from({ length: 5 }, (_, index) => photos[index % photos.length]!)
+
+  // A listing with no photos gets an honest placeholder. Repeating the few it
+  // does have would pad the grid at the cost of implying more of the property
+  // was photographed than actually was.
+  if (photos.length === 0) {
+    return (
+      <div id="section-photos" className="-mx-5 mt-3 mb-6 lg:mx-0">
+        <div className="flex aspect-[4/3] flex-col items-center justify-center gap-2 bg-[#f1f1ef] text-[#8a8a8a] lg:aspect-[16/7] lg:rounded-lg">
+          <ImageOff className="size-7" strokeWidth={1.6} />
+          <p className="text-[15px] font-medium">No photos yet</p>
+          <p className="max-w-[34ch] text-center text-[13px] leading-5">
+            Ask the agent for photos, or arrange a viewing to see the property
+            in person.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  const lead = photos[0]!
+  const tiles = photos.slice(1, 5)
 
   return (
     <>
@@ -26,9 +55,9 @@ export function StayGallery({
             the gallery reads consistently across the product. */}
         <div className="-mx-5 mt-3 mb-6 lg:hidden">
           <PropertyCardCarousel
-            href={`#`}
+            href="#section-photos"
             images={photos}
-            fallbackImage={photos[0] ?? "/images/featured-1.webp"}
+            fallbackImage={lead}
             alt={title}
             aspectRatio="4 / 3"
             className="bg-[#f1f1ef]"
@@ -49,11 +78,12 @@ export function StayGallery({
             <button
               type="button"
               onClick={() => setOpen(true)}
+              aria-label={`View all ${photos.length} photos`}
               className="h-full w-full"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={slots[0]}
+                src={lead}
                 alt={`${title} photo 1`}
                 className={`absolute inset-0 h-full w-full rounded-lg object-cover ${imageShadow}`}
               />
@@ -61,70 +91,30 @@ export function StayGallery({
           </div>
 
           <div className="relative grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="relative aspect-square"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={slots[1]}
-                alt={`${title} photo 2`}
-                className={`absolute inset-0 h-full w-full rounded-lg object-cover ${imageShadow}`}
-              />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="relative isolate aspect-square"
-            >
-              <div
-                className={`relative h-full w-full overflow-hidden rounded-lg ${imageShadow}`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={slots[2]}
-                  alt={`${title} tour video`}
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/70" />
-                <div className="absolute inset-x-4 bottom-4 flex items-center justify-between text-white">
-                  <p className="text-[14px] leading-[17px] font-medium">
-                    Watch the tour
-                  </p>
-                  <span className="grid size-10 place-items-center rounded-full bg-white text-black">
-                    <Play className="ml-0.5 size-4 fill-current" strokeWidth={1.5} />
-                  </span>
-                </div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="relative aspect-square"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={slots[3]}
-                alt={`${title} photo 4`}
-                className={`absolute inset-0 h-full w-full rounded-lg object-cover ${imageShadow}`}
-              />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setOpen(true)}
-              className="relative aspect-square"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={slots[4]}
-                alt={`${title} photo 5`}
-                className={`absolute inset-0 h-full w-full rounded-lg object-cover ${imageShadow}`}
-              />
-            </button>
+            {Array.from({ length: 4 }, (_, index) => {
+              const photo = tiles[index]
+              if (!photo) {
+                return (
+                  <EmptyTile key={`empty-${index}`} className="aspect-square" />
+                )
+              }
+              return (
+                <button
+                  key={photo}
+                  type="button"
+                  onClick={() => setOpen(true)}
+                  aria-label={`View all ${photos.length} photos`}
+                  className="relative aspect-square"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={photo}
+                    alt={`${title} photo ${index + 2}`}
+                    className={`absolute inset-0 h-full w-full rounded-lg object-cover ${imageShadow}`}
+                  />
+                </button>
+              )
+            })}
 
             <span className="pointer-events-none absolute right-4 bottom-4 z-10">
               <button

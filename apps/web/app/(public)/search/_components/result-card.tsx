@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Crown, Sparkles } from "lucide-react"
+import { BadgeCheck } from "lucide-react"
 import { PropertyCardCarousel } from "@/app/_components/residence-card"
 import { SaveButton } from "@/app/_components/save-button"
 import { Frame, FrameFooter, FramePanel } from "@/components/ui/frame"
@@ -20,6 +20,7 @@ export type SearchResult = {
   price?: string | undefined
   originalPrice?: string | undefined
   priceLabel?: string
+  verified?: boolean
 }
 
 type Cell = { label: string; value: string }
@@ -79,16 +80,13 @@ export function ResultCardSkeleton() {
 /** Search result card: media, title, location, then a priority-filled data grid. */
 export function ResultCard({
   result,
-  index,
   highlighted = false,
   onHoverChange,
 }: {
   result: SearchResult
-  index: number
   highlighted?: boolean
   onHoverChange?: (slug: string | null) => void
 }) {
-  const tier = index % 5 === 0 ? "Iconic" : "Luxury"
   const href = `/properties/${result.slug}`
   const cells = dataCells(result)
 
@@ -116,18 +114,18 @@ export function ResultCard({
             aspectRatio="4 / 3.25"
             className="bg-[#f1f1ef]"
             imageClassName="group-hover/media:scale-[1.01]"
-            topLeft={
-              <div className="mt-3.5 ml-3.5 flex h-7 items-center gap-1.5 rounded-full border border-white/20 bg-black/25 px-2.5 text-white backdrop-blur-md">
-                {tier === "Iconic" ? (
-                  <Crown className="size-3.5 shrink-0" strokeWidth={1.8} />
-                ) : (
-                  <Sparkles className="size-3.5 shrink-0" strokeWidth={1.8} />
-                )}
-                <span className="text-[13px] leading-none font-medium whitespace-nowrap">
-                  {tier}
-                </span>
-              </div>
-            }
+            {...(result.verified
+              ? {
+                  topLeft: (
+                    <div className="mt-3.5 ml-3.5 flex h-7 items-center gap-1.5 rounded-full border border-white/20 bg-black/25 px-2.5 text-white backdrop-blur-md">
+                      <BadgeCheck className="size-3.5 shrink-0" strokeWidth={1.8} />
+                      <span className="text-[13px] leading-none font-medium whitespace-nowrap">
+                        Verified
+                      </span>
+                    </div>
+                  ),
+                }
+              : {})}
             topRight={
               <SaveButton
                 listingId={result.listingId}

@@ -59,6 +59,9 @@ export class AdminOperationsController {
       outboxBacklog,
       recentActivity,
       pendingListings,
+      paymentsAwaitingReview,
+      listingsAwaitingAgent,
+      openAgentOffers,
     ] = await prisma.$transaction([
       prisma.listing.count({ where: { status: 'PUBLISHED' } }),
       prisma.auction.count({ where: { status: 'LIVE' } }),
@@ -105,6 +108,9 @@ export class AdminOperationsController {
           createdBy: { select: { name: true } },
         },
       }),
+      prisma.listingPaymentProof.count({ where: { status: 'SUBMITTED' } }),
+      prisma.listing.count({ where: { status: 'AWAITING_AGENT' } }),
+      prisma.listingAssignment.count({ where: { status: 'OFFERED' } }),
     ]);
 
     return {
@@ -118,6 +124,9 @@ export class AdminOperationsController {
         verifiedAgents,
         bidsToday,
         outboxBacklog,
+        paymentsAwaitingReview,
+        listingsAwaitingAgent,
+        openAgentOffers,
       },
       recentActivity: recentActivity.map((row) => ({
         id: row.id,

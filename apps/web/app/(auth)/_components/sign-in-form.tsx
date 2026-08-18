@@ -57,7 +57,7 @@ export function SignInForm({ callbackURL }: { callbackURL: string }) {
   }
 
   return (
-    <AuthFrame>
+    <AuthFrame bare>
       <Form onSubmit={submit}>
         <FieldGroup>
           <ExistingSessionNotice callbackURL={callbackURL} />

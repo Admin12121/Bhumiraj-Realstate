@@ -5,7 +5,11 @@ import {
   Session,
   type UserSession,
 } from "@thallesp/nestjs-better-auth";
-import { idSchema, publicAgentsQuerySchema, updateProfileSchema } from "@real-estate/contracts";
+import {
+  publicAgentsQuerySchema,
+  updateProfileSchema,
+  userIdSchema,
+} from "@real-estate/contracts";
 import { ZodValidationPipe } from "../../shared/http/zod-validation.pipe";
 import { ProfilesService } from "./profiles.service";
 
@@ -24,6 +28,15 @@ export class ProfilesController {
     return this.service.listAgents(query, session?.user.id);
   }
 
+  @Get("agents/:userId")
+  @OptionalAuth()
+  agentProfile(
+    @Param("userId", new ZodValidationPipe(userIdSchema)) userId: string,
+    @Session() session?: UserSession,
+  ) {
+    return this.service.agentProfile(userId, session?.user.id);
+  }
+
   @Get("me")
   me(@Session() session: UserSession) {
     return this.service.get(session.user.id, session.user.id, true);
@@ -40,7 +53,7 @@ export class ProfilesController {
 
   @Post(":id/follow")
   follow(
-    @Param("id", new ZodValidationPipe(idSchema)) id: string,
+    @Param("id", new ZodValidationPipe(userIdSchema)) id: string,
     @Session() session: UserSession,
   ) {
     return this.service.follow(id, session.user.id);
@@ -48,7 +61,7 @@ export class ProfilesController {
 
   @Delete(":id/follow")
   unfollow(
-    @Param("id", new ZodValidationPipe(idSchema)) id: string,
+    @Param("id", new ZodValidationPipe(userIdSchema)) id: string,
     @Session() session: UserSession,
   ) {
     return this.service.unfollow(id, session.user.id);
@@ -57,7 +70,7 @@ export class ProfilesController {
   @Get(":id")
   @OptionalAuth()
   publicProfile(
-    @Param("id", new ZodValidationPipe(idSchema)) id: string,
+    @Param("id", new ZodValidationPipe(userIdSchema)) id: string,
     @Session() session?: UserSession,
   ) {
     return this.service.get(id, session?.user.id, false);

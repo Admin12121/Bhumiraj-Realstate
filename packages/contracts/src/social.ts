@@ -6,8 +6,10 @@ import {
   isoDateSchema,
   positiveMinorAmountSchema,
   queryBooleanSchema,
+  userIdSchema,
 } from "./common";
 import { listingTypeSchema, propertyTypeSchema } from "./listings";
+import { viewingSchema } from "./viewings";
 
 export const savedSearchSchema = z.object({
   id: idSchema,
@@ -54,7 +56,7 @@ export const createSavedSearchSchema = z.object({
 export const inquirySchema = z.object({
   id: idSchema,
   listingId: idSchema,
-  userId: idSchema,
+  userId: userIdSchema,
   message: z.string(),
   status: z.enum(["OPEN", "CONTACTED", "QUALIFIED", "CLOSED", "SPAM"]),
   createdAt: isoDateSchema,
@@ -62,18 +64,6 @@ export const inquirySchema = z.object({
 export const createInquirySchema = z.object({ message: z.string().trim().min(10).max(2000) });
 export const inquiryPageSchema = cursorPageSchema(inquirySchema);
 
-export const viewingSchema = z.object({
-  id: idSchema,
-  listingId: idSchema,
-  scheduledAt: isoDateSchema,
-  status: z.enum(["REQUESTED", "CONFIRMED", "COMPLETED", "CANCELLED", "NO_SHOW"]),
-  notes: z.string().nullable(),
-  createdAt: isoDateSchema,
-});
-export const createViewingSchema = z.object({
-  scheduledAt: z.iso.datetime({ offset: true }),
-  notes: z.string().trim().max(1000).optional(),
-});
 export const viewingPageSchema = cursorPageSchema(viewingSchema);
 
 export const notificationSchema = z.object({

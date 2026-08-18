@@ -11,8 +11,19 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { useSliderWithInput } from "@/hooks/use-slider-with-input"
+import {
+  NEPAL_PROVINCES,
+  districtsOfProvince,
+} from "@real-estate/contracts"
 
 /** Rupees, not minor units — the API conversion happens on apply. */
 const PRICE_MIN = 100_000
@@ -22,7 +33,8 @@ const TICKS = 40
 export type FeedFilterState = {
   propertyType: string[]
   category: string[]
-  bedrooms: string[]
+  province: string
+  district: string
   minPrice: number
   maxPrice: number
 }
@@ -30,7 +42,8 @@ export type FeedFilterState = {
 export const initialFeedFilters: FeedFilterState = {
   propertyType: [],
   category: [],
-  bedrooms: [],
+  province: "",
+  district: "",
   minPrice: PRICE_MIN,
   maxPrice: PRICE_MAX,
 }
@@ -49,13 +62,6 @@ const CATEGORIES = [
   { value: "COMMERCIAL", label: "Commercial" },
   { value: "SEMI_COMMERCIAL", label: "Semi-Commercial" },
   { value: "RESIDENTIAL", label: "Residential" },
-]
-
-const BEDROOMS = [
-  { value: "1", label: "1+" },
-  { value: "2", label: "2+" },
-  { value: "3", label: "3+" },
-  { value: "4", label: "4+" },
 ]
 
 /** Compact NPR label: 1,00,000 → ₹1 Lakh, 15,00,00,000 → ₹15 Crore. */
@@ -221,7 +227,7 @@ export function FeedFilters({
   state: FeedFilterState
   onChange: (next: FeedFilterState) => void
 }) {
-  function toggle(key: "propertyType" | "category" | "bedrooms", value: string) {
+  function toggle(key: "propertyType" | "category", value: string) {
     const current = state[key]
     onChange({
       ...state,
@@ -233,7 +239,7 @@ export function FeedFilters({
 
   /** Checkbox rows, matching the supplied filter reference. */
   function optionList(
-    key: "propertyType" | "category" | "bedrooms",
+    key: "propertyType" | "category",
     options: { value: string; label: string }[],
   ) {
     return (
@@ -261,10 +267,37 @@ export function FeedFilters({
     )
   }
 
+  const provinceItems = useMemo(
+    () => [
+      { value: "", label: "All provinces" },
+      ...NEPAL_PROVINCES.map((province) => ({
+        value: province.name,
+        label: province.name,
+      })),
+    ],
+    [],
+  )
+
+  // Districts follow the chosen province; with none chosen the list is all 77.
+  const districtItems = useMemo(
+    () => [
+      {
+        value: "",
+        label: state.province ? `All of ${state.province}` : "All districts",
+      },
+      ...districtsOfProvince(state.province).map((district) => ({
+        value: district,
+        label: district,
+      })),
+    ],
+    [state.province],
+  )
+
   const active =
     state.propertyType.length +
     state.category.length +
-    state.bedrooms.length +
+    (state.province ? 1 : 0) +
+    (state.district ? 1 : 0) +
     (state.minPrice > PRICE_MIN || state.maxPrice < PRICE_MAX ? 1 : 0)
 
   return (
@@ -288,7 +321,7 @@ export function FeedFilters({
       />
 
       {/* Base UI opens multiple panels by default; there is no `type` prop. */}
-      <Accordion className="w-full" defaultValue={["property-type", "category"]}>
+      <Accordion className="w-full" defaultValue={["location", "property-type", "category"]}>
         <AccordionItem value="property-type" className="py-1">
           <AccordionTrigger className="py-2 text-[15px] leading-6 hover:no-underline">
             Property Type
@@ -307,12 +340,68 @@ export function FeedFilters({
           </AccordionContent>
         </AccordionItem>
 
-        <AccordionItem value="bedrooms" className="py-1">
+        <AccordionItem value="location" className="py-1">
           <AccordionTrigger className="py-2 text-[15px] leading-6 hover:no-underline">
-            Bedrooms
+            Location
           </AccordionTrigger>
           <AccordionContent className="pb-2 text-muted-foreground">
-            {optionList("bedrooms", BEDROOMS)}
+            <div className="flex flex-col gap-3 pt-1">
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-[13px]">Province</Label>
+                <Select
+                  items={provinceItems}
+                  value={state.province}
+                  onValueChange={(value) =>
+                    // Changing province clears the district: one from the old
+                    // province would filter every result away.
+                    onChange({
+                      ...state,
+                      province: String(value),
+                      district: "",
+                    })
+                  }
+                >
+                  <SelectTrigger
+                    aria-label="Province"
+                    className="w-full justify-between"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {provinceItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-[13px]">District</Label>
+                <Select
+                  items={districtItems}
+                  value={state.district}
+                  onValueChange={(value) =>
+                    onChange({ ...state, district: String(value) })
+                  }
+                >
+                  <SelectTrigger
+                    aria-label="District"
+                    className="w-full justify-between"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {districtItems.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+              </div>
+            </div>
           </AccordionContent>
         </AccordionItem>
       </Accordion>

@@ -16,5 +16,12 @@ if (!datasourceUrl) {
 export default defineConfig({
   schema: "prisma/schema.prisma",
   migrations: { path: "prisma/migrations", seed: "tsx prisma/seed.ts" },
-  datasource: { url: datasourceUrl },
+  datasource: {
+    url: datasourceUrl,
+    // Prisma needs a scratch database to replay migrations when diffing a
+    // migrations directory. Local/CI only; never a real environment.
+    shadowDatabaseUrl:
+      process.env.SHADOW_DATABASE_URL ??
+      datasourceUrl.replace(/\/([^/?]+)(\?|$)/, "/estate_shadow$2"),
+  },
 });

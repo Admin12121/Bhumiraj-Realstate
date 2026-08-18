@@ -69,7 +69,7 @@ function AgentRow({
 }) {
   return (
     <Link
-      href={`/users/${agent.userId}`}
+      href={`/agents/${agent.userId}`}
       className="flex min-w-0 items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-black/[.03]"
     >
       <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-[#efece9] text-[13px] font-semibold text-[#5b524c]">

@@ -13,6 +13,11 @@ export const queryKeys = {
     sessions: ["account", "sessions"] as const,
     passkeys: ["account", "passkeys"] as const,
   },
+  agent: {
+    all: ["agent"] as const,
+    me: ["agent", "me"] as const,
+    assignments: (status: string) => ["agent", "assignments", status] as const,
+  },
   profiles: {
     detail: (id: string) => ["profiles", "detail", id] as const,
     agents: (search: string) => ["profiles", "agents", { search }] as const,

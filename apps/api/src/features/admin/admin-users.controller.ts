@@ -4,7 +4,7 @@ import { Session, type UserSession } from "@thallesp/nestjs-better-auth";
 import {
   adminUsersQuerySchema,
   banUserSchema,
-  idSchema,
+  userIdSchema,
   setAccountTypeSchema,
 } from "@real-estate/contracts";
 import {
@@ -34,7 +34,7 @@ export class AdminUsersController {
   @StaffPermissions(ADMIN_PERMISSIONS.USERS_TYPE_MANAGE)
   @StrongAuth()
   accountType(
-    @Param("id", new ZodValidationPipe(idSchema)) id: string,
+    @Param("id", new ZodValidationPipe(userIdSchema)) id: string,
     @Body(new ZodValidationPipe(setAccountTypeSchema))
     body: z.infer<typeof setAccountTypeSchema>,
     @Session() session: UserSession,
@@ -46,7 +46,7 @@ export class AdminUsersController {
   @StaffPermissions(ADMIN_PERMISSIONS.USERS_STATUS_MANAGE)
   @StrongAuth()
   ban(
-    @Param("id", new ZodValidationPipe(idSchema)) id: string,
+    @Param("id", new ZodValidationPipe(userIdSchema)) id: string,
     @Body(new ZodValidationPipe(banUserSchema))
     body: z.infer<typeof banUserSchema>,
     @Session() session: UserSession,
@@ -63,7 +63,7 @@ export class AdminUsersController {
   @StaffPermissions(ADMIN_PERMISSIONS.USERS_STATUS_MANAGE)
   @StrongAuth()
   unban(
-    @Param("id", new ZodValidationPipe(idSchema)) id: string,
+    @Param("id", new ZodValidationPipe(userIdSchema)) id: string,
     @Session() session: UserSession,
   ) {
     return this.service.unban(session.user.id, id);

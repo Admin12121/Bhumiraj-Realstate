@@ -62,7 +62,7 @@ export function SignUpForm() {
   }
 
   return (
-    <AuthFrame>
+    <AuthFrame bare>
       <Form onSubmit={submit}>
         <FieldGroup>
           <ExistingSessionNotice callbackURL="/" />

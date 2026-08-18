@@ -257,24 +257,27 @@ export class MediaProcessor extends WorkerHost {
       }> = [];
 
       if (asset.visibility === "PUBLIC" && !isPdf) {
+        // AVIF throughout: roughly half the bytes of WebP at the same quality,
+        // and every browser this app supports decodes it. Quality rises with
+        // size so a card stays small while the full view stays sharp.
         const variantSpecs = [
-          { name: "thumb", width: 360, format: "webp" as const },
-          { name: "card", width: 960, format: "webp" as const },
-          { name: "large", width: 1920, format: "avif" as const },
+          { name: "thumb", width: 360, quality: 55 },
+          { name: "card", width: 960, quality: 65 },
+          { name: "large", width: 1920, quality: 72 },
+          { name: "full", width: 2560, quality: 80 },
         ];
         const baseKey = `media/${asset.purpose.toLowerCase()}/${asset.ownerId}/${asset.id}`;
 
         for (const variant of variantSpecs) {
-          const pipeline = sharp(normalizedSource, {
+          const body = await sharp(normalizedSource, {
             failOn: "error",
             limitInputPixels: 80_000_000,
-          }).resize({ width: variant.width, withoutEnlargement: true });
-          const body =
-            variant.format === "avif"
-              ? await pipeline.avif({ quality: 70, effort: 5 }).toBuffer()
-              : await pipeline.webp({ quality: 82, effort: 4 }).toBuffer();
-          const objectKey = `${baseKey}/${variant.name}.${variant.format}`;
-          const contentType = `image/${variant.format}`;
+          })
+            .resize({ width: variant.width, withoutEnlargement: true })
+            .avif({ quality: variant.quality, effort: 5 })
+            .toBuffer();
+          const objectKey = `${baseKey}/${variant.name}.avif`;
+          const contentType = "image/avif";
           await this.storage.client.send(
             new PutObjectCommand({
               Bucket: workerEnv.S3_PUBLIC_BUCKET,
@@ -294,6 +297,28 @@ export class MediaProcessor extends WorkerHost {
             width: metadata.width,
             height: metadata.height,
           });
+        }
+      }
+
+      // A 20px AVIF is ~300 bytes; inlining it avoids a request just to show
+      // a placeholder, and it is small enough to sit in a row comfortably.
+      let blurDataUrl: string | null = null;
+      if (!isPdf) {
+        try {
+          const blur = await sharp(normalizedSource, {
+            failOn: "error",
+            limitInputPixels: 80_000_000,
+          })
+            .resize({ width: 20, withoutEnlargement: true })
+            .avif({ quality: 40, effort: 2 })
+            .toBuffer();
+          const encoded = `data:image/avif;base64,${blur.toString("base64")}`;
+          if (encoded.length <= 4000) blurDataUrl = encoded;
+        } catch (error) {
+          // A missing placeholder must never fail the upload itself.
+          this.logger.warn(
+            `Blur placeholder failed for ${asset.id}: ${String(error)}`,
+          );
         }
       }
 
@@ -341,6 +366,7 @@ export class MediaProcessor extends WorkerHost {
             height: height ?? null,
             readyAt: new Date(),
             contentType: detected.mime,
+            blurDataUrl,
           },
         });
       });

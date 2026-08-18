@@ -1,4 +1,4 @@
-import { SignInForm } from "../_components";
+import { AuthSplitLayout, SignInForm } from "../_components";
 import { safeReturnPath } from "@/shared/security/safe-return-path";
 
 export default async function Page({
@@ -11,10 +11,11 @@ export default async function Page({
   const { callbackURL } = await searchParams;
 
   return (
-    <main className="grid min-h-screen place-items-center px-4 py-10">
-      <div className="w-full max-w-sm">
-        <SignInForm callbackURL={safeReturnPath(callbackURL)} />
-      </div>
-    </main>
+    <AuthSplitLayout
+      title="Welcome back"
+      description="Sign in to save properties, message agents and manage your listings."
+    >
+      <SignInForm callbackURL={safeReturnPath(callbackURL)} />
+    </AuthSplitLayout>
   );
 }

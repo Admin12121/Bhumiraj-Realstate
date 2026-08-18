@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { MarketplacePageShell } from "@/app/_components/marketplace-page-shell";
+import { PublicHeader, SiteFooter } from "@/app/_components";
 import { AgentsDirectory } from "../_components";
 
 export const metadata: Metadata = {
@@ -10,8 +10,12 @@ export const metadata: Metadata = {
 
 export default function AgentsPage() {
   return (
-    <MarketplacePageShell>
-      <AgentsDirectory />
-    </MarketplacePageShell>
+    <>
+      <PublicHeader />
+      <main className="bg-white pt-[72px]">
+        <AgentsDirectory />
+      </main>
+      <SiteFooter />
+    </>
   );
 }

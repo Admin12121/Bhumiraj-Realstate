@@ -140,8 +140,9 @@ export function PostPropertyWizard() {
       return listing;
     },
     onSuccess: (listing) => {
-      toast.success("Property submitted for moderation.");
-      router.push(`/properties/${listing.slug}`);
+      // Payment comes next: the listing is saved but not yet in the review queue.
+      toast.success("Property saved. Complete the listing fee to continue.");
+      router.push(`/post-property/pay/${listing.id}`);
     },
     onError: (error: Error) => toast.error(error.message),
   });

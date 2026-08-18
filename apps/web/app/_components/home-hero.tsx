@@ -12,7 +12,6 @@ import type { MapMarkerData } from "./property-map"
 import { PropertySearch } from "@/app/_components/property-search"
 import { useListingFeed } from "@/features/listings/queries/use-listing-feed"
 import { formatMinorAmount } from "@/shared/utilities/money"
-import { DEMO_RESIDENCES } from "./demo-residences"
 import { PropertyPost, type PropertyPostData } from "./property-post"
 import { RailAgents, RailMap } from "./home-rail"
 import { BhumirajDifference, LovedByOwners } from "./home-sections"
@@ -30,7 +29,12 @@ function toPost(listing: {
   isVerified: boolean
   publishedAt: string | null
   createdAt: string
-  agent: { name: string; image: string | null; verified: boolean }
+  agent: {
+    id: string
+    name: string
+    image: string | null
+    verified: boolean
+  } | null
   location: {
     locality: string
     district: string
@@ -46,9 +50,10 @@ function toPost(listing: {
     description: listing.description,
     images: [listing.coverImageUrl ?? "/images/featured-1.webp"],
     agent: {
-      name: listing.agent.name,
-      image: listing.agent.image,
-      verified: listing.agent.verified,
+      ...(listing.agent ? { id: listing.agent.id } : {}),
+      name: listing.agent?.name ?? "Bhumiraj Estates",
+      image: listing.agent?.image ?? null,
+      verified: listing.agent?.verified ?? false,
     },
     publishedAt: listing.publishedAt ?? listing.createdAt,
     reference: listing.id.slice(0, 8).toUpperCase(),
@@ -72,31 +77,6 @@ function toPost(listing: {
 }
 
 /** Sample posts shown until real listings are published. */
-function demoPosts(): PropertyPostData[] {
-  return DEMO_RESIDENCES.map((residence, index) => ({
-    slug: residence.slug,
-    title: residence.title,
-    description: `${residence.title} in ${residence.city}. ${residence.rooms}. Verified ownership documents, clear road access and immediate viewing available through a Bhumiraj agent.`,
-    images: residence.images ?? [residence.image],
-    agent: {
-      name: ["Bishap Jaisi", "Anita Shrestha", "Rajan Thapa", "Sita Gurung"][
-        index % 4
-      ] as string,
-      verified: true,
-    },
-    publishedAt: new Date(Date.now() - (index + 1) * 7_200_000).toISOString(),
-    reference: `BR${12250 + index}`,
-    price: "NPR 4,25,00,000",
-    location: `${residence.city} | Bhumiraj`,
-    propertyType: "House",
-    area: residence.rooms.split(" · ").at(-1),
-    category: "For sale",
-    ...(residence.latitude != null ? { latitude: residence.latitude } : {}),
-    ...(residence.longitude != null ? { longitude: residence.longitude } : {}),
-    ...(residence.available ? { badge: residence.available } : {}),
-  }))
-}
-
 /** The social feed: filters, posts, and a map/agents rail that tracks scroll. */
 function PostFeed({
   filters,
@@ -116,9 +96,8 @@ function PostFeed({
       next.propertyType = sidebar
         .propertyType[0] as ListingFeedQuery["propertyType"]
     }
-    if (sidebar.bedrooms.length > 0) {
-      next.bedrooms = Math.min(...sidebar.bedrooms.map(Number))
-    }
+    if (sidebar.province) next.province = sidebar.province
+    if (sidebar.district) next.district = sidebar.district
     if (sidebar.minPrice > 100_000) {
       next.minPriceMinor = BigInt(sidebar.minPrice * 100)
     }
@@ -132,7 +111,7 @@ function PostFeed({
   const pages = feed.data?.pages
   const posts = useMemo(() => {
     const listings = pages?.flatMap((page) => page.items) ?? []
-    return listings.length ? listings.map(toPost) : demoPosts()
+    return listings.map(toPost)
   }, [pages])
 
   const markers: MapMarkerData[] = useMemo(

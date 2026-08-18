@@ -25,15 +25,49 @@ export class ListingsRepository {
     const conditions: object[] = [{ status: "PUBLISHED" }];
 
     if (query.type) conditions.push({ type: query.type });
-    if (query.agentId) conditions.push({ createdById: query.agentId });
-    if (query.propertyType || query.district || query.bedrooms !== undefined) {
+    // `agentId` is the agent's user id. Matching on the accepted assignment
+    // rather than `createdById` means a profile shows what that agent
+    // represents, not what they happened to submit.
+    if (query.agentId) {
+      conditions.push({
+        assignments: {
+          some: {
+            status: "ACCEPTED",
+            agent: { userId: query.agentId },
+          },
+        },
+      });
+    }
+    const hasAddressFilter = Boolean(query.province || query.district);
+    if (
+      query.propertyType ||
+      hasAddressFilter ||
+      query.bedrooms !== undefined
+    ) {
       conditions.push({
         property: {
           ...(query.propertyType ? { type: query.propertyType } : {}),
-          ...(query.district
+          ...(hasAddressFilter
             ? {
                 address: {
-                  district: { equals: query.district, mode: "insensitive" },
+                  // Both narrow the same address, so they combine rather than
+                  // one overwriting the other.
+                  ...(query.province
+                    ? {
+                        province: {
+                          equals: query.province,
+                          mode: "insensitive" as const,
+                        },
+                      }
+                    : {}),
+                  ...(query.district
+                    ? {
+                        district: {
+                          equals: query.district,
+                          mode: "insensitive" as const,
+                        },
+                      }
+                    : {}),
                 },
               }
             : {}),
@@ -120,6 +154,13 @@ export class ListingsRepository {
                 bathrooms: true,
                 areaSqFt: true,
                 parkingSpaces: true,
+                kitchens: true,
+                floors: true,
+                builtYear: true,
+                furnishing: true,
+                facing: true,
+                roadAccessFeet: true,
+                landAreaAana: true,
               },
             },
           },
@@ -147,6 +188,18 @@ export class ListingsRepository {
             name: true,
             image: true,
             agentProfile: { select: { verifiedAt: true } },
+          },
+        },
+        assignments: {
+          where: { status: "ACCEPTED" },
+          take: 1,
+          select: {
+            agent: {
+              select: {
+                verifiedAt: true,
+                user: { select: { id: true, name: true, image: true } },
+              },
+            },
           },
         },
         favorites: userId
@@ -218,6 +271,20 @@ export class ListingsRepository {
         },
         createdBy: {
           select: { id: true, name: true, image: true, agentProfile: true },
+        },
+        // The agent a buyer should contact is the one who accepted the offer,
+        // not whoever filled in the form.
+        assignments: {
+          where: { status: "ACCEPTED" },
+          take: 1,
+          select: {
+            agent: {
+              select: {
+                verifiedAt: true,
+                user: { select: { id: true, name: true, image: true } },
+              },
+            },
+          },
         },
         auction: true,
         favorites: userId

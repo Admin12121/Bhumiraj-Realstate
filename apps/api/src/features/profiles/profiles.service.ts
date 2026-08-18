@@ -370,4 +370,146 @@ export class ProfilesService {
       (error as { code?: string }).code === 'P2002',
     );
   }
+
+  /**
+   * Agent profile with the properties they currently represent. "Currently"
+   * means an accepted assignment on a published listing, so a declined or
+   * revoked offer never leaves a property on someone's page.
+   */
+  async agentProfile(userId: string, viewerId?: string) {
+    const agent = await prisma.agentProfile.findUnique({
+      where: { userId },
+      select: {
+        id: true,
+        userId: true,
+        headline: true,
+        about: true,
+        status: true,
+        availabilityStatus: true,
+        averageRating: true,
+        reviewCount: true,
+        verifiedAt: true,
+        createdAt: true,
+        user: {
+          select: {
+            name: true,
+            image: true,
+            profile: { select: { username: true } },
+            _count: { select: { followedBy: true } },
+          },
+        },
+        assignments: {
+          where: { status: "ACCEPTED", listing: { status: "PUBLISHED" } },
+          orderBy: { respondedAt: "desc" },
+          take: 24,
+          select: {
+            listing: {
+              select: {
+                id: true,
+                slug: true,
+                title: true,
+                type: true,
+                priceMinor: true,
+                currency: true,
+                property: {
+                  select: {
+                    address: { select: { locality: true, district: true } },
+                    specification: {
+                      select: { bedrooms: true, bathrooms: true },
+                    },
+                  },
+                },
+                media: {
+                  take: 1,
+                  orderBy: { position: "asc" },
+                  select: {
+                    mediaAsset: {
+                      select: {
+                        objectKey: true,
+                        variants: {
+                          where: { name: { in: ["card", "large"] } },
+                          orderBy: { name: "asc" },
+                          take: 1,
+                          select: { objectKey: true },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        reviews: {
+          orderBy: { createdAt: "desc" },
+          take: 10,
+          select: {
+            id: true,
+            rating: true,
+            comment: true,
+            createdAt: true,
+            author: { select: { name: true } },
+          },
+        },
+      },
+    });
+
+    if (!agent || agent.status === "RETIRED") throw new NotFoundException();
+
+    const followedByMe = viewerId
+      ? (await prisma.agentFollow.count({
+          where: { followerId: viewerId, agentUserId: agent.userId },
+        })) > 0
+      : false;
+
+    return {
+      id: agent.id,
+      userId: agent.userId,
+      name: agent.user.name,
+      username: agent.user.profile?.username ?? null,
+      image: agent.user.image,
+      headline: agent.headline,
+      about: agent.about,
+      verified: agent.verifiedAt !== null,
+      status: agent.status,
+      availabilityStatus: agent.availabilityStatus,
+      averageRating: Number(agent.averageRating),
+      reviewCount: agent.reviewCount,
+      followerCount: agent.user._count.followedBy,
+      followedByMe,
+      isSelf: viewerId === agent.userId,
+      joinedAt: agent.createdAt.toISOString(),
+      listings: agent.assignments.map(({ listing }) => ({
+        id: listing.id,
+        slug: listing.slug,
+        title: listing.title,
+        coverImageUrl: this.publicMediaUrl(
+          listing.media[0]?.mediaAsset.variants[0]?.objectKey ??
+            listing.media[0]?.mediaAsset.objectKey ??
+            null,
+        ),
+        locality: listing.property.address.locality,
+        district: listing.property.address.district,
+        priceMinor: listing.priceMinor?.toString() ?? null,
+        currency: listing.currency,
+        listingType: listing.type,
+        bedrooms: listing.property.specification?.bedrooms ?? null,
+        bathrooms: listing.property.specification?.bathrooms ?? null,
+      })),
+      reviews: agent.reviews.map((review) => ({
+        id: review.id,
+        rating: review.rating,
+        comment: review.comment,
+        authorName: review.author.name,
+        createdAt: review.createdAt.toISOString(),
+      })),
+    };
+  }
+
+
+  private publicMediaUrl(objectKey: string | null) {
+    if (!objectKey) return null;
+    return `${apiEnv.CDN_BASE_URL.replace(/\/$/, "")}/${objectKey}`;
+  }
+
 }

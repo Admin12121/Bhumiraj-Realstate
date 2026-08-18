@@ -1,5 +1,7 @@
 "use client"
 
+import Link from "next/link"
+
 import { useState } from "react"
 import {
   BadgeCheck,
@@ -7,7 +9,6 @@ import {
   FileCheck2,
   Ruler,
   ShieldCheck,
-  Sparkles,
 } from "lucide-react"
 import { Home } from "lucide-react"
 import { MapSurface } from "@/app/_components/property-map"
@@ -34,6 +35,8 @@ export function StaySections({
   coordinates,
   coverImage,
   listingId,
+  verified = false,
+  amenities = [],
 }: {
   title: string
   location: string
@@ -45,6 +48,8 @@ export function StaySections({
   coordinates?: { latitude: number; longitude: number } | undefined
   coverImage?: string | undefined
   listingId?: string | undefined
+  verified?: boolean
+  amenities?: string[]
 }) {
   const [expandedAbout, setExpandedAbout] = useState(false)
 
@@ -61,17 +66,15 @@ export function StaySections({
               <h1 className="text-[24px] leading-7 font-[550] tracking-[-.01em] text-[#202020]">
                 {title}
               </h1>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f7f7f6] px-3 py-1.5 text-[13px] font-medium text-[#202020]">
-                <Sparkles className="size-3.5 text-[#636363]" strokeWidth={1.8} />
-                Luxury
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f7f7f6] px-3 py-1.5 text-[13px] font-medium text-[#202020]">
-                <BadgeCheck
-                  className="size-3.5 text-emerald-700"
-                  strokeWidth={1.8}
-                />
-                Verified by Bhumiraj
-              </span>
+              {verified ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f7f7f6] px-3 py-1.5 text-[13px] font-medium text-[#202020]">
+                  <BadgeCheck
+                    className="size-3.5 text-emerald-700"
+                    strokeWidth={1.8}
+                  />
+                  Verified by Bhumiraj
+                </span>
+              ) : null}
             </div>
           </div>
 
@@ -153,6 +156,26 @@ export function StaySections({
           ))}
         </dl>
 
+        {amenities.length > 0 ? (
+          <>
+            <div className="flex flex-col gap-6">
+              <h2 className="text-[24px] leading-7 font-[550] tracking-[-.01em]">
+                What this place offers
+              </h2>
+            </div>
+            <ul className="flex flex-wrap gap-2">
+              {amenities.map((amenity) => (
+                <li
+                  key={amenity}
+                  className="rounded-full bg-[#f7f7f6] px-3.5 py-2 text-[15px] leading-5 text-[#202020]"
+                >
+                  {amenity}
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
+
         {nearby.length > 0 ? (
           <>
             <div className="flex flex-col gap-6">
@@ -208,19 +231,21 @@ export function StaySections({
             </div>
           ) : null}
 
-          <p className="text-[16px] leading-6 text-[#202020]">
-            {title} offers easy access to a variety of outdoor activities and
-            charming local attractions. Explore nearby hiking trails, walk the
-            valley rim at sunrise, or visit the surrounding towns for markets,
-            farm-to-table dining and craft workshops.
-          </p>
         </div>
       </section>
     </div>
   )
 }
 
-export function StayThingsToKnow({ title }: { title: string }) {
+export function StayThingsToKnow({
+  ownershipVerified,
+  title,
+  breadcrumb,
+}: {
+  ownershipVerified: boolean
+  title: string
+  breadcrumb: { label: string; href: string }[]
+}) {
   return (
     <div>
       {divider}
@@ -239,8 +264,9 @@ export function StayThingsToKnow({ title }: { title: string }) {
               </h3>
             </div>
             <p className="text-[16px] leading-6 text-[#636363]">
-              Lalpurja verified against land-registry records before this
-              listing was published. Originals are shown at viewing.
+              {ownershipVerified
+                ? "Lalpurja verified against land-registry records before this listing was published. Originals are shown at viewing."
+                : "Ownership documents have not been verified yet. Ask the agent to show the lalpurja and survey drawing at viewing."}
             </p>
           </div>
 
@@ -250,8 +276,8 @@ export function StayThingsToKnow({ title }: { title: string }) {
               <h3 className="text-[16px] leading-5 font-[550]">Land &amp; access</h3>
             </div>
             <p className="text-[16px] leading-6 text-[#636363]">
-              Road access and plot boundaries confirmed on site. Exact frontage
-              and setbacks are provided with the survey drawing.
+              Exact frontage, boundaries and setbacks are provided with the
+              survey drawing, which the agent brings to the viewing.
             </p>
           </div>
 
@@ -272,18 +298,18 @@ export function StayThingsToKnow({ title }: { title: string }) {
 
       <nav aria-label="Breadcrumb" className="py-8">
         <ol className="flex flex-wrap items-center gap-3 text-[14px] leading-[17px]">
-          {["Home", "Nepal", "Bagmati"].map((item) => (
-            <li key={item} className="inline-flex items-center gap-3">
-              <a
-                href="#"
+          {breadcrumb.map((crumb) => (
+            <li key={crumb.label} className="inline-flex items-center gap-3">
+              <Link
+                href={crumb.href}
                 className="text-[#636363] hover:underline hover:underline-offset-4"
               >
-                {item}
-              </a>
+                {crumb.label}
+              </Link>
               <ChevronRight className="size-3 text-[#636363]" />
             </li>
           ))}
-          <li className="text-[#202020]">Bhumiraj {title}</li>
+          <li className="text-[#202020]">{title}</li>
         </ol>
       </nav>
     </div>

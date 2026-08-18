@@ -7,8 +7,11 @@ import {
   Building2,
   CircleAlert,
   Gavel,
+  BadgeDollarSign,
+  Send,
   ShieldCheck,
   UserCheck,
+  UserPlus,
   Users,
   Workflow,
 } from "lucide-react";
@@ -32,11 +35,29 @@ export function AdminOverview() {
   }
 
   const { counts } = overview.data;
+
+  // Queues that need a decision are listed before ambient totals.
+  const queues = [
+    [
+      "Payments to verify",
+      counts.paymentsAwaitingReview,
+      BadgeDollarSign,
+      "/admin/payments",
+    ],
+    [
+      "Awaiting an agent",
+      counts.listingsAwaitingAgent,
+      UserPlus,
+      "/admin/payments",
+    ],
+    ["Offers with agents", counts.openAgentOffers, Send, "/admin/payments"],
+    ["Pending reviews", counts.pendingReviews, CircleAlert, "/admin/moderation"],
+  ] as const;
+
   const cards = [
     ["Active listings", counts.activeListings, Building2, "/admin/listings"],
     ["Live auctions", counts.liveAuctions, Gavel, "/admin/auctions"],
     ["Verified users", counts.verifiedUsers, UserCheck, "/admin/users"],
-    ["Pending reviews", counts.pendingReviews, CircleAlert, "/admin/moderation"],
     ["Total users", counts.totalUsers, Users, "/admin/users"],
     ["Verified agents", counts.verifiedAgents, ShieldCheck, "/admin/agents"],
     ["Bids today", counts.bidsToday, Activity, "/admin/auctions"],
@@ -45,6 +66,46 @@ export function AdminOverview() {
 
   return (
     <div className="space-y-6">
+      <section>
+        <h2 className="mb-3 text-sm font-semibold text-slate-500">
+          Needs attention
+        </h2>
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {queues.map(([label, value, Icon, href]) => (
+            <Link
+              key={label}
+              href={href}
+              className="surface rounded-2xl p-5 transition hover:-translate-y-0.5 hover:shadow-md"
+            >
+              <div className="flex items-center justify-between">
+                <span
+                  className={`flex size-10 items-center justify-center rounded-xl ${
+                    value > 0
+                      ? "bg-amber-50 text-amber-700"
+                      : "bg-slate-100 text-slate-400"
+                  }`}
+                >
+                  <Icon className="size-5" />
+                </span>
+                {value > 0 ? (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+                    Action needed
+                  </span>
+                ) : (
+                  <span className="text-xs font-medium text-slate-400">
+                    Clear
+                  </span>
+                )}
+              </div>
+              <p className="mt-5 text-3xl font-bold">
+                {numberFormatter.format(value)}
+              </p>
+              <p className="mt-1 text-sm text-slate-500">{label}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(([label, value, Icon, href]) => (
           <Link key={label} href={href} className="surface rounded-2xl p-5 transition hover:-translate-y-0.5 hover:shadow-md">

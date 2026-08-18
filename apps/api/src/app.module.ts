@@ -12,6 +12,8 @@ import { FavoritesModule } from "./features/favorites/favorites.module";
 import { MediaModule } from "./features/media/media.module";
 import { AuctionsModule } from "./features/auctions/auctions.module";
 import { AdminModule } from "./features/admin/admin.module";
+import { ListingPaymentsModule } from "./features/listing-payments/listing-payments.module";
+import { SupportModule } from "./features/support/support.module";
 import { AccountModule } from "./features/account/account.module";
 import { SavedSearchesModule } from "./features/saved-searches/saved-searches.module";
 import { InquiriesModule } from "./features/inquiries/inquiries.module";
@@ -39,6 +41,8 @@ import { AccessControlModule } from "./shared/auth/access-control.module";
     MediaModule,
     AuctionsModule,
     AdminModule,
+    ListingPaymentsModule,
+    SupportModule,
     AccountModule,
     SavedSearchesModule,
     InquiriesModule,

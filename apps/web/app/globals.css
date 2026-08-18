@@ -400,3 +400,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   animation: card-exit .22s cubic-bezier(.33, 1, .68, 1) both;
   pointer-events: none;
 }
+
+/* Scrollbars are hidden project-wide; scrolling itself is untouched. */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}

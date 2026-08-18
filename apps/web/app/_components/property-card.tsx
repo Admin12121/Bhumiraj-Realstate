@@ -60,6 +60,9 @@ export function PropertyCard({ listing }: { listing: ListingCard }) {
   });
 
   const saved = favorite.data?.saved ?? listing.isSaved;
+  // A listing carries no agent until one accepts the offer.
+  const agent = listing.agent;
+  const agentHref = agent ? `/users/${agent.id}` : `/properties/${listing.slug}`;
   const price = listing.auction
     ? formatMinorAmount(listing.auction.currentAmountMinor, "NPR")
     : listing.price
@@ -81,12 +84,12 @@ export function PropertyCard({ listing }: { listing: ListingCard }) {
     >
       <div className="mb-3 flex items-center gap-3 px-1">
         <Link
-          href={`/users/${listing.agent.id}`}
+          href={agentHref}
           className="relative size-10 shrink-0 overflow-hidden rounded-full bg-emerald-100"
-          aria-label={`View ${listing.agent.name}'s profile`}
+          aria-label={agent ? `View ${agent.name}'s profile` : undefined}
         >
           <Image
-            src={listing.agent.image || "/assets/category-house.svg"}
+            src={agent?.image || "/assets/category-house.svg"}
             fill
             alt=""
             sizes="40px"
@@ -95,11 +98,11 @@ export function PropertyCard({ listing }: { listing: ListingCard }) {
         </Link>
         <div className="min-w-0 flex-1">
           <Link
-            href={`/users/${listing.agent.id}`}
+            href={agentHref}
             className="flex items-center gap-1.5 font-semibold hover:text-emerald-800"
           >
-            {listing.agent.name}
-            {listing.agent.verified && (
+            {agent?.name ?? "Bhumiraj Estates"}
+            {agent?.verified && (
               <CheckCircle2 className="size-4 fill-blue-500 text-white" />
             )}
           </Link>
