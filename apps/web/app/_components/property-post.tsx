@@ -1,5 +1,6 @@
 "use client"
 
+import type React from "react"
 import type { ReactNode } from "react"
 
 import Link from "next/link"
@@ -105,6 +106,70 @@ function DetailField({
  * A listing presented as a social post: framed header, description, gallery and
  * a details grid, matching the reviewed card-frame layout.
  */
+/**
+ * Mirrors the post's real structure — avatar row, media, spec grid — so the
+ * layout does not jump when the data lands. The bars carry their own tone
+ * rather than using `Skeleton`, whose muted fill is the same colour as the
+ * frame it sits on and so reads as an empty box.
+ */
+function Bar({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div
+      className={cn("animate-pulse rounded-md bg-black/[.07]", className)}
+      aria-hidden="true"
+      {...props}
+    />
+  )
+}
+
+export function PropertyPostSkeleton() {
+  return (
+    <Frame className="w-full">
+      <FrameHeader>
+        <div className="flex w-full items-center justify-between gap-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <Bar className="size-10 shrink-0 rounded-full" />
+            <div className="space-y-2">
+              <Bar className="h-3.5 w-32" />
+              <Bar className="h-3 w-20" />
+            </div>
+          </div>
+          <div className="hidden shrink-0 gap-1.5 sm:flex">
+            <Bar className="size-9" />
+            <Bar className="size-9" />
+            <Bar className="h-9 w-32" />
+          </div>
+        </div>
+      </FrameHeader>
+
+      <FramePanel className="space-y-2.5">
+        <Bar className="h-4 w-2/5" />
+        <Bar className="h-3.5 w-full" />
+        <Bar className="h-3.5 w-11/12" />
+        <Bar className="h-3.5 w-3/5" />
+      </FramePanel>
+
+      <FramePanel className="overflow-hidden p-0">
+        <Bar className="w-full rounded-none" style={{ aspectRatio: "16 / 10" }} />
+      </FramePanel>
+
+      <FrameFooter>
+        <div className="grid w-full grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+          {Array.from({ length: 6 }, (_, index) => (
+            <div key={index} className="space-y-2">
+              <Bar className="h-2.5 w-16" />
+              <Bar className="h-3.5 w-24" />
+            </div>
+          ))}
+        </div>
+      </FrameFooter>
+    </Frame>
+  )
+}
+
 function AgentLink({
   agentId,
   children,
@@ -116,7 +181,14 @@ function AgentLink({
   return <Link href={`/agents/${agentId}`}>{children}</Link>
 }
 
-export function PropertyPost({ post }: { post: PropertyPostData }) {
+export function PropertyPost({
+  post,
+  showAgent = true,
+}: {
+  post: PropertyPostData
+  /** Off on an agent's own profile, where every post has the same byline. */
+  showAgent?: boolean
+}) {
   const [expanded, setExpanded] = useState(false)
   const [clamped, setClamped] = useState(false)
   const descriptionRef = useRef<HTMLDivElement>(null)
@@ -159,7 +231,7 @@ export function PropertyPost({ post }: { post: PropertyPostData }) {
     <Frame className="w-full">
       <FrameHeader>
         <div className="flex items-center justify-between w-full">          
-          <div className="flex min-w-0 items-center gap-3">
+          <div className={showAgent ? "flex min-w-0 items-center gap-3" : "hidden"}>
             <AgentLink agentId={post.agent.id}>
               <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-full bg-[#efece9] text-[14px] font-semibold text-[#5b524c]">
                 {post.agent.image ? (
@@ -249,7 +321,6 @@ export function PropertyPost({ post }: { post: PropertyPostData }) {
         <PropertyCardCarousel
           href={href}
           images={post.images}
-          fallbackImage={post.images[0] ?? "/images/featured-1.webp"}
           alt={post.title}
           aspectRatio="16 / 10"
           className="bg-[#f1f1ef]"

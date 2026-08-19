@@ -5,6 +5,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { Fingerprint, KeyRound, ShieldCheck } from "lucide-react"
 import { authClient } from "@real-estate/auth/client"
+import { landingPathFor } from "@/shared/security/landing-path"
 import { notify } from "@/shared/feedback/notify"
 import { Button } from "@/components/ui/button"
 import {
@@ -26,8 +27,8 @@ export function TwoFactorForm({ callbackURL }: { callbackURL: string }) {
   const [code, setCode] = useState("")
   const [pending, setPending] = useState(false)
 
-  function succeed() {
-    router.push(callbackURL)
+  function succeed(role?: string | undefined) {
+    router.push(landingPathFor(role, callbackURL))
     router.refresh()
   }
 
@@ -47,7 +48,7 @@ export function TwoFactorForm({ callbackURL }: { callbackURL: string }) {
         result.error.message || "That code was not accepted."
       )
     }
-    succeed()
+    succeed((result.data as { user?: { role?: string } } | null)?.user?.role)
   }
 
   async function withPasskey() {

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -107,7 +107,7 @@ export function PropertyCard({ listing }: { listing: ListingCard }) {
             )}
           </Link>
           <div className="text-xs text-slate-500">
-            {listingDate(listing.publishedAt)} Â· {listing.location.locality},{" "}
+            {listingDate(listing.publishedAt)} · {listing.location.locality},{" "}
             {listing.location.district}
           </div>
         </div>

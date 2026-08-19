@@ -4,7 +4,7 @@ import { useMemo, useState, type FormEvent } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { z } from "zod"
 import type { staffRoleSummarySchema } from "@real-estate/contracts"
-import { KeyRound, Pencil, Plus, Shield, Trash2, Users } from "lucide-react"
+import { KeyRound, Plus, Shield, Trash2, Users } from "lucide-react"
 import { toast } from "sonner"
 import {
   createStaffRole,
@@ -13,6 +13,7 @@ import {
   setStaffRolePermissions,
   updateStaffRole,
 } from "@/features/admin/api/admin-api"
+import { PanelHeading, PanelSection } from "./panel-layout"
 import { useHasStaffPermission } from "./admin-shell"
 import { useStepUp } from "./step-up-dialog"
 import {
@@ -27,28 +28,15 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import {
-  Dialog,
-  DialogClose,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogPanel,
-  DialogPopup,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Form } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
+  NestedSidebar,
+  NestedSidebarAction,
+  NestedSidebarItem,
+} from "@/components/ui/nested-sidebar"
 import { Textarea } from "@/components/ui/textarea"
 
 type StaffRole = z.infer<typeof staffRoleSummarySchema>
@@ -59,6 +47,7 @@ type RoleDraft = {
   position: string
   permissionKeys: string[]
 }
+
 const emptyDraft: RoleDraft = {
   name: "",
   description: "",
@@ -67,6 +56,21 @@ const emptyDraft: RoleDraft = {
   permissionKeys: [],
 }
 
+function draftOf(role: StaffRole): RoleDraft {
+  return {
+    name: role.name,
+    description: role.description ?? "",
+    color: role.color,
+    position: String(role.position),
+    permissionKeys: role.permissionKeys,
+  }
+}
+
+/**
+ * Roles are edited in place beside their list rather than in a modal: choosing
+ * a role and seeing what it grants is the whole job here, and a dialog hid the
+ * list every time you wanted to compare two roles.
+ */
 export function StaffRolesPanel() {
   const { guard } = useStepUp()
   const client = useQueryClient()
@@ -79,8 +83,12 @@ export function StaffRolesPanel() {
   const [draft, setDraft] = useState<RoleDraft>(emptyDraft)
   const canManage = useHasStaffPermission("admin.roles.manage")
 
+  const roles = query.data?.roles ?? []
+  const selectedId = editing === "new" ? "new" : (editing?.id ?? null)
+
   const refresh = async () =>
     client.invalidateQueries({ queryKey: ["admin", "rbac"] })
+
   const save = useMutation({
     mutationFn: async () => {
       const position = Number(draft.position)
@@ -112,17 +120,18 @@ export function StaffRolesPanel() {
     },
     onError: (error: Error) => toast.error(error.message),
   })
+
   const remove = useMutation({
     mutationFn: (id: string) => guard(() => deleteStaffRole(id)),
     onSuccess: async () => {
       toast.success("Staff role deleted.")
       setDeleting(null)
+      setEditing(null)
       await refresh()
     },
     onError: (error: Error) => toast.error(error.message),
   })
 
-  const selectedPermissionCount = draft.permissionKeys.length
   const allKeys = useMemo(
     () =>
       query.data?.permissionGroups.flatMap(({ permissions }) =>
@@ -138,145 +147,125 @@ export function StaffRolesPanel() {
         : current.permissionKeys.filter((item) => item !== key),
     }))
 
+  const startNew = () => {
+    setDraft(emptyDraft)
+    setEditing("new")
+  }
+
   return (
-    <section className="surface overflow-hidden rounded-2xl">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b p-5">
-        <div>
-          <h2 className="font-semibold">Custom staff roles</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Permissions combine when a staff member has multiple roles.
-          </p>
-        </div>
-        {canManage && (
-          <Button
-            onClick={() => {
-              setDraft(emptyDraft)
-              setEditing("new")
-            }}
-          >
-            <Plus />
-            Create role
-          </Button>
-        )}
-      </div>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead className="px-5">Role</TableHead>
-            <TableHead>Position</TableHead>
-            <TableHead>Permissions</TableHead>
-            <TableHead>Members</TableHead>
-            <TableHead className="px-5 text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {query.data?.roles.map((role) => (
-            <TableRow key={role.id}>
-              <TableCell className="px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <span
-                    className="size-3 rounded-full"
-                    style={{ backgroundColor: role.color }}
-                  />
-                  <div>
-                    <p className="font-medium">{role.name}</p>
-                    <p className="mt-1 max-w-md text-xs whitespace-normal text-muted-foreground">
-                      {role.description || role.slug}
-                    </p>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline">{role.position}</Badge>
-              </TableCell>
-              <TableCell>
-                <span className="inline-flex items-center gap-1 text-sm">
-                  <KeyRound className="size-4 text-muted-foreground" />
-                  {role.permissionKeys.length}
+    <PanelSection>
+      <PanelHeading
+        title="Custom staff roles"
+        description="Permissions combine when a staff member has multiple roles. Position controls hierarchy: staff manage only roles below their own."
+      />
+
+      <NestedSidebar
+        width="20rem"
+        actions={
+          canManage ? (
+            <NestedSidebarAction
+              icon={<Plus />}
+              label="Create role"
+              onClick={startNew}
+            />
+          ) : null
+        }
+        items={(open) =>
+          roles.length === 0 ? (
+            <p className="px-2 py-6 text-center text-sm text-muted-foreground">
+              {query.isPending
+                ? "Loading roles…"
+                : query.isError
+                  ? "Roles could not be loaded."
+                  : open
+                    ? "No staff roles yet."
+                    : "—"}
+            </p>
+          ) : (
+            <>
+              {roles.map((role) => (
+                <NestedSidebarItem
+                  key={role.id}
+                  open={open}
+                  isActive={selectedId === role.id}
+                  label={role.name}
+                  onClick={() => {
+                    setDraft(draftOf(role))
+                    setEditing(role)
+                  }}
+                  icon={
+                    <span
+                      aria-hidden
+                      className="size-3 shrink-0 rounded-full"
+                      style={{ backgroundColor: role.color }}
+                    />
+                  }
+                  trailing={
+                    <Badge size="sm" variant="outline">
+                      {role.position}
+                    </Badge>
+                  }
+                />
+              ))}
+              {editing === "new" ? (
+                <NestedSidebarItem
+                  open={open}
+                  isActive
+                  label="New role"
+                  icon={<Plus className="size-4" />}
+                />
+              ) : null}
+            </>
+          )
+        }
+        header={(toggle) => (
+          <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+            {toggle}
+            <h3 className="min-w-0 flex-1 truncate text-sm font-medium">
+              {editing === "new"
+                ? "New role"
+                : (editing?.name ?? "Select a role")}
+            </h3>
+            {editing && editing !== "new" ? (
+              <>
+                <span className="hidden items-center gap-1 text-xs text-muted-foreground sm:inline-flex">
+                  <KeyRound className="size-3.5" />
+                  {editing.permissionKeys.length}
                 </span>
-              </TableCell>
-              <TableCell>
-                <span className="inline-flex items-center gap-1 text-sm">
-                  <Users className="size-4 text-muted-foreground" />
-                  {role.memberCount}
+                <span className="hidden items-center gap-1 text-xs text-muted-foreground sm:inline-flex">
+                  <Users className="size-3.5" />
+                  {editing.memberCount}
                 </span>
-              </TableCell>
-              <TableCell className="px-5 text-right">
-                <div className="flex justify-end gap-2">
+                {canManage ? (
                   <Button
-                    size="icon"
-                    variant="outline"
-                    disabled={!role.manageable}
-                    aria-label={`Edit ${role.name}`}
-                    onClick={() => {
-                      setDraft({
-                        name: role.name,
-                        description: role.description ?? "",
-                        color: role.color,
-                        position: String(role.position),
-                        permissionKeys: role.permissionKeys,
-                      })
-                      setEditing(role)
-                    }}
-                  >
-                    <Pencil />
-                  </Button>
-                  <Button
-                    size="icon"
+                    size="icon-sm"
                     variant="destructive-outline"
-                    disabled={!role.manageable || role.memberCount > 0}
-                    aria-label={`Delete ${role.name}`}
-                    onClick={() => setDeleting(role)}
+                    aria-label={`Delete ${editing.name}`}
+                    disabled={!editing.manageable || editing.memberCount > 0}
+                    onClick={() => setDeleting(editing)}
                   >
                     <Trash2 />
                   </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-          {(query.isPending ||
-            query.isError ||
-            query.data?.roles.length === 0) && (
-            <TableRow>
-              <TableCell
-                colSpan={5}
-                className="p-10 text-center text-muted-foreground"
-              >
-                {query.isPending
-                  ? "Loading roles…"
-                  : query.isError
-                    ? "Roles could not be loaded."
-                    : "No staff roles have been created."}
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-
-      <Dialog
-        open={Boolean(editing)}
-        onOpenChange={(open) => !open && setEditing(null)}
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        )}
       >
-        <DialogPopup className="max-w-3xl">
+        {editing === null ? (
+          <div className="grid flex-1 place-items-center p-10 text-center text-sm text-muted-foreground">
+            Choose a role to see what it grants
+            {canManage ? ", or create a new one." : "."}
+          </div>
+        ) : (
           <Form
             onSubmit={(event: FormEvent<HTMLFormElement>) => {
               event.preventDefault()
               save.mutate()
             }}
-            className="contents"
+            className="flex min-h-0 flex-1 flex-col"
           >
-            <DialogHeader>
-              <DialogTitle>
-                {editing === "new"
-                  ? "Create staff role"
-                  : `Edit ${editing?.name ?? "role"}`}
-              </DialogTitle>
-              <DialogDescription>
-                Position controls hierarchy. Staff can manage only roles below
-                their own highest position.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogPanel className="space-y-6">
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-5">
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field>
                   <FieldLabel>Role name</FieldLabel>
@@ -314,7 +303,7 @@ export function StaffRolesPanel() {
                   </FieldDescription>
                 </Field>
                 <Field>
-                  <FieldLabel>Role color</FieldLabel>
+                  <FieldLabel>Role colour</FieldLabel>
                   <Input
                     type="color"
                     value={draft.color}
@@ -341,12 +330,13 @@ export function StaffRolesPanel() {
                   />
                 </Field>
               </div>
+
               <div>
-                <div className="mb-3 flex items-center justify-between">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h3 className="font-medium">Permissions</h3>
+                    <h4 className="font-medium">Permissions</h4>
                     <p className="text-xs text-muted-foreground">
-                      {selectedPermissionCount} of {allKeys.length} selected
+                      {draft.permissionKeys.length} of {allKeys.length} selected
                     </p>
                   </div>
                   <Button
@@ -368,7 +358,7 @@ export function StaffRolesPanel() {
                       : "Select all"}
                   </Button>
                 </div>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 xl:grid-cols-2">
                   {query.data?.permissionGroups.map((group) => (
                     <div key={group.group} className="rounded-xl border p-4">
                       <p className="mb-3 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
@@ -410,23 +400,28 @@ export function StaffRolesPanel() {
                   ))}
                 </div>
               </div>
-            </DialogPanel>
-            <DialogFooter>
-              <DialogClose render={<Button variant="outline" />}>
+            </div>
+
+            <div className="flex shrink-0 items-center justify-end gap-2 border-t p-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditing(null)}
+              >
                 Cancel
-              </DialogClose>
+              </Button>
               <Button
                 type="submit"
                 loading={save.isPending}
-                disabled={draft.name.trim().length < 2}
+                disabled={!canManage || draft.name.trim().length < 2}
               >
                 <Shield />
                 Save role
               </Button>
-            </DialogFooter>
+            </div>
           </Form>
-        </DialogPopup>
-      </Dialog>
+        )}
+      </NestedSidebar>
 
       <AlertDialog
         open={Boolean(deleting)}
@@ -454,6 +449,6 @@ export function StaffRolesPanel() {
           </AlertDialogFooter>
         </AlertDialogPopup>
       </AlertDialog>
-    </section>
+    </PanelSection>
   )
 }

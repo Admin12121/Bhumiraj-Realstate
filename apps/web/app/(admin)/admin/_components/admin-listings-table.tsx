@@ -1,20 +1,94 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { decideAdminListing, getAdminListings } from "@/features/admin/api/admin-api";
+import { Building2, Search } from "lucide-react";
+
+import {
+  decideAdminListing,
+  getAdminListings,
+} from "@/features/admin/api/admin-api";
 import { formatMinorAmount } from "@/shared/utilities/money";
-import { AdminPagination } from "./admin-pagination";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Frame } from "@/components/ui/frame";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { TablePagination } from "@/components/ui/table-pagination";
+import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useHasStaffPermission } from "./admin-shell";
+
+const statuses = [
+  "ALL",
+  "PENDING_REVIEW",
+  "PUBLISHED",
+  "REJECTED",
+  "DRAFT",
+  "WITHDRAWN",
+] as const;
+
+const statusItems = statuses.map((value) => ({
+  value,
+  label: value === "ALL" ? "All statuses" : value.replace(/_/g, " "),
+}));
+
+function statusVariant(status: string) {
+  if (status === "PUBLISHED") return "success" as const;
+  if (status === "REJECTED") return "error" as const;
+  if (status === "PENDING_REVIEW") return "warning" as const;
+  return "secondary" as const;
+}
 
 export function AdminListingsTable() {
   const canModerate = useHasStaffPermission("admin.listings.moderate");
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
-  const [status, setStatus] = useState("PENDING_REVIEW");
+  const [status, setStatus] = useState<(typeof statuses)[number]>(
+    "PENDING_REVIEW",
+  );
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  // Rejecting needs a reason, so the decision waits on the dialog.
+  const [rejecting, setRejecting] = useState<{ id: string; title: string } | null>(
+    null,
+  );
+  const [reason, setReason] = useState("");
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
@@ -23,86 +97,230 @@ export function AdminListingsTable() {
 
   const query = useQuery({
     queryKey: ["admin", "listings", page, status, debouncedSearch],
-    queryFn: () => getAdminListings(page, 25, status, debouncedSearch),
+    queryFn: () =>
+      getAdminListings(page, 25, status === "ALL" ? "" : status, debouncedSearch),
     placeholderData: (previous) => previous,
   });
 
   const decision = useMutation({
-    mutationFn: async ({ id, action }: { id: string; action: "PUBLISH" | "REJECT" }) => {
-      const reason = action === "REJECT" ? window.prompt("Reason for rejection:")?.trim() : undefined;
-      if (action === "REJECT" && !reason) throw new Error("A rejection reason is required.");
-      return decideAdminListing(id, action, reason);
-    },
+    mutationFn: ({
+      id,
+      action,
+      rejectionReason,
+    }: {
+      id: string;
+      action: "PUBLISH" | "REJECT";
+      rejectionReason?: string;
+    }) => decideAdminListing(id, action, rejectionReason),
     onSuccess: async () => {
       toast.success("Listing moderation decision saved.");
+      setRejecting(null);
+      setReason("");
       await queryClient.invalidateQueries({ queryKey: ["admin", "listings"] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const items = query.data?.items ?? [];
+
   return (
-    <section className="surface overflow-hidden rounded-2xl">
-      <div className="grid gap-3 border-b p-4 sm:grid-cols-[1fr_220px_auto] sm:items-center">
-        <input
-          value={search}
-          onChange={(event) => {
-            setSearch(event.target.value);
-            setPage(1);
-          }}
-          placeholder="Search listing, slug or owner email"
-          className="h-10 rounded-lg border px-3 text-sm"
-        />
-        <select
+    <div className="grid gap-4">
+      <div className="grid gap-3 lg:grid-cols-[minmax(18rem,26rem)_minmax(1rem,1fr)_13rem]">
+        <InputGroup>
+          <InputGroupInput
+            value={search}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search listing, slug or owner email"
+            aria-label="Search listings"
+            type="search"
+          />
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+        </InputGroup>
+
+        <div aria-hidden className="hidden lg:block" />
+        <Select
+          items={statusItems}
           value={status}
-          onChange={(event) => {
-            setStatus(event.target.value);
+          onValueChange={(value) => {
+            setStatus(value as (typeof statuses)[number]);
             setPage(1);
           }}
-          className="h-10 rounded-lg border bg-white px-3 text-sm"
         >
-          <option value="">All statuses</option>
-          {["PENDING_REVIEW", "PUBLISHED", "REJECTED", "DRAFT", "WITHDRAWN"].map((item) => <option key={item}>{item}</option>)}
-        </select>
-        <span className="text-xs text-slate-500">{query.data?.total ?? 0} listings</span>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[1050px] text-sm">
-          <thead className="bg-slate-50 text-left text-[11px] uppercase text-slate-500">
-            <tr>
-              <th className="px-5 py-3">Listing</th>
-              <th className="px-5 py-3">Owner</th>
-              <th className="px-5 py-3">Type</th>
-              <th className="px-5 py-3">Price</th>
-              <th className="px-5 py-3">Status</th>
-              <th className="px-5 py-3">Created</th>
-              <th className="px-5 py-3 text-right">Moderation</th>
-            </tr>
-          </thead>
-          <tbody>
-            {query.data?.items.map((row) => (
-              <tr key={row.id} className="border-t align-top">
-                <td className="px-5 py-4"><p className="font-semibold">{row.title}</p><p className="text-xs text-slate-500">{row.slug}</p></td>
-                <td className="px-5 py-4"><p>{row.owner.name}</p><p className="text-xs text-slate-500">{row.owner.email}</p></td>
-                <td className="px-5 py-4">{row.type} Â· {row.propertyType}</td>
-                <td className="px-5 py-4">{row.priceMinor ? formatMinorAmount(row.priceMinor, row.currency) : "Auction"}</td>
-                <td className="px-5 py-4"><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">{row.status}</span></td>
-                <td className="px-5 py-4 text-xs text-slate-500">{new Date(row.createdAt).toLocaleDateString()}</td>
-                <td className="px-5 py-4 text-right">
-                  {canModerate &&
-                  (row.status === "PENDING_REVIEW" || row.status === "REJECTED") ? (
-                    <div className="flex justify-end gap-2">
-                      <button disabled={decision.isPending} onClick={() => decision.mutate({ id: row.id, action: "PUBLISH" })} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white">Publish</button>
-                      <button disabled={decision.isPending} onClick={() => decision.mutate({ id: row.id, action: "REJECT" })} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700">Reject</button>
-                    </div>
-                  ) : <span className="text-xs text-slate-400">No action</span>}
-                </td>
-              </tr>
+          <SelectTrigger aria-label="Filter by listing status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectPopup>
+            {statusItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
             ))}
-          </tbody>
-        </table>
+          </SelectPopup>
+        </Select>
       </div>
-      <AdminPagination page={page} pageCount={query.data?.pageCount ?? 1} onPage={setPage} />
-    </section>
+
+      <Frame>
+        <Table variant="card">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Listings - {query.data?.total ?? 0}</TableHead>
+              <TableHead className="w-56">Owner</TableHead>
+              <TableHead className="w-40">Type</TableHead>
+              <TableHead className="w-36">Price</TableHead>
+              <TableHead className="w-36">Status</TableHead>
+              <TableHead className="w-28">Created</TableHead>
+              <TableHead className="w-44 text-right">Moderation</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((row) => (
+              <TableRow key={row.id} className="align-top">
+                <TableCell>
+                  <p className="font-semibold">{row.title}</p>
+                  <p className="text-xs text-muted-foreground">{row.slug}</p>
+                </TableCell>
+                <TableCell>
+                  <p>{row.owner.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {row.owner.email}
+                  </p>
+                </TableCell>
+                <TableCell>
+                  {row.type} · {row.propertyType}
+                </TableCell>
+                <TableCell className="tabular-nums">
+                  {row.priceMinor
+                    ? formatMinorAmount(row.priceMinor, row.currency)
+                    : "Auction"}
+                </TableCell>
+                <TableCell>
+                  <Badge size="sm" variant={statusVariant(row.status)}>
+                    {row.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">
+                  {new Date(row.createdAt).toLocaleDateString()}
+                </TableCell>
+                <TableCell className="text-right">
+                  {canModerate &&
+                  (row.status === "PENDING_REVIEW" ||
+                    row.status === "REJECTED") ? (
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        disabled={decision.isPending}
+                        onClick={() =>
+                          decision.mutate({ id: row.id, action: "PUBLISH" })
+                        }
+                      >
+                        Publish
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive-outline"
+                        disabled={decision.isPending}
+                        onClick={() =>
+                          setRejecting({ id: row.id, title: row.title })
+                        }
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      No action
+                    </span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+            {items.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={7} className="p-0">
+                  <Empty className="py-14">
+                    <EmptyMedia variant="icon">
+                      <Building2 />
+                    </EmptyMedia>
+                    <EmptyTitle>
+                      {query.isLoading
+                        ? "Loading listings…"
+                        : "No listings match these filters"}
+                    </EmptyTitle>
+                    <EmptyDescription>
+                      {query.isError
+                        ? "Listings could not be loaded."
+                        : "Try a different status or clear the search."}
+                    </EmptyDescription>
+                  </Empty>
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </Frame>
+
+      <TablePagination
+        currentPage={page}
+        totalPages={query.data?.pageCount ?? 1}
+        totalItems={query.data?.total}
+        pageSize={query.data?.pageSize}
+        onPageChange={setPage}
+      />
+
+      <Dialog
+        open={Boolean(rejecting)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRejecting(null);
+            setReason("");
+          }
+        }}
+      >
+        <DialogPopup>
+          <DialogHeader>
+            <DialogTitle>Reject listing</DialogTitle>
+            <DialogDescription>
+              {rejecting?.title} stays unpublished. The reason is sent to the
+              owner and recorded in the audit log.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            <Field>
+              <FieldLabel>Reason for rejection</FieldLabel>
+              <Textarea
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder="Explain what needs to change"
+                minLength={3}
+                required
+              />
+            </Field>
+          </DialogPanel>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline">Cancel</Button>} />
+            <Button
+              variant="destructive"
+              loading={decision.isPending}
+              disabled={reason.trim().length < 3}
+              onClick={() => {
+                if (!rejecting) return;
+                decision.mutate({
+                  id: rejecting.id,
+                  action: "REJECT",
+                  rejectionReason: reason.trim(),
+                });
+              }}
+            >
+              Reject listing
+            </Button>
+          </DialogFooter>
+        </DialogPopup>
+      </Dialog>
+    </div>
   );
 }
-

@@ -130,7 +130,10 @@ function PriceRange({
               <div
                 key={index}
                 className="flex flex-1 justify-center"
-                style={{ height: `${(count / peak) * 100}%` }}
+                // Rounded before it reaches the DOM: Math.exp/Math.sin are
+                // implementation-defined, so Node and the browser can disagree
+                // in the last bits and hydration then reports a mismatch.
+                style={{ height: `${((count / peak) * 100).toFixed(2)}%` }}
               >
                 <span
                   data-selected={selected}
@@ -367,7 +370,7 @@ export function FeedFilters({
                   >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectPopup>
+                  <SelectPopup alignItemWithTrigger={false}>
                     {provinceItems.map((item) => (
                       <SelectItem key={item.value} value={item.value}>
                         {item.label}
@@ -392,7 +395,7 @@ export function FeedFilters({
                   >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectPopup>
+                  <SelectPopup alignItemWithTrigger={false}>
                     {districtItems.map((item) => (
                       <SelectItem key={item.value} value={item.value}>
                         {item.label}

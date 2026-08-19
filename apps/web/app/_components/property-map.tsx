@@ -15,6 +15,7 @@ import {
   MarkerContent,
   useMap,
 } from "@/components/ui/map"
+import { DistrictBoundary } from "./district-boundary"
 
 // MapLibre defaults to fetching its worker from unpkg.com, which the CSP blocks.
 // `scripts/sync-map-worker.mjs` copies it into public/ so it loads same-origin.
@@ -55,9 +56,12 @@ export type MapBounds = {
 function FocusFlyer({
   focus,
   zoom,
+  flyKey,
 }: {
   focus: { latitude: number; longitude: number } | null
   zoom: number
+  /** Changing this forces a fly even when the coordinate repeats. */
+  flyKey?: string | undefined
 }) {
   const { map, isLoaded } = useMap()
   const lastKey = useRef<string | null>(null)
@@ -65,7 +69,7 @@ function FocusFlyer({
   useEffect(() => {
     if (!map || !isLoaded || !focus) return
 
-    const key = `${focus.latitude},${focus.longitude}`
+    const key = `${flyKey ?? ""}:${focus.latitude},${focus.longitude}`
     if (lastKey.current === key) return
     lastKey.current = key
 
@@ -78,7 +82,7 @@ function FocusFlyer({
       curve: 1.42,
       essential: true,
     })
-  }, [focus, isLoaded, map, zoom])
+  }, [flyKey, focus, isLoaded, map, zoom])
 
   return null
 }
@@ -338,6 +342,9 @@ export function MapSurface({
   onBoundsChange,
   focusSlug,
   focusZoom = 14,
+  region,
+  showPopup = true,
+  district,
   className,
 }: {
   markers: MapMarkerData[]
@@ -347,6 +354,15 @@ export function MapSurface({
   /** Slug the map should ease to; the feed sets this from scroll position. */
   focusSlug?: string | null
   focusZoom?: number
+  /** A property page already shows the listing, so its map suppresses the card. */
+  showPopup?: boolean
+  /** Traced and framed when the filter selects one. */
+  district?: string | null | undefined
+  /** A filter selection to frame, e.g. the province or district just chosen. */
+  region?:
+    | { key: string; latitude: number; longitude: number; zoom: number }
+    | null
+    | undefined
   className?: string
 }) {
   const [open, setOpen] = useState<{
@@ -376,6 +392,9 @@ export function MapSurface({
   // is a MapLibre construction option, so this only applies on first mount and
   // later re-renders never yank the map away from where the user panned.
   const centre = useMemo(() => {
+    // A region chosen before the map mounts should frame it from the first
+    // paint, rather than relying on the fly-in that follows style load.
+    if (region) return { latitude: region.latitude, longitude: region.longitude }
     if (markers.length === 0) return KATHMANDU
     const total = markers.reduce(
       (sum, marker) => ({
@@ -388,7 +407,7 @@ export function MapSurface({
       latitude: total.latitude / markers.length,
       longitude: total.longitude / markers.length,
     }
-  }, [markers])
+  }, [markers, region])
 
   const hovered = useMemo(
     () => markers.find((marker) => marker.slug === hoveredSlug) ?? null,
@@ -416,13 +435,24 @@ export function MapSurface({
         className="h-full w-full"
         styles={{ light: style, dark: style }}
         center={[centre.longitude, centre.latitude]}
-        zoom={markers.length > 1 ? 11 : 13}
+        zoom={region ? region.zoom : markers.length > 1 ? 11 : 13}
       >
         <MapControls />
+        <DistrictBoundary district={district ?? null} />
         {onBoundsChange ? (
           <BoundsReporter onBoundsChange={onBoundsChange} />
         ) : null}
-        <FocusFlyer focus={focus} zoom={focusZoom} />
+        {/* A hovered card wins over the region, so reading the list never
+            fights the camera. */}
+        {focus ? (
+          <FocusFlyer focus={focus} zoom={focusZoom} />
+        ) : region ? (
+          <FocusFlyer
+            focus={{ latitude: region.latitude, longitude: region.longitude }}
+            zoom={region.zoom}
+            flyKey={region.key}
+          />
+        ) : null}
 
         {/* One GeoJSON source clustered in a worker, rather than a DOM node per
             property. This is what lets the map hold thousands of pins: nearby
@@ -430,6 +460,7 @@ export function MapSurface({
         <PropertyClusterLayer
           data={featureCollection}
           onPointClick={(slug, coordinates) => {
+            if (!showPopup) return
             const found = markers.find((item) => item.slug === slug)
             if (found) setOpen({ marker: found, coordinates })
           }}
@@ -455,7 +486,7 @@ export function MapSurface({
           </MapMarker>
         ) : null}
 
-        {open ? (
+        {open && showPopup ? (
           <MapPopup
             longitude={open.coordinates[0]}
             latitude={open.coordinates[1]}

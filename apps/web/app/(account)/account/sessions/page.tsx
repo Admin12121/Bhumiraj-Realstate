@@ -1,4 +1,4 @@
-﻿import { AccountShell, SessionsCenter } from "../_components";
+import { AccountShell, SessionsCenter } from "../_components";
 
 export default function SessionsPage() {
   return (

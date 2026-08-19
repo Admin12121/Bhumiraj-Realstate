@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
-import { SupportInbox } from "../_components";
+import { AdminShell, SupportInbox } from "../_components";
 
 export const metadata: Metadata = { title: "Support enquiries" };
 
 export default function AdminSupportPage() {
-  return <SupportInbox />;
+  return (
+    <AdminShell
+      title="Support enquiries"
+      permission="admin.support.read"
+    >
+      <SupportInbox />
+    </AdminShell>
+  );
 }

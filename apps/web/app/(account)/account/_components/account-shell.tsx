@@ -1,22 +1,125 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, LogOut } from "lucide-react";
-import { signOut, useSession } from "@real-estate/auth/client";
+import { ChevronRight, LayoutDashboard } from "lucide-react";
+import { useSession } from "@real-estate/auth/client";
 
 import { MarketplaceMobileNavigation } from "@/app/_components/mobile-bottom-navigation";
 import {
   accountNavigation,
   agentNavigation,
   isActivePath,
+  type NavigationItem,
 } from "@/app/_components/navigation-model";
+import { WorkspaceUserMenu } from "@/app/_components/workspace-user-menu";
+import { isStaffRole } from "@/shared/security/landing-path";
 import { useAgentSummary } from "@/features/listings/queries/use-agent-workspace";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { BrandLogo } from "@/shared/components/brand-logo";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarRail,
+  SidebarTrigger,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { Separator } from "@/components/ui/separator";
+
+const overviewItem: NavigationItem = {
+  label: "Overview",
+  icon: LayoutDashboard,
+  href: "/account",
+};
+
+function NavSection({
+  label,
+  items,
+  pathname,
+  badges,
+}: {
+  label: string;
+  items: NavigationItem[];
+  pathname: string;
+  badges?: Record<string, number>;
+}) {
+  return (
+    <SidebarGroup>
+      <SidebarGroupLabel>{label}</SidebarGroupLabel>
+      <SidebarMenu>
+          {items.map((item) => {
+            const Icon = item.icon;
+            // `/account` is a prefix of every child route, so the overview tab
+            // only counts as active on an exact match.
+            const active =
+              item.href === "/account"
+                ? pathname === "/account"
+                : isActivePath(pathname, item.href);
+            const badge = badges?.[item.href];
+            return (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                  isActive={active}
+                  tooltip={item.label}
+                  aria-current={active ? "page" : undefined}
+                  render={<Link href={item.href} />}
+                >
+                  <Icon />
+                  <span>{item.label}</span>
+                </SidebarMenuButton>
+                {badge ? <SidebarMenuBadge>{badge}</SidebarMenuBadge> : null}
+              </SidebarMenuItem>
+            );
+        })}
+      </SidebarMenu>
+    </SidebarGroup>
+  );
+}
+
+function AccountHeader({ title }: { title: string }) {
+  const { state, isMobile } = useSidebar();
+  // The sidebar keeps its own trigger until it collapses; two at once is noise.
+  const showTrigger = isMobile || state === "collapsed";
+
+  return (
+    <header className="sticky top-0 z-40 flex h-(--header-height) shrink-0 items-center gap-2 border-b bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+      <div className="flex min-w-0 flex-1 items-center gap-2 text-sm">
+        {showTrigger ? (
+          <>
+            <SidebarTrigger className="-ml-1 flex" />
+            <Separator
+              orientation="vertical"
+              className="mx-2 data-[orientation=vertical]:h-8"
+            />
+          </>
+        ) : null}
+        <span className="shrink-0 text-muted-foreground">Account</span>
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+        <h1 className="truncate text-base font-medium">{title}</h1>
+      </div>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="border-0 text-muted-foreground"
+        render={<Link href="/" />}
+      >
+        <span className="hidden sm:inline">Marketplace</span>
+      </Button>
+    </header>
+  );
+}
 
 export function AccountShell({
   children,
@@ -32,103 +135,119 @@ export function AccountShell({
   const session = useSession();
   const agent = useAgentSummary();
 
+  const staff = isStaffRole(session.data?.user.role);
+
   useEffect(() => {
-    if (!session.isPending && !session.data) {
+    if (session.isPending) return;
+    if (!session.data) {
       router.replace(`/sign-in?callbackURL=${encodeURIComponent(pathname)}`);
+      return;
     }
-  }, [pathname, router, session.data, session.isPending]);
+    // Staff work out of the console; the customer account overview is not their
+    // home. Deeper pages (profile, security) stay reachable.
+    if (staff && pathname === "/account") router.replace("/admin");
+  }, [pathname, router, session.data, session.isPending, staff]);
+
+  if (staff && pathname === "/account") {
+    return (
+      <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">
+        Opening the admin console…
+      </div>
+    );
+  }
 
   if (session.isPending || !session.data) {
     return (
-      <div className="grid min-h-screen place-items-center text-sm text-slate-500">
+      <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">
         Checking your session…
       </div>
     );
   }
 
-  // Agents get one extra section; everyone else sees the plain account nav.
-  const navigation = agent.data?.isAgent
-    ? [...accountNavigation, ...agentNavigation]
-    : accountNavigation;
+  const user = session.data.user;
+  const isAgent = agent.data?.isAgent === true;
   const pendingOffers = agent.data?.isAgent ? agent.data.pendingOffers : 0;
 
-  const handleSignOut = () =>
-    signOut({ fetchOptions: { onSuccess: () => location.assign("/") } });
-
   return (
-    <div className="min-h-dvh bg-slate-50 pb-24 min-[800px]:pb-0">
-      <header className="sticky top-0 z-30 border-b bg-white/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-5">
-          <BrandLogo
-            compact
-            className="[&_img]:size-9 [&_img]:rounded-xl sm:[&_img]:size-11"
+    <SidebarProvider
+      style={
+        {
+          "--sidebar-width": "17rem",
+          "--header-height": "calc(var(--spacing) * 12 + 1px)",
+        } as CSSProperties
+      }
+      className="min-h-dvh"
+    >
+      <Sidebar collapsible="icon">
+        <SidebarHeader className="h-(--header-height) shrink-0 justify-center border-b">
+          <SidebarMenu>
+            <SidebarMenuItem className="flex flex-row items-center gap-2">
+              <SidebarMenuButton
+                className="data-[slot=sidebar-menu-button]:!p-1.5"
+                tooltip="Bhumiraj Estates"
+                render={<Link href="/" />}
+              >
+                <Image
+                  src="/Logo.webp"
+                  alt=""
+                  width={32}
+                  height={32}
+                  className="size-8 shrink-0 rounded-lg object-cover"
+                  priority
+                />
+                <span className="grid min-w-0 flex-1 text-left leading-tight">
+                  <span className="truncate text-sm font-semibold text-[#07572f]">
+                    BHUMIRAJ
+                  </span>
+                  <span className="truncate text-xs text-muted-foreground">
+                    Your account
+                  </span>
+                </span>
+              </SidebarMenuButton>
+              <SidebarTrigger className="-ml-1 flex group-data-[collapsible=icon]:hidden" />
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarHeader>
+
+        <SidebarContent>
+          <NavSection
+            label="Account"
+            items={[overviewItem, ...accountNavigation]}
+            pathname={pathname}
           />
-          <Button
-            variant="ghost"
-            className="border-0 text-slate-600"
-            render={<Link href="/" />}
-          >
-            <ArrowLeft />
-            <span className="hidden sm:inline">Back to marketplace</span>
-            <span className="sm:hidden">Marketplace</span>
-          </Button>
-        </div>
-      </header>
+          {isAgent ? (
+            <NavSection
+              label="Agent workspace"
+              items={agentNavigation}
+              pathname={pathname}
+              badges={{ "/account/offers": pendingOffers }}
+            />
+          ) : null}
+        </SidebarContent>
 
-      <div className="mx-auto grid max-w-7xl gap-7 px-4 py-6 sm:px-5 lg:grid-cols-[240px_minmax(0,1fr)] lg:py-8">
-        <aside className="surface hidden h-fit rounded-2xl p-3 lg:block">
-          <nav className="space-y-1" aria-label="Account settings">
-            {navigation.map((item) => {
-              const Icon = item.icon;
-              const active = isActivePath(pathname, item.href);
-              return (
-                <Button
-                  key={item.href}
-                  variant="ghost"
-                  className={cn(
-                    "w-full justify-start border-0 text-slate-600",
-                    active && "bg-emerald-50 text-emerald-900",
-                  )}
-                  aria-current={active ? "page" : undefined}
-                  render={<Link href={item.href} />}
-                >
-                  <Icon />
-                  {item.label}
-                  {item.href === "/account/offers" && pendingOffers > 0 ? (
-                    <span className="ml-auto grid size-5 place-items-center rounded-full bg-emerald-700 text-[11px] font-semibold text-white">
-                      {pendingOffers}
-                    </span>
-                  ) : null}
-                </Button>
-              );
-            })}
-          </nav>
-          <Button
-            variant="ghost"
-            className="mt-3 w-full justify-start border-0 border-t text-red-600"
-            onClick={handleSignOut}
-          >
-            <LogOut />
-            Sign out
-          </Button>
-        </aside>
+        <SidebarFooter className="border-t">
+          <WorkspaceUserMenu
+            workspace="account"
+            name={user.name || "Your account"}
+            email={user.email}
+            image={user.image}
+          />
+        </SidebarFooter>
+        <SidebarRail />
+      </Sidebar>
 
-        <main id="main-content" className="min-w-0">
-          <div className="mb-6">
-            <p className="text-xs font-semibold tracking-[0.14em] text-emerald-800 uppercase lg:hidden">
-              Your account
-            </p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">
-              {title}
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-500">
-              {description}
-            </p>
-          </div>
+      <SidebarInset className="min-w-0 bg-slate-50 pb-24 min-[800px]:pb-0">
+        <AccountHeader title={title} />
+
+        <main id="main-content" className="min-w-0 p-4 sm:p-6 lg:p-8">
+          <p className="mb-6 max-w-2xl text-sm text-muted-foreground">
+            {description}
+          </p>
           {children}
         </main>
-      </div>
+      </SidebarInset>
+
       <MarketplaceMobileNavigation />
-    </div>
+    </SidebarProvider>
   );
 }

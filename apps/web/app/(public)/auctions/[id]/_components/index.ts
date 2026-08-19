@@ -1,1 +1,1 @@
-﻿export * from "./live-auction";
+export * from "./live-auction";

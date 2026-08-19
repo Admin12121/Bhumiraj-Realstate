@@ -83,11 +83,20 @@ export function SidebarProvider({
   className,
   style,
   children,
+  keyboardShortcut = true,
+  persistOpen = true,
+  unstyled = false,
   ...props
 }: React.ComponentProps<"div"> & {
   defaultOpen?: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** Nested rails must not answer Cmd+B; that belongs to the app sidebar. */
+  keyboardShortcut?: boolean;
+  /** Only the app sidebar owns the shared open/closed cookie. */
+  persistOpen?: boolean;
+  /** Drops the full-height wrapper so a rail can sit inside a page. */
+  unstyled?: boolean;
 }): React.ReactElement {
   const isMobile = useMediaQuery("max-md");
   const [openMobile, setOpenMobile] = React.useState(false);
@@ -105,6 +114,8 @@ export function SidebarProvider({
         _setOpen(openState);
       }
 
+      if (!persistOpen) return;
+
       // This sets the cookie to keep the sidebar state.
       await cookieStore.set({
         expires: Date.now() + SIDEBAR_COOKIE_MAX_AGE * 1000,
@@ -113,7 +124,7 @@ export function SidebarProvider({
         value: String(openState),
       });
     },
-    [setOpenProp, open],
+    [setOpenProp, open, persistOpen],
   );
 
   // Helper to toggle the sidebar.
@@ -123,6 +134,8 @@ export function SidebarProvider({
 
   // Adds a keyboard shortcut to toggle the sidebar.
   React.useEffect(() => {
+    if (!keyboardShortcut) return;
+
     const handleKeyDown = (event: KeyboardEvent): void => {
       if (
         event.key === SIDEBAR_KEYBOARD_SHORTCUT &&
@@ -135,7 +148,7 @@ export function SidebarProvider({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggleSidebar]);
+  }, [keyboardShortcut, toggleSidebar]);
 
   // We add a state so that we can do data-state="expanded" or "collapsed".
   // This makes it easier to style the sidebar with Tailwind classes.
@@ -158,7 +171,8 @@ export function SidebarProvider({
     <SidebarContext.Provider value={contextValue}>
       <div
         className={cn(
-          "group/sidebar-wrapper flex min-h-svh w-full has-data-[variant=inset]:bg-sidebar",
+          "group/sidebar-wrapper flex w-full has-data-[variant=inset]:bg-sidebar",
+          !unstyled && "min-h-svh",
           className,
         )}
         data-slot="sidebar-wrapper"

@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
-import { PaymentVerificationPanel } from "../_components";
+import { AdminShell, PaymentVerificationPanel } from "../_components";
 
 export const metadata: Metadata = { title: "Listing payments" };
 
 export default function AdminPaymentsPage() {
-  return <PaymentVerificationPanel />;
+  return (
+    <AdminShell
+      title="Listing payments"
+      permission="admin.payments.read"
+    >
+      <PaymentVerificationPanel />
+    </AdminShell>
+  );
 }

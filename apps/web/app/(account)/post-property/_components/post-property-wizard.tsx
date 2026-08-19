@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -15,6 +15,17 @@ import { createListingSchema } from "@real-estate/contracts";
 import { createListing, submitListing } from "@/features/listings/api/listings-api";
 import { uploadPropertyImage } from "@/features/media/api/media-api";
 import { toast } from "sonner";
+import {
+  Field as FieldRoot,
+  FieldLabel,
+} from "@/components/ui/field";
+import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const steps = ["Property", "Location", "Details", "Images", "Review"];
 
@@ -320,7 +331,7 @@ export function PostPropertyWizard() {
                 <ImagePlus className="mx-auto size-10 text-emerald-700" />
                 <span className="mt-3 block font-semibold">Select property images</span>
                 <span className="mt-1 block text-xs text-slate-500">
-                  JPEG, PNG, WebP or AVIF Â· up to 25 MB each
+                  JPEG, PNG, WebP or AVIF · up to 25 MB each
                 </span>
               </span>
             </label>
@@ -339,7 +350,7 @@ export function PostPropertyWizard() {
             <div className="rounded-2xl border p-5">
               <h2 className="text-xl font-semibold">{form.title || "Untitled property"}</h2>
               <p className="mt-2 text-sm text-slate-500">
-                {form.propertyType} Â· {form.listingType} Â· {form.locality}, {form.district}
+                {form.propertyType} · {form.listingType} · {form.locality}, {form.district}
               </p>
               <p className="mt-3 font-semibold text-emerald-900">NPR {previewPrice}</p>
               <p className="mt-4 text-sm leading-6">{form.description}</p>
@@ -370,7 +381,7 @@ export function PostPropertyWizard() {
               <UploadCloud className="size-4" />
             ) : null}
             {mutation.isPending
-              ? "Uploading and submittingâ€¦"
+              ? "Uploading and submitting…"
               : step === steps.length - 1
                 ? "Submit property"
                 : "Continue"}
@@ -444,17 +455,24 @@ function SelectField({
   className?: string;
 }) {
   return (
-    <label className={`text-sm font-medium ${className}`}>
-      {label}
-      <select
+    <FieldRoot className={className}>
+      <FieldLabel className="text-sm font-medium">{label}</FieldLabel>
+      <Select
+        items={options.map((option) => ({ value: option, label: option }))}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-11 w-full rounded-xl border bg-white px-3"
+        onValueChange={(next) => onChange(String(next))}
       >
-        {options.map((option) => (
-          <option key={option}>{option}</option>
-        ))}
-      </select>
-    </label>
+        <SelectTrigger aria-label={label} className="h-11 w-full">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectPopup>
+          {options.map((option) => (
+            <SelectItem key={option} value={option}>
+              {option}
+            </SelectItem>
+          ))}
+        </SelectPopup>
+      </Select>
+    </FieldRoot>
   );
 }

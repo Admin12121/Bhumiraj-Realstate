@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -28,7 +28,7 @@ export function AdminOverview() {
   });
 
   if (overview.isLoading) {
-    return <div className="surface rounded-2xl p-10 text-center text-sm text-slate-500">Loading platform metricsâ€¦</div>;
+    return <div className="surface rounded-2xl p-10 text-center text-sm text-slate-500">Loading platform metrics…</div>;
   }
   if (overview.isError || !overview.data) {
     return <div className="surface rounded-2xl p-10 text-center text-sm text-red-600">Could not load the administration overview.</div>;
@@ -137,7 +137,7 @@ export function AdminOverview() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold">{item.action.replaceAll("_", " ")}</p>
                   <p className="mt-1 truncate text-xs text-slate-500">
-                    {item.actorName || "System"} Â· {item.entityType} Â· {item.entityId}
+                    {item.actorName || "System"} · {item.entityType} · {item.entityId}
                   </p>
                 </div>
                 <time className="shrink-0 text-[10px] text-slate-400">{new Date(item.createdAt).toLocaleString()}</time>
@@ -162,7 +162,7 @@ export function AdminOverview() {
               <Link key={listing.id} href="/admin/listings" className="block px-5 py-4 hover:bg-slate-50">
                 <p className="line-clamp-1 text-sm font-semibold">{listing.title}</p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {listing.ownerName} Â· submitted {new Date(listing.createdAt).toLocaleString()}
+                  {listing.ownerName} · submitted {new Date(listing.createdAt).toLocaleString()}
                 </p>
               </Link>
             ))}

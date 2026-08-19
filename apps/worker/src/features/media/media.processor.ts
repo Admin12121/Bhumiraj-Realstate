@@ -260,11 +260,15 @@ export class MediaProcessor extends WorkerHost {
         // AVIF throughout: roughly half the bytes of WebP at the same quality,
         // and every browser this app supports decodes it. Quality rises with
         // size so a card stays small while the full view stays sharp.
+        //
+        // These sit deliberately high. Property photography is the product, and
+        // AVIF in the high 70s/80s is visually hard to separate from source
+        // while still landing well under an equivalent JPEG.
         const variantSpecs = [
-          { name: "thumb", width: 360, quality: 55 },
-          { name: "card", width: 960, quality: 65 },
-          { name: "large", width: 1920, quality: 72 },
-          { name: "full", width: 2560, quality: 80 },
+          { name: "thumb", width: 480, quality: 68 },
+          { name: "card", width: 1200, quality: 80 },
+          { name: "large", width: 2048, quality: 86 },
+          { name: "full", width: 3200, quality: 90 },
         ];
         const baseKey = `media/${asset.purpose.toLowerCase()}/${asset.ownerId}/${asset.id}`;
 

@@ -221,12 +221,13 @@ export function StaySections({
                     slug,
                     title,
                     city: `${location}, Nepal`,
-                    image: coverImage ?? "/images/featured-1.webp",
+                    image: coverImage ?? "",
                     latitude: coordinates.latitude,
                     longitude: coordinates.longitude,
                   },
                 ]}
                 focusZoom={15}
+                showPopup={false}
               />
             </div>
           ) : null}

@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { BadgeCheck, CalendarDays, ChevronRight, Phone } from "lucide-react"
+import { agentHref } from "@/shared/utilities/agent-handle"
 
 export type ContactAgentDetails = {
   slug: string
@@ -74,7 +75,7 @@ export function StayBookingCard({
 
           {details.agent.id ? (
             <Link
-              href={`/agents/${details.agent.id}`}
+              href={agentHref(details.agent)}
               className="flex items-center gap-3 rounded-lg border border-black/[.10] p-3 transition-colors hover:bg-[#f7f7f6]"
             >
               <AgentIdentity agent={details.agent} />

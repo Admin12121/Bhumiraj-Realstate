@@ -197,7 +197,14 @@ export class ListingsRepository {
             agent: {
               select: {
                 verifiedAt: true,
-                user: { select: { id: true, name: true, image: true } },
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                    profile: { select: { username: true } },
+                  },
+                },
               },
             },
           },
@@ -281,7 +288,14 @@ export class ListingsRepository {
             agent: {
               select: {
                 verifiedAt: true,
-                user: { select: { id: true, name: true, image: true } },
+                user: {
+                  select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                    profile: { select: { username: true } },
+                  },
+                },
               },
             },
           },

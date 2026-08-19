@@ -1,14 +1,36 @@
 "use client"
 
+import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Loader2, MessageCircle, Send, X } from "lucide-react"
+import {
+  ChevronDown,
+  ChevronLeft,
+  Clock,
+  MessageCircle,
+} from "lucide-react"
 import { useSession } from "@real-estate/auth/client"
 import {
   getSupportThread,
   sendSupportMessage,
 } from "@/features/support/api/support-api"
+import {
+  Message,
+  MessageContent,
+  MessageFooter,
+  MessageGroup,
+} from "@/components/ui/message"
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller"
+import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker"
+import { ChatComposer } from "./chat-composer"
 
 function timeOf(iso: string): string {
   return new Date(iso).toLocaleTimeString([], {
@@ -17,30 +39,20 @@ function timeOf(iso: string): string {
   })
 }
 
-/**
- * General site enquiry widget. Answers questions about Bhumiraj itself — it is
- * not the agent conversation, which is per-property and lives in the account.
- */
-export function SupportChat() {
-  const pathname = usePathname()
+function Panel({ onClose }: { onClose: () => void }) {
   const session = useSession()
   const queryClient = useQueryClient()
-  const [open, setOpen] = useState(false)
-  const [draft, setDraft] = useState("")
-  const endRef = useRef<HTMLDivElement>(null)
 
   const thread = useQuery({
     queryKey: ["support", "thread"],
     queryFn: ({ signal }) => getSupportThread(signal),
-    // Only poll while the panel is open; a closed widget should cost nothing.
-    refetchInterval: open ? 10_000 : false,
-    enabled: open,
+    refetchInterval: 10_000,
   })
 
   const send = useMutation({
-    mutationFn: (body: string) => sendSupportMessage(body),
+    mutationFn: (input: { body: string; attachmentId?: string | undefined }) =>
+      sendSupportMessage(input.body, input.attachmentId),
     onSuccess: async () => {
-      setDraft("")
       await queryClient.invalidateQueries({ queryKey: ["support", "thread"] })
     },
   })
@@ -48,10 +60,127 @@ export function SupportChat() {
   const messages = thread.data?.thread?.messages ?? []
   const ttlMinutes = thread.data?.ttlMinutes ?? null
 
-  useEffect(() => {
-    if (!open) return
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
-  }, [messages.length, open])
+  return (
+    <section
+      role="dialog"
+      aria-label="Bhumiraj concierge chat"
+      className="absolute right-0 bottom-[calc(100%+23px)] isolate flex h-[566px] w-[335px] origin-bottom-right animate-[chat-open_.22s_cubic-bezier(.215,.61,.355,1)] flex-col overflow-hidden rounded-[20px] border border-black/[.08] bg-white shadow-[0_4px_18px_rgba(0,0,0,.10)]"
+    >
+      <header className="relative h-[118px] shrink-0 border-b border-[#eaeaea] bg-[#f7f7f7]">
+        <button
+          type="button"
+          aria-label="Close chat"
+          onClick={onClose}
+          className="absolute top-[42px] left-[11px] grid size-8 place-items-center rounded-full bg-[#f0f0f0] text-[#202020] transition-colors hover:bg-[#eaeaea]"
+        >
+          <ChevronLeft className="size-4" strokeWidth={1.5} />
+        </button>
+
+        <Image
+          src="/Logo.webp"
+          alt=""
+          width={58}
+          height={51}
+          className="absolute top-[12px] left-1/2 h-[51px] w-[58px] -translate-x-1/2 object-contain"
+        />
+
+        <div className="absolute inset-x-12 top-[71px] text-center">
+          <p className="text-[13px] leading-[17px] font-normal text-[#494949]">
+            Bhumiraj Concierge
+          </p>
+          <p className="text-[13px] leading-[17px] font-medium text-[#111111]">
+            Chat with us
+          </p>
+        </div>
+      </header>
+
+      <div className="relative flex min-h-0 flex-1 flex-col bg-white">
+        {thread.isPending ? (
+          <p className="grid h-full place-items-center text-[14px] text-[#999]">
+            Loading…
+          </p>
+        ) : messages.length === 0 ? (
+          <p className="grid h-full place-items-center text-[14px] leading-5 text-[#999999]">
+            How can we help you?
+          </p>
+        ) : (
+          /* The scroller only follows the live edge when the reader is already
+             there, so a reply arriving mid-read does not yank the view. */
+          <MessageScrollerProvider>
+            <MessageScroller>
+              <MessageScrollerViewport>
+                <MessageScrollerContent className="flex flex-col gap-3 px-4 py-4">
+                  <MessageGroup>
+                    {messages.map((message) => {
+                      const mine = message.authorRole === "VISITOR"
+                      return (
+                        <MessageScrollerItem key={message.id}>
+                          <Message align={mine ? "end" : "start"}>
+                            <MessageContent>
+                              <div
+                                className={
+                                  mine
+                                    ? "max-w-[82%] rounded-[16px] rounded-br-[5px] bg-[#202020] px-3.5 py-2.5 text-[14px] leading-5 text-white"
+                                    : "max-w-[82%] rounded-[16px] rounded-bl-[5px] bg-[#f1f1ef] px-3.5 py-2.5 text-[14px] leading-5 text-[#202020]"
+                                }
+                              >
+                                {message.attachmentUrl ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    src={message.attachmentUrl}
+                                    alt=""
+                                    className="mb-1.5 max-h-[220px] w-full rounded-[10px] object-cover"
+                                  />
+                                ) : null}
+                                {message.body}
+                              </div>
+                              <MessageFooter className="text-[11px] text-[#9a9a9a]">
+                                {mine
+                                  ? "You"
+                                  : (message.authorName ?? "Bhumiraj")}{" "}
+                                · {timeOf(message.createdAt)}
+                              </MessageFooter>
+                            </MessageContent>
+                          </Message>
+                        </MessageScrollerItem>
+                      )
+                    })}
+                  </MessageGroup>
+
+                  {ttlMinutes && !session.data ? (
+                    <Marker variant="separator">
+                      <MarkerIcon>
+                        <Clock />
+                      </MarkerIcon>
+                      <MarkerContent>
+                        Erased {ttlMinutes} minutes after this goes quiet
+                      </MarkerContent>
+                    </Marker>
+                  ) : null}
+                </MessageScrollerContent>
+              </MessageScrollerViewport>
+              <MessageScrollerButton />
+            </MessageScroller>
+          </MessageScrollerProvider>
+        )}
+      </div>
+
+      <ChatComposer
+        onSend={(body, attachmentId) => send.mutate({ body, attachmentId })}
+        sending={send.isPending}
+        canAttach={Boolean(session.data)}
+      />
+    </section>
+  )
+}
+
+/**
+ * The site's single chat surface. Answers questions about Bhumiraj itself; the
+ * per-property agent conversation is separate and lives in the account.
+ */
+export function SupportChat() {
+  const pathname = usePathname()
+  const [open, setOpen] = useState(false)
 
   // Staff already have the inbox, and the auth pages should stay uncluttered.
   const hidden =
@@ -63,129 +192,31 @@ export function SupportChat() {
     pathname.startsWith("/forgot-password")
   if (hidden) return null
 
-  if (!open) {
-    return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        aria-label="Ask a question"
-        className="fixed right-5 bottom-5 z-50 grid size-14 place-items-center rounded-full bg-emerald-700 text-white shadow-[0_8px_24px_rgba(0,0,0,.22)] transition-transform hover:scale-105"
-      >
-        <MessageCircle className="size-6" strokeWidth={1.9} />
-      </button>
-    )
-  }
-
   return (
-    <section
-      aria-label="Support chat"
-      className="fixed right-5 bottom-5 z-50 flex h-[min(560px,calc(100vh-3rem))] w-[min(380px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl bg-white shadow-[0_12px_40px_rgba(0,0,0,.24)] [animation:chat-open_.24s_ease-out]"
-    >
-      <header className="flex items-start justify-between gap-3 bg-emerald-800 px-4 py-3.5 text-white">
-        <div className="min-w-0">
-          <p className="text-[15px] font-semibold">Ask Bhumiraj</p>
-          <p className="mt-0.5 text-[12px] text-white/75">
-            Questions about buying, selling or listing.
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setOpen(false)}
-          aria-label="Close chat"
-          className="grid size-8 shrink-0 place-items-center rounded-full transition-colors hover:bg-white/15"
-        >
-          <X className="size-4" />
-        </button>
-      </header>
+    <div className="group fixed right-8 bottom-4 z-[61]">
+      {open ? <Panel onClose={() => setOpen(false)} /> : null}
 
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        {thread.isPending ? (
-          <p className="text-[13px] text-slate-500">Loading…</p>
-        ) : messages.length === 0 ? (
-          <div className="rounded-xl bg-slate-50 p-4 text-[13px] leading-6 text-slate-600">
-            Hello. Ask us anything about listing a property, fees or how
-            Bhumiraj works and a member of our team will reply here.
-          </div>
-        ) : (
-          <ul className="flex flex-col gap-3">
-            {messages.map((message) => {
-              const mine = message.authorRole === "VISITOR"
-              return (
-                <li
-                  key={message.id}
-                  className={`flex flex-col ${mine ? "items-end" : "items-start"}`}
-                >
-                  <span
-                    className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[14px] leading-6 ${
-                      mine
-                        ? "bg-emerald-700 text-white"
-                        : "bg-slate-100 text-slate-800"
-                    }`}
-                  >
-                    {message.body}
-                  </span>
-                  <span className="mt-1 text-[11px] text-slate-400">
-                    {mine ? "You" : (message.authorName ?? "Bhumiraj")} ·{" "}
-                    {timeOf(message.createdAt)}
-                  </span>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-        <div ref={endRef} />
-      </div>
+      {open ? null : (
+        <span className="pointer-events-none absolute top-1/2 right-[calc(100%+8px)] -translate-y-1/2 rounded-lg bg-[#202020] px-2.5 py-1.5 text-[12px] leading-4 font-medium whitespace-nowrap text-white opacity-0 shadow-[0_6px_6px_-3px_rgba(0,0,0,.04),0_2px_8px_rgba(0,0,0,.08)] transition-opacity group-hover:opacity-100">
+          Chat with Concierge
+        </span>
+      )}
 
-      {ttlMinutes && !session.data ? (
-        <p className="border-t bg-amber-50 px-4 py-2 text-[11px] leading-4 text-amber-900">
-          This conversation is deleted {ttlMinutes} minutes after it goes quiet.{" "}
-          <a href="/sign-up" className="font-semibold underline">
-            Create an account
-          </a>{" "}
-          to keep it.
-        </p>
-      ) : null}
-
-      <form
-        className="flex items-end gap-2 border-t p-3"
-        onSubmit={(event) => {
-          event.preventDefault()
-          const body = draft.trim()
-          if (body) send.mutate(body)
-        }}
+      <button
+        id="concierge-chat"
+        type="button"
+        data-open={open ? "true" : "false"}
+        onClick={() => setOpen((value) => !value)}
+        aria-label={open ? "Close chat" : "Open chat"}
+        aria-expanded={open}
+        className="relative z-10 grid size-12 place-items-center rounded-full bg-[#f0f0f0] text-[#202020] transition-colors hover:bg-[#eaeaea]"
       >
-        <label className="sr-only" htmlFor="support-message">
-          Your message
-        </label>
-        <textarea
-          id="support-message"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
-              event.preventDefault()
-              const body = draft.trim()
-              if (body) send.mutate(body)
-            }
-          }}
-          rows={1}
-          maxLength={4000}
-          placeholder="Type your question…"
-          className="max-h-28 min-h-10 flex-1 resize-none rounded-xl border px-3 py-2 text-[14px] outline-none focus:border-emerald-700"
-        />
-        <button
-          type="submit"
-          disabled={send.isPending || !draft.trim()}
-          aria-label="Send message"
-          className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-700 text-white transition-colors hover:bg-emerald-800 disabled:opacity-40"
-        >
-          {send.isPending ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <Send className="size-4" />
-          )}
-        </button>
-      </form>
-    </section>
+        {open ? (
+          <ChevronDown className="size-7" strokeWidth={1.5} />
+        ) : (
+          <MessageCircle className="size-5" strokeWidth={1.8} />
+        )}
+      </button>
+    </div>
   )
 }

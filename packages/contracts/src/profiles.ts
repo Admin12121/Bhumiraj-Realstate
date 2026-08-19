@@ -2,7 +2,7 @@ import { z } from "zod";
 import { idSchema, isoDateSchema, userIdSchema } from "./common";
 
 export const userProfileSchema = z.object({
-  id: idSchema,
+  id: userIdSchema,
   name: z.string(),
   username: z.string().nullable(),
   email: z.string().email().optional(),
@@ -116,3 +116,14 @@ export const agentProfileDetailSchema = z.object({
 });
 
 export type AgentProfileDetail = z.infer<typeof agentProfileDetailSchema>;
+
+/**
+ * A username or a user id. Both are already restricted to the same safe
+ * character set, so one pattern covers the pair.
+ */
+export const agentHandleSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .regex(/^[A-Za-z0-9_.-]+$/, "Not a valid agent handle.");

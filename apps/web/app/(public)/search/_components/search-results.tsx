@@ -4,6 +4,10 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react"
 import { useAnimatedList } from "@/hooks/use-animated-list"
 import type { ListingFeedQuery } from "@real-estate/contracts"
 import { PublicHeader } from "@/app/_components/public-header"
+import {
+  NEPAL_PROVINCE_VIEW,
+  provinceOfDistrict,
+} from "@real-estate/contracts"
 import { useListingFeed } from "@/features/listings/queries/use-listing-feed"
 import { formatMinorAmount } from "@/shared/utilities/money"
 import {
@@ -24,6 +28,7 @@ const PAGE_SIZE = 8
 const MAX_CARDS = 20
 
 export type SearchCriteria = {
+  province?: string | undefined
   type?: string
   district?: string
   propertyType?: string
@@ -34,6 +39,7 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
   const filters = useMemo(() => {
     const next: Partial<ListingFeedQuery> = {}
     if (criteria.type) next.type = criteria.type as ListingFeedQuery["type"]
+    if (criteria.province) next.province = criteria.province
     if (criteria.district) next.district = criteria.district
     if (criteria.propertyType) {
       next.propertyType =
@@ -55,7 +61,7 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
         slug: listing.slug,
         title: listing.title,
         city: `${listing.location.locality}, ${listing.location.district}`,
-        image: listing.coverImageUrl ?? "/images/featured-1.webp",
+        image: listing.coverImageUrl ?? "",
         bedrooms: listing.specifications.bedrooms ?? undefined,
         bathrooms: listing.specifications.bathrooms ?? undefined,
         area: listing.specifications.areaSqFt
@@ -80,7 +86,7 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
             slug: listing.slug,
             title: listing.title,
             city: `${listing.location.locality}, ${listing.location.district}`,
-            image: listing.coverImageUrl ?? "/images/featured-1.webp",
+            image: listing.coverImageUrl ?? "",
             price: listing.price
               ? formatMinorAmount(
                   listing.price.amountMinor,
@@ -160,6 +166,39 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
       })
       .slice(0, MAX_CARDS)
   }, [bounds, coordsBySlug, inView])
+
+  // Choosing a district should take the camera there, not leave the user to
+  // find it. Real pins win; with none we fall back to the province anchor.
+  const region = useMemo(() => {
+    const province = criteria.province ?? ""
+    const district = criteria.district ?? ""
+    // The boundary layer frames a district exactly; region only covers the
+    // province-only case.
+    if (district) return null
+    if (!province) return null
+    const key = `${province}|${district}`
+
+    if (mapMarkers.length > 0) {
+      const total = mapMarkers.reduce(
+        (sum, marker) => ({
+          latitude: sum.latitude + marker.latitude,
+          longitude: sum.longitude + marker.longitude,
+        }),
+        { latitude: 0, longitude: 0 },
+      )
+      return {
+        key,
+        latitude: total.latitude / mapMarkers.length,
+        longitude: total.longitude / mapMarkers.length,
+        zoom: district ? 12 : 9.5,
+      }
+    }
+
+    const anchorProvince = province || provinceOfDistrict(district) || ""
+    const point = NEPAL_PROVINCE_VIEW[anchorProvince]
+    if (!point) return null
+    return { key, ...point, zoom: district ? 10 : 8.5 }
+  }, [criteria.district, criteria.province, mapMarkers])
 
   const overflowed = inView.length > capped.length
 
@@ -316,6 +355,8 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
               hoveredSlug={hoveredSlug}
               onHoverChange={setHoveredSlug}
               onBoundsChange={(next) => startReflow(() => setBounds(next))}
+              region={region}
+              district={criteria.district ?? null}
             />
           </aside>
         </div>

@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/table"
 
 import { useStepUp } from "./step-up-dialog"
+import { PanelHeading, PanelRecords, PanelSection } from "./panel-layout"
 
 export function StaffGovernancePanel() {
   const { guard } = useStepUp()
@@ -131,15 +132,11 @@ export function StaffGovernancePanel() {
 
   return (
     <div className="space-y-6">
-      <section className="surface overflow-hidden rounded-2xl">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-5">
-          <div>
-            <h2 className="font-semibold">Staff invitations</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Invitations expire after seven days and can be accepted only by
-              the matching verified email.
-            </p>
-          </div>
+      <PanelSection>
+        <PanelHeading
+          title="Staff invitations"
+          description="Invitations expire after seven days and can be accepted only by the matching verified email."
+          actions={
           <Button
             onClick={() => {
               setEmail("")
@@ -151,21 +148,24 @@ export function StaffGovernancePanel() {
             <MailPlus />
             Invite staff
           </Button>
-        </div>
-        <Table>
+          }
+        />
+
+        <PanelRecords>
+        <Table variant="card">
           <TableHeader>
             <TableRow>
-              <TableHead className="px-5">Email</TableHead>
-              <TableHead>Roles</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Expires</TableHead>
-              <TableHead className="px-5 text-right">Action</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead className="w-56">Roles</TableHead>
+              <TableHead className="w-32">Status</TableHead>
+              <TableHead className="w-40">Expires</TableHead>
+              <TableHead className="w-32 text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {invitations.data?.items.map((item) => (
               <TableRow key={item.id}>
-                <TableCell className="px-5 font-medium">{item.email}</TableCell>
+                <TableCell className="font-medium">{item.email}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
                     {item.roles.map((role) => (
@@ -187,7 +187,7 @@ export function StaffGovernancePanel() {
                 <TableCell className="text-xs text-muted-foreground">
                   {new Date(item.expiresAt).toLocaleString()}
                 </TableCell>
-                <TableCell className="px-5 text-right">
+                <TableCell className="text-right">
                   <Button
                     size="icon"
                     variant="destructive-outline"
@@ -215,10 +215,11 @@ export function StaffGovernancePanel() {
             )}
           </TableBody>
         </Table>
-      </section>
+        </PanelRecords>
+      </PanelSection>
 
       {access.data?.accountType === "OWNER" && (
-        <section className="surface rounded-2xl border-destructive/30 p-5">
+        <section className="rounded-xl border border-destructive/30 bg-background p-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <h2 className="flex items-center gap-2 font-semibold">

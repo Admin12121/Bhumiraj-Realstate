@@ -8,7 +8,6 @@ import {
   Copy,
   MailPlus,
   Plus,
-  Search,
   Settings2,
   ShieldCheck,
   UserRoundX,
@@ -58,7 +57,15 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Textarea } from "@/components/ui/textarea"
-import { AdminPagination } from "./admin-pagination"
+import { TablePagination } from "@/components/ui/table-pagination"
+import {
+  PanelHeading,
+  PanelRecords,
+  PanelSearch,
+  PanelSection,
+  PanelToolbar,
+  PanelToolbarSpacer,
+} from "./panel-layout"
 
 type Agent = z.infer<typeof adminAgentSchema>
 const availabilityItems = [
@@ -182,55 +189,53 @@ export function AgentGovernancePanel() {
 
   return (
     <div className="space-y-6">
-      <section className="surface overflow-hidden rounded-2xl">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b p-5">
-          <div>
-            <h2 className="font-semibold">Agent lifecycle</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Agents are platform accounts, never staff roles.
-            </p>
-          </div>
-          {canManage && (
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setInviting(true)}>
-                <MailPlus /> Invite agent
-              </Button>
-              <Button onClick={() => setAdding(true)}>
-                <Plus /> Add customer
-              </Button>
-            </div>
-          )}
-        </div>
-        <div className="border-b p-4">
-          <div className="relative max-w-md">
-            <Search className="absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(event) => {
-                setSearch(event.target.value)
-                setPage(1)
-              }}
-              placeholder="Search agents"
-              aria-label="Search agents"
-              className="[&_input]:pl-9"
-            />
-          </div>
-        </div>
-        <Table>
+      <PanelSection>
+        <PanelHeading
+          title="Agent lifecycle"
+          description="Agents are platform accounts, never staff roles."
+          actions={
+            canManage ? (
+              <>
+                <Button variant="outline" onClick={() => setInviting(true)}>
+                  <MailPlus /> Invite agent
+                </Button>
+                <Button onClick={() => setAdding(true)}>
+                  <Plus /> Add customer
+                </Button>
+              </>
+            ) : null
+          }
+        />
+
+        <PanelToolbar>
+          <PanelSearch
+            value={search}
+            onValueChange={(value) => {
+              setSearch(value)
+              setPage(1)
+            }}
+            placeholder="Search agents"
+            label="Search agents"
+          />
+          <PanelToolbarSpacer />
+        </PanelToolbar>
+
+        <PanelRecords>
+        <Table variant="card">
           <TableHeader>
             <TableRow>
-              <TableHead className="px-5">Agent</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Availability</TableHead>
-              <TableHead>Rating</TableHead>
-              <TableHead>Capacity</TableHead>
-              <TableHead className="px-5 text-right">Actions</TableHead>
+              <TableHead>Agents - {agents.data?.total ?? 0}</TableHead>
+              <TableHead className="w-32">Status</TableHead>
+              <TableHead className="w-36">Availability</TableHead>
+              <TableHead className="w-28">Rating</TableHead>
+              <TableHead className="w-28">Capacity</TableHead>
+              <TableHead className="w-40 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {agents.data?.items.map((agent) => (
               <TableRow key={agent.id}>
-                <TableCell className="px-5 py-4">
+                <TableCell>
                   <p className="font-medium">{agent.name}</p>
                   <p className="text-xs text-muted-foreground">{agent.email}</p>
                 </TableCell>
@@ -318,30 +323,32 @@ export function AgentGovernancePanel() {
             )}
           </TableBody>
         </Table>
-        <AdminPagination
-          page={agents.data?.page ?? page}
-          pageCount={agents.data?.pageCount ?? 1}
-          onPage={setPage}
+        </PanelRecords>
+        <TablePagination
+          currentPage={agents.data?.page ?? page}
+          totalPages={agents.data?.pageCount ?? 1}
+          totalItems={agents.data?.total}
+          pageSize={agents.data?.pageSize}
+          onPageChange={setPage}
         />
-      </section>
+      </PanelSection>
 
-      <section className="surface overflow-hidden rounded-2xl">
-        <div className="border-b p-5">
-          <h2 className="font-semibold">Agent invitations</h2>
-        </div>
-        <Table>
+      <PanelSection>
+        <PanelHeading title="Agent invitations" />
+        <PanelRecords>
+        <Table variant="card">
           <TableHeader>
             <TableRow>
-              <TableHead className="px-5">Email</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Expires</TableHead>
-              <TableHead className="px-5 text-right">Action</TableHead>
+              <TableHead>Email</TableHead>
+              <TableHead className="w-36">Status</TableHead>
+              <TableHead className="w-40">Expires</TableHead>
+              <TableHead className="w-32 text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {invitations.data?.items.map((item) => (
               <TableRow key={item.id}>
-                <TableCell className="px-5 font-medium">{item.email}</TableCell>
+                <TableCell className="font-medium">{item.email}</TableCell>
                 <TableCell>
                   <Badge
                     variant={
@@ -354,7 +361,7 @@ export function AgentGovernancePanel() {
                 <TableCell>
                   {new Date(item.expiresAt).toLocaleString()}
                 </TableCell>
-                <TableCell className="px-5 text-right">
+                <TableCell className="text-right">
                   <Button
                     size="sm"
                     variant="destructive-outline"
@@ -368,7 +375,8 @@ export function AgentGovernancePanel() {
             ))}
           </TableBody>
         </Table>
-      </section>
+        </PanelRecords>
+      </PanelSection>
 
       <Dialog open={adding} onOpenChange={setAdding}>
         <DialogPopup>

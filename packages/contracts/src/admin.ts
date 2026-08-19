@@ -10,7 +10,7 @@ import {
 
 export const accountTypeSchema = z.enum(["OWNER", "STAFF", "AGENT", "USER"]);
 export const adminUserSchema = z.object({
-  id: idSchema,
+  id: userIdSchema,
   name: z.string(),
   email: z.string().email(),
   accountType: accountTypeSchema,
@@ -79,7 +79,7 @@ export const staffRbacCatalogSchema = z.object({
 });
 
 export const staffMemberSchema = z.object({
-  id: idSchema,
+  id: userIdSchema,
   name: z.string(),
   email: z.string().email(),
   accountType: z.enum(["OWNER", "STAFF"]),
@@ -112,7 +112,7 @@ export const staffMembersQuerySchema = adminPaginationQuerySchema.extend({
 });
 export const staffMembersResponseSchema = adminPageSchema(staffMemberSchema);
 export const staffCandidateSchema = z.object({
-  id: idSchema,
+  id: userIdSchema,
   name: z.string(),
   email: z.string().email(),
 });
@@ -232,7 +232,7 @@ export const acceptPlatformInvitationSchema = z.object({
   token: z.string().min(32).max(256),
 });
 export const transferOwnershipSchema = z.object({
-  targetUserId: idSchema,
+  targetUserId: userIdSchema,
   previousOwnerRoleIds: z.array(idSchema).min(1).max(20),
   confirmation: z.literal("TRANSFER OWNERSHIP"),
 });
@@ -245,7 +245,7 @@ export const adminListingSchema = z.object({
   type: z.string(),
   propertyType: z.string(),
   owner: z.object({
-    id: idSchema,
+    id: userIdSchema,
     name: z.string(),
     email: z.string().email(),
   }),
@@ -319,10 +319,11 @@ export const adminAuctionActionSchema = z
 export const moderationItemSchema = z.object({
   id: idSchema,
   kind: z.enum(["LISTING_REPORT", "USER_REPORT"]),
-  subjectId: idSchema,
+  // A user report points at a user id, a listing report at a listing uuid.
+  subjectId: userIdSchema,
   subjectLabel: z.string(),
   reporter: z.object({
-    id: idSchema,
+    id: userIdSchema,
     name: z.string(),
     email: z.string().email(),
   }),
@@ -381,7 +382,7 @@ export const setAgentAvailabilitySchema = z.object({
 export const adminAuditSchema = z.object({
   id: idSchema,
   actor: z
-    .object({ id: idSchema, name: z.string(), email: z.string().email() })
+    .object({ id: userIdSchema, name: z.string(), email: z.string().email() })
     .nullable(),
   action: z.string(),
   entityType: z.string(),
@@ -464,7 +465,7 @@ export const adminMessageSchema = z.object({
   id: idSchema,
   type: z.string(),
   participants: z.array(
-    z.object({ id: idSchema, name: z.string(), email: z.string().email() }),
+    z.object({ id: userIdSchema, name: z.string(), email: z.string().email() }),
   ),
   lastMessage: z
     .object({ body: z.string(), createdAt: isoDateSchema })

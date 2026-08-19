@@ -1,4 +1,5 @@
 import {
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -6,8 +7,30 @@ import {
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { prisma } from "@real-estate/database";
-import { ANONYMOUS_THREAD_TTL_MINUTES } from "@real-estate/contracts";
+import {
+  ANONYMOUS_THREAD_TTL_MINUTES,
+  SUPPORT_ATTACHMENT_MAX_BYTES,
+} from "@real-estate/contracts";
+import { apiEnv } from "../../bootstrap-env";
 import { decodeCursor, encodeCursor } from "../../shared/utils/cursor";
+import { inspectMessage } from "./message-safety";
+
+type AttachmentRow = {
+  objectKey: string;
+  variants: { name: string; objectKey: string }[];
+} | null;
+
+/**
+ * Prefers the processed `card` variant so a chat bubble does not pull a
+ * full-resolution original.
+ */
+function attachmentUrl(attachment: AttachmentRow): string | null {
+  if (!attachment) return null;
+  const key =
+    attachment.variants.find((variant) => variant.name === "card")?.objectKey ??
+    attachment.objectKey;
+  return `${apiEnv.CDN_BASE_URL.replace(/\/$/, "")}/${key}`;
+}
 
 const threadCursorSchema = z
   .object({ lastMessageAt: z.iso.datetime({ offset: true }), id: z.uuid() })
@@ -97,6 +120,12 @@ export class SupportService {
             body: true,
             createdAt: true,
             author: { select: { name: true } },
+            attachment: {
+              select: {
+                objectKey: true,
+                variants: { select: { name: true, objectKey: true } },
+              },
+            },
           },
         },
       },
@@ -114,19 +143,92 @@ export class SupportService {
         authorRole: message.authorRole,
         authorName: message.author?.name ?? null,
         body: message.body,
+        attachmentUrl: attachmentUrl(message.attachment),
         createdAt: message.createdAt.toISOString(),
       })),
     };
   }
 
   /** Visitor-side send. Each message slides the anonymous expiry window. */
+  /**
+   * An attachment must already be a READY image owned by the sender. READY is
+   * the important part: the media worker only sets it after the ClamAV scan and
+   * re-encode succeed, so an unscanned or infected upload can never be attached.
+   */
+  private async resolveAttachment(
+    assetId: string,
+    userId?: string,
+  ): Promise<string> {
+    if (!userId) {
+      throw new ForbiddenException({
+        code: "SIGN_IN_TO_ATTACH",
+        message: "Sign in to send an image.",
+      });
+    }
+
+    const asset = await prisma.mediaAsset.findUnique({
+      where: { id: assetId },
+      select: {
+        id: true,
+        ownerId: true,
+        status: true,
+        purpose: true,
+        contentType: true,
+        sizeBytes: true,
+      },
+    });
+    if (!asset) throw new NotFoundException();
+
+    if (asset.ownerId !== userId) {
+      throw new ForbiddenException({
+        code: "NOT_YOUR_UPLOAD",
+        message: "That file belongs to another account.",
+      });
+    }
+    if (asset.purpose !== "MESSAGE_ATTACHMENT") {
+      throw new ConflictException({
+        code: "WRONG_PURPOSE",
+        message: "That file was not uploaded as a message attachment.",
+      });
+    }
+    if (asset.status !== "READY") {
+      throw new ConflictException({
+        code: "ATTACHMENT_NOT_READY",
+        message:
+          "The image is still being scanned. Try again in a few seconds.",
+      });
+    }
+    if (!asset.contentType.startsWith("image/")) {
+      throw new ConflictException({
+        code: "IMAGES_ONLY",
+        message: "Only images can be attached to a chat message.",
+      });
+    }
+    if (asset.sizeBytes > BigInt(SUPPORT_ATTACHMENT_MAX_BYTES)) {
+      throw new ConflictException({
+        code: "ATTACHMENT_TOO_LARGE",
+        message: "Attach an image under 10MB.",
+      });
+    }
+
+    return asset.id;
+  }
+
   async sendVisitorMessage(
     visitorKey: string | null,
     body: string,
     userId?: string,
+    attachmentId?: string,
   ) {
     const thread = await this.resolveThread(visitorKey, userId);
     if (!thread) throw new NotFoundException();
+
+    const attachment = attachmentId
+      ? await this.resolveAttachment(attachmentId, userId)
+      : null;
+
+    // Flagged, not blocked: a real enquiry often carries a phone number.
+    const { flaggedReason } = inspectMessage(body);
 
     return prisma.$transaction(async (tx) => {
       const message = await tx.supportMessage.create({
@@ -135,6 +237,8 @@ export class SupportService {
           authorRole: "VISITOR",
           authorId: userId ?? null,
           body,
+          attachmentId: attachment,
+          flaggedReason,
         },
         select: { id: true, createdAt: true },
       });
@@ -239,6 +343,12 @@ export class SupportService {
             body: true,
             createdAt: true,
             author: { select: { name: true } },
+            attachment: {
+              select: {
+                objectKey: true,
+                variants: { select: { name: true, objectKey: true } },
+              },
+            },
           },
         },
       },
@@ -256,6 +366,7 @@ export class SupportService {
         authorRole: message.authorRole,
         authorName: message.author?.name ?? null,
         body: message.body,
+        attachmentUrl: attachmentUrl(message.attachment),
         createdAt: message.createdAt.toISOString(),
       })),
     };

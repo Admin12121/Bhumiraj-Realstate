@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -93,7 +93,7 @@ export function SavedProperties() {
         hasNextPage={Boolean(query.hasNextPage)}
         isFetchingNextPage={query.isFetchingNextPage}
         fetchNextPage={query.fetchNextPage}
-        label="Loading saved propertiesâ€¦"
+        label="Loading saved properties…"
       />
     </div>
   );

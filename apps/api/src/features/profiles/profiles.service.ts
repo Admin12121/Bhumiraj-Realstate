@@ -376,7 +376,18 @@ export class ProfilesService {
    * means an accepted assignment on a published listing, so a declined or
    * revoked offer never leaves a property on someone's page.
    */
-  async agentProfile(userId: string, viewerId?: string) {
+  /**
+   * `handle` is a username where the agent has set one, otherwise their user
+   * id. Accepting both keeps older links and shared URLs working, and agents
+   * without a username still have a reachable profile.
+   */
+  async agentProfile(handle: string, viewerId?: string) {
+    const byUsername = await prisma.userProfile.findUnique({
+      where: { username: handle },
+      select: { userId: true },
+    });
+    const userId = byUsername?.userId ?? handle;
+
     const agent = await prisma.agentProfile.findUnique({
       where: { userId },
       select: {

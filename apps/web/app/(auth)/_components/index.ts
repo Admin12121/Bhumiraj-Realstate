@@ -1,4 +1,4 @@
-﻿export * from "./auth-card";
+export * from "./auth-card";
 export * from "./auth-shared";
 export * from "./auth-split-layout";
 export * from "./dissolve-panel";

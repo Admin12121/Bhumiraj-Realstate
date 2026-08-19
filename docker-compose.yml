@@ -24,11 +24,20 @@ services:
     command: >
       sh -lc "
         bun install
+        # Turbopack's dev cache lives in the web-next volume, which outlives the
+        # container. Its file watcher does not survive a restart on a Windows
+        # bind mount, so entries written by the previous run are never
+        # revalidated and every route except '/' answers 404 until the file is
+        # touched. Dropping the cache on boot makes `stop`/`start` behave like a
+        # fresh `up`. The volume itself stays: it keeps the cache off the slow
+        # bind mount, which is what the 'Slow filesystem detected' warning is
+        # about.
+        rm -rf /workspace/apps/web/.next/dev /workspace/apps/web/.next-internal
         # Dev compiles routes on first request, which makes the first click on
         # a link look like it did nothing. Warm the common entry points.
         (
           until wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1; do sleep 2; done
-          for route in /sign-in /sign-up /properties /agents /account /admin; do
+          for route in /sign-in /sign-up /search /agents /account /admin; do
             wget -qO- \"http://127.0.0.1:3000$$route\" >/dev/null 2>&1 || true
           done
           echo 'Warmed the common routes.'
@@ -162,6 +171,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    restart: unless-stopped
 
   redis:
     image: redis:8.2-alpine
@@ -173,6 +183,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    restart: unless-stopped
 
   minio:
     image: minio/minio:RELEASE.2025-04-22T22-12-26Z
@@ -188,6 +199,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    restart: unless-stopped
 
   clamav:
     image: clamav/clamav:stable
@@ -199,6 +211,7 @@ services:
       timeout: 10s
       retries: 30
       start_period: 60s
+    restart: unless-stopped
 
 volumes:
   api-node-modules: {}

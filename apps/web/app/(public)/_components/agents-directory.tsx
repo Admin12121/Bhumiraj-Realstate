@@ -8,6 +8,7 @@ import { BadgeCheck, Building2, Search, Star, Users } from "lucide-react"
 import { queryKeys } from "@/shared/query/query-keys"
 import { getPublicAgents } from "@/features/profiles/api/profiles-api"
 import { Frame, FrameFooter, FramePanel } from "@/components/ui/frame"
+import { agentHref } from "@/shared/utilities/agent-handle"
 
 function AgentCard({
   agent,
@@ -48,7 +49,7 @@ function AgentCard({
 
             <div className="min-w-0 flex-1">
               <Link
-                href={`/agents/${agent.userId}`}
+                href={agentHref(agent)}
                 className="flex items-center gap-1.5 text-[16px] leading-normal font-medium tracking-[-0.015em] text-[#1d1919] hover:underline"
               >
                 <span className="truncate">{agent.name}</span>

@@ -1,9 +1,9 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
@@ -18,6 +18,19 @@ import { useSession } from "@real-estate/auth/client";
 import { queryKeys } from "@/shared/query/query-keys";
 import { useListingFeed } from "@/features/listings/queries/use-listing-feed";
 import { PropertyCard } from "@/app/_components/property-card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Textarea } from "@/components/ui/textarea";
 import {
   followProfile,
   getPublicProfile,
@@ -26,6 +39,10 @@ import {
 } from "@/features/profiles/api/profiles-api";
 
 export function PublicProfile({ id }: { id: string }) {
+  // The first message opens in a real composer; a prompt() gave no room to
+  // write and no way to see who you were writing to.
+  const [composing, setComposing] = useState(false);
+  const [draft, setDraft] = useState("");
   const router = useRouter();
   const session = useSession();
   const queryClient = useQueryClient();
@@ -131,15 +148,12 @@ export function PublicProfile({ id }: { id: string }) {
 
   function beginMessage() {
     if (!requireSession() || profile.data?.isSelf) return;
-    const body = globalThis.prompt(
-      "Write your first message",
-      "Hello, I would like to discuss one of your properties.",
-    );
-    if (body?.trim()) message.mutate(body.trim());
+    setDraft("Hello, I would like to discuss one of your properties.");
+    setComposing(true);
   }
 
   if (profile.isLoading) {
-    return <div className="grid min-h-screen place-items-center text-sm text-slate-500">Loading profileâ€¦</div>;
+    return <div className="grid min-h-screen place-items-center text-sm text-slate-500">Loading profile…</div>;
   }
   if (profile.isError || !profile.data) {
     return <div className="grid min-h-screen place-items-center text-sm text-slate-500">Profile unavailable.</div>;
@@ -150,7 +164,7 @@ export function PublicProfile({ id }: { id: string }) {
     <main id="main-content" className="min-h-screen bg-slate-50">
       <div className="mx-auto max-w-5xl px-5 py-8">
         <Link href="/" className="text-sm font-semibold text-emerald-700">
-          â† Back to marketplace
+          ← Back to marketplace
         </Link>
 
         <section className="surface mt-5 overflow-hidden rounded-[26px]">
@@ -192,7 +206,7 @@ export function PublicProfile({ id }: { id: string }) {
                     )}
                   </h1>
                   <p className="text-sm text-slate-500">
-                    @{person.username || person.id.slice(0, 8)} Â· {person.role}
+                    @{person.username || person.id.slice(0, 8)} · {person.role}
                   </p>
                 </div>
               </div>
@@ -266,7 +280,7 @@ export function PublicProfile({ id }: { id: string }) {
             ))}
             {listings.isLoading && (
               <div className="surface rounded-2xl p-8 text-center text-sm text-slate-500">
-                Loading propertiesâ€¦
+                Loading properties…
               </div>
             )}
             {!listings.isLoading && publishedListings.length === 0 && (
@@ -276,13 +290,49 @@ export function PublicProfile({ id }: { id: string }) {
             )}
             {listings.isFetchingNextPage && (
               <div className="surface rounded-2xl p-6 text-center text-sm text-slate-500">
-                Loading more propertiesâ€¦
+                Loading more properties…
               </div>
             )}
             <div ref={loadMoreRef} className="h-1" aria-hidden="true" />
           </div>
         </section>
       </div>
+
+      <Dialog open={composing} onOpenChange={setComposing}>
+        <DialogPopup>
+          <DialogHeader>
+            <DialogTitle>Message {profile.data?.name}</DialogTitle>
+            <DialogDescription>
+              This starts a conversation you can continue from your account.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            <Field>
+              <FieldLabel>Your message</FieldLabel>
+              <Textarea
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                rows={5}
+                maxLength={5000}
+                placeholder="Introduce yourself and say which property you are interested in"
+              />
+            </Field>
+          </DialogPanel>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline">Cancel</Button>} />
+            <Button
+              loading={message.isPending}
+              disabled={!draft.trim()}
+              onClick={() => {
+                message.mutate(draft.trim());
+                setComposing(false);
+              }}
+            >
+              Send message
+            </Button>
+          </DialogFooter>
+        </DialogPopup>
+      </Dialog>
     </main>
   );
 }

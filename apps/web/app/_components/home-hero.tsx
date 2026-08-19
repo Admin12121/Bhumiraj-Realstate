@@ -9,10 +9,19 @@ import {
   type FeedFilterState,
 } from "./feed-filters"
 import type { MapMarkerData } from "./property-map"
+import { HeroGrid } from "./hero-grid"
 import { PropertySearch } from "@/app/_components/property-search"
 import { useListingFeed } from "@/features/listings/queries/use-listing-feed"
 import { formatMinorAmount } from "@/shared/utilities/money"
-import { PropertyPost, type PropertyPostData } from "./property-post"
+import {
+  PropertyPost,
+  PropertyPostSkeleton,
+  type PropertyPostData,
+} from "./property-post"
+import {
+  NEPAL_PROVINCE_VIEW,
+  provinceOfDistrict,
+} from "@real-estate/contracts"
 import { RailAgents, RailMap } from "./home-rail"
 import { BhumirajDifference, LovedByOwners } from "./home-sections"
 import { SiteFooter } from "./site-footer"
@@ -31,6 +40,7 @@ function toPost(listing: {
   createdAt: string
   agent: {
     id: string
+    username: string | null
     name: string
     image: string | null
     verified: boolean
@@ -48,9 +58,11 @@ function toPost(listing: {
     slug: listing.slug,
     title: listing.title,
     description: listing.description,
-    images: [listing.coverImageUrl ?? "/images/featured-1.webp"],
+    images: listing.coverImageUrl ? [listing.coverImageUrl] : [],
     agent: {
-      ...(listing.agent ? { id: listing.agent.id } : {}),
+      ...(listing.agent
+        ? { id: listing.agent.username ?? listing.agent.id }
+        : {}),
       name: listing.agent?.name ?? "Bhumiraj Estates",
       image: listing.agent?.image ?? null,
       verified: listing.agent?.verified ?? false,
@@ -124,7 +136,7 @@ function PostFeed({
                 slug: post.slug,
                 title: post.title,
                 city: post.location,
-                image: post.images[0] ?? "/images/featured-1.webp",
+                image: post.images[0] ?? "",
                 price: post.price,
                 latitude: post.latitude,
                 longitude: post.longitude,
@@ -132,6 +144,11 @@ function PostFeed({
             ],
       ),
     [posts],
+  )
+
+  const region = useMemo(
+    () => regionView(sidebar.province, sidebar.district, markers),
+    [markers, sidebar.district, sidebar.province],
   )
 
   // Whichever post sits nearest the top third of the viewport drives the map.
@@ -168,26 +185,42 @@ function PostFeed({
           <FeedFilters state={sidebar} onChange={setSidebar} />
         </aside>
 
-        <div className="flex min-w-0 flex-col gap-6">
+        {/* A filter change keeps the current posts on screen and dims them,
+            rather than tearing the list down to skeletons and snapping back. */}
+        <div
+          className={`flex min-w-0 flex-col gap-6 transition-opacity duration-200 ${
+            feed.isFetching && !feed.isFetchingNextPage && !feed.isPending
+              ? "opacity-60"
+              : "opacity-100"
+          }`}
+        >
           {feed.isPending
             ? Array.from({ length: 2 }, (_, index) => (
-                <div
-                  key={index}
-                  className="h-[560px] animate-pulse rounded-2xl bg-[#f2f2f0]"
-                />
+                <PropertyPostSkeleton key={index} />
               ))
-            : posts.map((post) => (
-                <div
-                  key={post.slug}
-                  data-slug={post.slug}
-                  ref={(node) => {
-                    if (node) postRefs.current.set(post.slug, node)
-                    else postRefs.current.delete(post.slug)
-                  }}
-                >
-                  <PropertyPost post={post} />
-                </div>
-              ))}
+            : posts.length === 0
+              ? (
+                  <div className="flex flex-col items-center gap-2 rounded-2xl bg-[#f7f7f6] px-6 py-14 text-center">
+                    <p className="text-[15px] font-medium text-[#202020]">
+                      No properties match these filters
+                    </p>
+                    <p className="max-w-[320px] text-[13px] leading-5 text-[#8a8a8a]">
+                      Try a wider price range, or clear the location filter.
+                    </p>
+                  </div>
+                )
+              : posts.map((post) => (
+                  <div
+                    key={post.slug}
+                    data-slug={post.slug}
+                    ref={(node) => {
+                      if (node) postRefs.current.set(post.slug, node)
+                      else postRefs.current.delete(post.slug)
+                    }}
+                  >
+                    <PropertyPost post={post} />
+                  </div>
+                ))}
 
           <div className="flex justify-center pt-2">
             <Link
@@ -200,12 +233,55 @@ function PostFeed({
         </div>
 
         <aside className="sticky top-[88px] hidden flex-col gap-6 xl:flex">
-          <RailMap markers={markers} focusSlug={focusSlug} />
+          <RailMap
+            markers={markers}
+            focusSlug={focusSlug}
+            region={region}
+            district={sidebar.district || null}
+          />
           <RailAgents />
         </aside>
       </div>
     </section>
   )
+}
+
+/**
+ * Where the map should sit for the current location filter. Real listings win:
+ * the camera frames their average position. With none, it falls back to the
+ * province anchor so choosing a region still takes you there.
+ */
+function regionView(
+  province: string,
+  district: string,
+  markers: { latitude: number; longitude: number }[],
+): { key: string; latitude: number; longitude: number; zoom: number } | null {
+  // A chosen district is framed from its real boundary, which is exact; a
+  // second camera move from here would only fight it.
+  if (district) return null
+  if (!province) return null
+  const key = `${province}|${district}`
+
+  if (markers.length > 0) {
+    const total = markers.reduce(
+      (sum, marker) => ({
+        latitude: sum.latitude + marker.latitude,
+        longitude: sum.longitude + marker.longitude,
+      }),
+      { latitude: 0, longitude: 0 },
+    )
+    return {
+      key,
+      latitude: total.latitude / markers.length,
+      longitude: total.longitude / markers.length,
+      zoom: district ? 12 : 9.5,
+    }
+  }
+
+  const anchorProvince = province || provinceOfDistrict(district) || ""
+  const anchor = NEPAL_PROVINCE_VIEW[anchorProvince]
+  if (!anchor) return null
+  return { key, ...anchor, zoom: district ? 10 : 8.5 }
 }
 
 export function HomeHero() {
@@ -221,7 +297,10 @@ export function HomeHero() {
           alt="Modern residence in nature"
           className="absolute inset-0 h-full w-full object-cover object-center"
         />
-        <div className="absolute inset-0 bg-black/50" />
+        <div className="pointer-events-none absolute inset-0 bg-black/50" />
+        {/* Above the scrim: underneath it, every glyph was dimmed by half and
+            the effect washed out to nothing. */}
+        <HeroGrid />
         <div className="relative mx-auto mt-7 flex w-full max-w-site flex-col items-center gap-3 px-6 pb-28 text-center text-white lg:px-8 lg:pb-0 2xl:px-12">
           <h1 className="max-w-[900px] text-[clamp(38px,5.2vw,68px)] leading-[.96] font-medium tracking-[-.05em]">
             Find your place in Nepal

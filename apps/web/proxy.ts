@@ -15,6 +15,19 @@ function hasSessionCookie(request: NextRequest): boolean {
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+
+  // `/properties/<slug>.md` serves the plain-text copy of a listing. Next has
+  // no way to express a file extension inside a dynamic segment, so the rewrite
+  // happens here and the handler lives under /api/md.
+  if (pathname.startsWith("/properties/") && pathname.endsWith(".md")) {
+    const slug = pathname.slice("/properties/".length, -".md".length);
+    if (slug && !slug.includes("/")) {
+      const target = request.nextUrl.clone();
+      target.pathname = `/api/md/properties/${slug}`;
+      return NextResponse.rewrite(target);
+    }
+  }
+
   const protectedRoute = protectedPrefixes.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );

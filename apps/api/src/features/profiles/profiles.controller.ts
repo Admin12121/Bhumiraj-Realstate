@@ -6,6 +6,7 @@ import {
   type UserSession,
 } from "@thallesp/nestjs-better-auth";
 import {
+  agentHandleSchema,
   publicAgentsQuerySchema,
   updateProfileSchema,
   userIdSchema,
@@ -28,13 +29,13 @@ export class ProfilesController {
     return this.service.listAgents(query, session?.user.id);
   }
 
-  @Get("agents/:userId")
+  @Get("agents/:handle")
   @OptionalAuth()
   agentProfile(
-    @Param("userId", new ZodValidationPipe(userIdSchema)) userId: string,
+    @Param("handle", new ZodValidationPipe(agentHandleSchema)) handle: string,
     @Session() session?: UserSession,
   ) {
-    return this.service.agentProfile(userId, session?.user.id);
+    return this.service.agentProfile(handle, session?.user.id);
   }
 
   @Get("me")

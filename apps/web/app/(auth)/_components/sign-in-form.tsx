@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { signIn } from "@real-estate/auth/client"
 import { notify } from "@/shared/feedback/notify"
+import { landingPathFor } from "@/shared/security/landing-path"
 import { Button } from "@/components/ui/button"
 import {
   Field,
@@ -47,12 +48,14 @@ export function SignInForm({ callbackURL }: { callbackURL: string }) {
       return
     }
 
-    const data = result.data as { twoFactorRedirect?: boolean } | null
+    const data = result.data as
+      | { twoFactorRedirect?: boolean; user?: { role?: string } }
+      | null
     if (data?.twoFactorRedirect) {
       router.push(`/two-factor?callbackURL=${encodeURIComponent(callbackURL)}`)
       return
     }
-    router.push(callbackURL)
+    router.push(landingPathFor(data?.user?.role, callbackURL))
     router.refresh()
   }
 

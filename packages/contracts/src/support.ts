@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { cursorQuerySchema, idSchema, isoDateSchema } from "./common";
+import { cursorQuerySchema, idSchema, isoDateSchema, userIdSchema } from "./common";
 
 export const supportAuthorRoleSchema = z.enum(["VISITOR", "STAFF"]);
 export const supportThreadStatusSchema = z.enum([
@@ -19,6 +19,7 @@ export const supportMessageSchema = z.object({
   authorRole: supportAuthorRoleSchema,
   authorName: z.string().nullable(),
   body: z.string(),
+  attachmentUrl: z.string().nullable(),
   createdAt: isoDateSchema,
 });
 
@@ -34,6 +35,8 @@ export const supportThreadSchema = z.object({
 
 export const sendSupportMessageSchema = z.object({
   body: z.string().trim().min(1).max(4000),
+  /** A READY image the sender owns; validated server-side before it attaches. */
+  attachmentId: idSchema.optional(),
 });
 
 export const supportThreadSummarySchema = z.object({
@@ -62,8 +65,11 @@ export const supportThreadQuerySchema = cursorQuerySchema.extend({
 });
 
 export const assignSupportThreadSchema = z.object({
-  assigneeId: idSchema.nullable(),
+  assigneeId: userIdSchema.nullable(),
 });
 
 export type SupportThread = z.infer<typeof supportThreadSchema>;
 export type SupportThreadSummary = z.infer<typeof supportThreadSummarySchema>;
+
+/** Chat images are small by design; listing photos have their own, larger cap. */
+export const SUPPORT_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;

@@ -13,6 +13,7 @@ import {
   CardFrameHeader,
   CardFrameTitle,
 } from "@/components/ui/card"
+import { agentHref } from "@/shared/utilities/agent-handle"
 
 /**
  * Map teaser for the feed rail. The interactive map lives on /search, so this
@@ -21,9 +22,15 @@ import {
 export function RailMap({
   markers,
   focusSlug,
+  region,
+  district,
 }: {
   markers: MapMarkerData[]
   focusSlug: string | null
+  district?: string | null | undefined
+  region?:
+    | { key: string; latitude: number; longitude: number; zoom: number }
+    | null
 }) {
   return (
     <CardFrame>
@@ -47,6 +54,8 @@ export function RailMap({
           markers={markers}
           focusSlug={focusSlug}
           hoveredSlug={focusSlug}
+          region={region}
+          district={district}
           className="aspect-[4/3] h-auto rounded-none shadow-none ring-0"
         />
       </Card>
@@ -69,7 +78,7 @@ function AgentRow({
 }) {
   return (
     <Link
-      href={`/agents/${agent.userId}`}
+      href={agentHref(agent)}
       className="flex min-w-0 items-center gap-3 rounded-xl px-2 py-2 transition-colors hover:bg-black/[.03]"
     >
       <span className="grid size-9 shrink-0 place-items-center overflow-hidden rounded-full bg-[#efece9] text-[13px] font-semibold text-[#5b524c]">

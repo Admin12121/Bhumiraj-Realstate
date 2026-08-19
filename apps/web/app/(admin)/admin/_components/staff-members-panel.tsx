@@ -8,7 +8,6 @@ import {
   Pencil,
   PlayCircle,
   Plus,
-  Search,
   Trash2,
   UserCog,
   UserRoundX,
@@ -60,7 +59,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { AdminPagination } from "./admin-pagination"
+import { TablePagination } from "@/components/ui/table-pagination"
+import {
+  PanelHeading,
+  PanelRecords,
+  PanelSearch,
+  PanelSection,
+  PanelToolbar,
+  PanelToolbarSpacer,
+} from "./panel-layout"
 
 type StaffMember = z.infer<typeof staffMemberSchema>
 
@@ -186,57 +193,54 @@ export function StaffMembersPanel() {
   }
 
   return (
-    <section className="surface overflow-hidden rounded-2xl">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b p-5">
-        <div>
-          <h2 className="font-semibold">Staff members</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Owner is hardcoded. Staff permissions come only from their assigned
-            custom roles.
-          </p>
-        </div>
-        {canManage && (
-          <Button
-            onClick={() => {
-              resetPromotion()
-              setPromoting(true)
-            }}
-          >
-            <Plus />
-            Add staff member
-          </Button>
-        )}
-      </div>
-      <div className="border-b p-4">
-        <div className="relative max-w-md">
-          <Search className="absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(event) => {
-              setSearch(event.target.value)
-              setPage(1)
-            }}
-            placeholder="Search staff by name or email"
-            aria-label="Search staff"
-            className="[&_input]:pl-9"
-          />
-        </div>
-      </div>
-      <Table>
+    <PanelSection>
+      <PanelHeading
+        title="Staff members"
+        description="Owner is hardcoded. Staff permissions come only from their assigned custom roles."
+        actions={
+          canManage ? (
+            <Button
+              onClick={() => {
+                resetPromotion()
+                setPromoting(true)
+              }}
+            >
+              <Plus />
+              Add staff member
+            </Button>
+          ) : null
+        }
+      />
+
+      <PanelToolbar>
+        <PanelSearch
+          value={search}
+          onValueChange={(value) => {
+            setSearch(value)
+            setPage(1)
+          }}
+          placeholder="Search staff by name or email"
+          label="Search staff"
+        />
+        <PanelToolbarSpacer />
+      </PanelToolbar>
+
+      <PanelRecords>
+      <Table variant="card">
         <TableHeader>
           <TableRow>
-            <TableHead className="px-5">Member</TableHead>
-            <TableHead>Account type</TableHead>
-            <TableHead>Roles</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Joined</TableHead>
-            <TableHead className="px-5 text-right">Actions</TableHead>
+            <TableHead>Members - {staff.data?.total ?? 0}</TableHead>
+            <TableHead className="w-36">Account type</TableHead>
+            <TableHead className="w-56">Roles</TableHead>
+            <TableHead className="w-32">Status</TableHead>
+            <TableHead className="w-28">Joined</TableHead>
+            <TableHead className="w-32 text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {staff.data?.items.map((member) => (
             <TableRow key={member.id}>
-              <TableCell className="px-5 py-4">
+              <TableCell>
                 <p className="font-medium">{member.name}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {member.email}
@@ -288,7 +292,7 @@ export function StaffMembersPanel() {
               <TableCell className="text-xs text-muted-foreground">
                 {new Date(member.createdAt).toLocaleDateString()}
               </TableCell>
-              <TableCell className="px-5 text-right">
+              <TableCell className="text-right">
                 <div className="flex justify-end gap-2">
                   <Button
                     size="sm"
@@ -360,10 +364,13 @@ export function StaffMembersPanel() {
           )}
         </TableBody>
       </Table>
-      <AdminPagination
-        page={staff.data?.page ?? page}
-        pageCount={staff.data?.pageCount ?? 1}
-        onPage={setPage}
+      </PanelRecords>
+      <TablePagination
+        currentPage={staff.data?.page ?? page}
+        totalPages={staff.data?.pageCount ?? 1}
+        totalItems={staff.data?.total}
+        pageSize={staff.data?.pageSize}
+        onPageChange={setPage}
       />
 
       <Dialog
@@ -587,7 +594,7 @@ export function StaffMembersPanel() {
           </Form>
         </DialogPopup>
       </Dialog>
-    </section>
+    </PanelSection>
   )
 }
 

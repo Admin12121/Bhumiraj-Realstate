@@ -101,7 +101,12 @@ export class SupportController {
     @Session() session?: UserSession,
   ) {
     const key = this.visitorKey(request, response);
-    return this.service.sendVisitorMessage(key, body.body, session?.user.id);
+    return this.service.sendVisitorMessage(
+      key,
+      body.body,
+      session?.user.id,
+      body.attachmentId,
+    );
   }
 }
 

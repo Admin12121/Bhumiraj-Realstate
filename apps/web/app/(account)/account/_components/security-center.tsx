@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -13,6 +13,20 @@ import { authClient } from "@real-estate/auth/client";
 import { toast } from "sonner";
 import { cancelDeletion, getAccount, requestDeletion } from "@/features/account/api/account-api";
 import { queryKeys } from "@/shared/query/query-keys";
+import { useConfirm } from "@/shared/components/confirm-dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
 type PasskeyRecord = {
   id: string;
@@ -29,6 +43,10 @@ function authError(error: unknown, fallback: string) {
 }
 
 export function SecurityCenter() {
+  const confirm = useConfirm();
+  // Renaming needs a text answer, which a confirm dialog cannot carry.
+  const [renaming, setRenaming] = useState<PasskeyRecord | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
   const queryClient = useQueryClient();
   const [password, setPassword] = useState("");
   const [totp, setTotp] = useState<{
@@ -139,11 +157,6 @@ export function SecurityCenter() {
   }
 
   async function disableTwoFactor() {
-    const confirmed = globalThis.confirm(
-      "Disable authenticator protection for this account?",
-    );
-    if (!confirmed) return;
-
     const result = await authClient.twoFactor.disable({
       ...(password ? { password } : {}),
     });
@@ -188,24 +201,41 @@ export function SecurityCenter() {
     }
   }
 
+  function beginDisableTwoFactor() {
+    confirm.ask({
+      title: "Disable two-factor authentication",
+      description:
+        "Credential sign-in will no longer ask for a code from your authenticator app.",
+      confirmLabel: "Disable",
+      destructive: true,
+      onConfirm: () => void disableTwoFactor(),
+    });
+  }
+
   function beginDeletion() {
-    const confirmed = globalThis.confirm(
-      "Your listings will be withdrawn and the account will enter a reversible grace period. Continue?",
-    );
-    if (confirmed) deletion.mutate();
+    confirm.ask({
+      title: "Request account deletion",
+      description:
+        "Your listings are withdrawn immediately and the account enters a reversible grace period.",
+      confirmLabel: "Request deletion",
+      destructive: true,
+      onConfirm: () => deletion.mutate(),
+    });
   }
 
   function beginRename(passkey: PasskeyRecord) {
-    const name = globalThis.prompt("Passkey name", passkey.name || "Passkey");
-    if (!name?.trim()) return;
-    renamePasskey.mutate({ id: passkey.id, name: name.trim() });
+    setRenameDraft(passkey.name || "Passkey");
+    setRenaming(passkey);
   }
 
   function beginPasskeyRemoval(passkey: PasskeyRecord) {
-    const confirmed = globalThis.confirm(
-      `Remove ${passkey.name || "this passkey"}? You cannot use it to sign in afterward.`,
-    );
-    if (confirmed) removePasskey.mutate(passkey.id);
+    confirm.ask({
+      title: "Remove passkey",
+      description: `You will not be able to sign in with ${passkey.name || "this passkey"} afterward.`,
+      confirmLabel: "Remove",
+      destructive: true,
+      onConfirm: () => removePasskey.mutate(passkey.id),
+    });
   }
 
   const pendingDeletion = account.data?.lifecycleStatus === "PENDING_DELETION";
@@ -244,7 +274,7 @@ export function SecurityCenter() {
                   </button>
                   <button
                     type="button"
-                    onClick={disableTwoFactor}
+                    onClick={beginDisableTwoFactor}
                     className="rounded-lg border border-red-300 px-4 text-sm font-semibold text-red-700"
                   >
                     Disable
@@ -320,7 +350,7 @@ export function SecurityCenter() {
 
             <div className="mt-4 space-y-2">
               {passkeys.isLoading && (
-                <p className="text-sm text-slate-500">Loading passkeysâ€¦</p>
+                <p className="text-sm text-slate-500">Loading passkeys…</p>
               )}
               {passkeys.data?.map((passkey) => (
                 <div
@@ -335,7 +365,7 @@ export function SecurityCenter() {
                     <p className="text-xs text-slate-500">
                       {passkey.deviceType || "WebAuthn authenticator"}
                       {passkey.createdAt
-                        ? ` Â· Added ${new Date(passkey.createdAt).toLocaleDateString()}`
+                        ? ` · Added ${new Date(passkey.createdAt).toLocaleDateString()}`
                         : ""}
                     </p>
                   </div>
@@ -414,6 +444,51 @@ export function SecurityCenter() {
           </div>
         </div>
       </section>
+
+      <Dialog
+        open={Boolean(renaming)}
+        onOpenChange={(open) => {
+          if (!open) setRenaming(null);
+        }}
+      >
+        <DialogPopup>
+          <DialogHeader>
+            <DialogTitle>Rename passkey</DialogTitle>
+            <DialogDescription>
+              The name is only shown to you, to tell your devices apart.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            <Field>
+              <FieldLabel>Passkey name</FieldLabel>
+              <Input
+                value={renameDraft}
+                onChange={(event) => setRenameDraft(event.target.value)}
+                placeholder="Work laptop"
+                maxLength={60}
+              />
+            </Field>
+          </DialogPanel>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline">Cancel</Button>} />
+            <Button
+              disabled={!renameDraft.trim()}
+              onClick={() => {
+                if (!renaming) return;
+                renamePasskey.mutate({
+                  id: renaming.id,
+                  name: renameDraft.trim(),
+                });
+                setRenaming(null);
+              }}
+            >
+              Save name
+            </Button>
+          </DialogFooter>
+        </DialogPopup>
+      </Dialog>
+
+      {confirm.dialog}
     </div>
   );
 }

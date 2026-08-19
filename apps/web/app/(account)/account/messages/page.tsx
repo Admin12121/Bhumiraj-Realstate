@@ -1,4 +1,4 @@
-﻿import { AccountShell, MessagesCenter } from "../_components";
+import { AccountShell, MessagesCenter } from "../_components";
 
 export default function Page() {
   return (

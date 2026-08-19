@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useMemo, useRef, useState, type ReactNode, type TouchEvent } from "react"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import { ChevronLeft, ChevronRight, ImageOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { SaveButton } from "./save-button"
 
@@ -20,7 +20,8 @@ export function PropertyCardCarousel({
 }: {
   href: string
   images: string[]
-  fallbackImage: string
+  /** Only used when a real image fails to load, never to pad an empty gallery. */
+  fallbackImage?: string | undefined
   alt: string
   aspectRatio?: string
   className?: string
@@ -31,13 +32,14 @@ export function PropertyCardCarousel({
   const [slide, setSlide] = useState(0)
   const touchStartX = useRef<number | null>(null)
 
-  const slides = useMemo(() => {
-    const source = images.length ? images : [fallbackImage]
-    return source.filter(
-      (image, index, collection) =>
-        Boolean(image) && collection.indexOf(image) === index,
-    )
-  }, [fallbackImage, images])
+  const slides = useMemo(
+    () =>
+      images.filter(
+        (image, index, collection) =>
+          Boolean(image) && collection.indexOf(image) === index,
+      ),
+    [images],
+  )
 
   const activeSlide = Math.min(slide, Math.max(0, slides.length - 1))
   const progress = slides.length
@@ -74,6 +76,12 @@ export function PropertyCardCarousel({
         className="absolute inset-0 z-0 block overflow-hidden"
         aria-label={alt}
       >
+        {slides.length === 0 ? (
+          <span className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-[#f1f1ef] text-[#8a8a8a]">
+            <ImageOff className="size-6" strokeWidth={1.6} />
+            <span className="text-[12px] font-medium">No photos yet</span>
+          </span>
+        ) : null}
         <div
           className="flex h-full w-full transition-transform duration-[250ms] ease-out"
           style={{ transform: `translateX(-${activeSlide * 100}%)` }}
@@ -86,6 +94,7 @@ export function PropertyCardCarousel({
               alt={imageIndex === 0 ? alt : ""}
               draggable={false}
               onError={(event) => {
+                if (!fallbackImage) return
                 if (event.currentTarget.dataset.fallbackApplied === "true") return
                 event.currentTarget.dataset.fallbackApplied = "true"
                 event.currentTarget.src = fallbackImage

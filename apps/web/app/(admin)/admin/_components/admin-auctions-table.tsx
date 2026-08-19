@@ -1,15 +1,57 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Gavel } from "lucide-react";
+
 import { formatMinorAmount } from "@/shared/utilities/money";
-import { actOnAdminAuction, getAdminAuctions } from "@/features/admin/api/admin-api";
-import { AdminPagination } from "./admin-pagination";
-import { useHasStaffPermission } from "./admin-shell"
+import {
+  actOnAdminAuction,
+  getAdminAuctions,
+} from "@/features/admin/api/admin-api";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Field, FieldLabel } from "@/components/ui/field";
+import { Frame } from "@/components/ui/frame";
+import { TablePagination } from "@/components/ui/table-pagination";
+import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { useHasStaffPermission } from "./admin-shell";
 import { useStepUp } from "./step-up-dialog";
 
 const auctionStatuses = [
+  "ALL",
   "DRAFT",
   "SCHEDULED",
   "LIVE",
@@ -20,140 +62,241 @@ const auctionStatuses = [
   "CANCELLED",
 ] as const;
 
+const statusItems = auctionStatuses.map((value) => ({
+  value,
+  label: value === "ALL" ? "All statuses" : value.replace(/_/g, " "),
+}));
+
+const cancellable = ["DRAFT", "SCHEDULED", "LIVE", "PAUSED"];
+
+function statusVariant(status: string) {
+  if (status === "LIVE") return "success" as const;
+  if (status === "CANCELLED") return "error" as const;
+  if (status === "PAUSED") return "warning" as const;
+  return "secondary" as const;
+}
+
 export function AdminAuctionsTable() {
-  const { guard } = useStepUp()
+  const { guard } = useStepUp();
   const queryClient = useQueryClient();
   const canManage = useHasStaffPermission("admin.auctions.manage");
   const [page, setPage] = useState(1);
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState<(typeof auctionStatuses)[number]>("ALL");
+  // Cancelling needs a reason, so it waits on the dialog instead of a prompt.
+  const [cancelling, setCancelling] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const [reason, setReason] = useState("");
 
   const query = useQuery({
     queryKey: ["admin", "auctions", page, status],
-    queryFn: () => getAdminAuctions(page, 25, status),
+    queryFn: () => getAdminAuctions(page, 25, status === "ALL" ? "" : status),
     placeholderData: (previous) => previous,
   });
 
   const action = useMutation({
-    mutationFn: async ({
+    mutationFn: ({
       id,
       kind,
+      cancelReason,
     }: {
       id: string;
       kind: "PAUSE" | "RESUME" | "CANCEL";
-    }) => {
-      const reason =
-        kind === "CANCEL"
-          ? window.prompt("Cancellation reason:")?.trim()
-          : undefined;
-      if (kind === "CANCEL" && !reason) {
-        throw new Error("A cancellation reason is required.");
-      }
-      return guard(() => actOnAdminAuction(id, kind, reason));
-    },
+      cancelReason?: string;
+    }) => guard(() => actOnAdminAuction(id, kind, cancelReason)),
     onSuccess: async () => {
       toast.success("Auction state updated.");
+      setCancelling(null);
+      setReason("");
       await queryClient.invalidateQueries({ queryKey: ["admin", "auctions"] });
     },
     onError: (error: Error) => toast.error(error.message),
   });
 
+  const items = query.data?.items ?? [];
+
   return (
-    <section className="surface overflow-hidden rounded-2xl">
-      <div className="flex items-center justify-between border-b p-4">
-        <select
+    <div className="grid gap-4">
+      <div className="grid gap-3 lg:grid-cols-[minmax(1rem,1fr)_14rem]">
+        <div aria-hidden className="hidden lg:block" />
+        <Select
+          items={statusItems}
           value={status}
-          onChange={(event) => {
-            setStatus(event.target.value);
+          onValueChange={(value) => {
+            setStatus(value as (typeof auctionStatuses)[number]);
             setPage(1);
           }}
-          className="h-10 rounded-lg border bg-white px-3 text-sm"
         >
-          <option value="">All statuses</option>
-          {auctionStatuses.map((item) => (
-            <option key={item}>{item}</option>
-          ))}
-        </select>
-        <span className="text-xs text-slate-500">
-          {query.data?.total ?? 0} auctions
-        </span>
+          <SelectTrigger aria-label="Filter by auction status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectPopup>
+            {statusItems.map((item) => (
+              <SelectItem key={item.value} value={item.value}>
+                {item.label}
+              </SelectItem>
+            ))}
+          </SelectPopup>
+        </Select>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[980px] text-sm">
-          <thead className="bg-slate-50 text-left text-[11px] uppercase text-slate-500">
-            <tr>
-              <th className="px-5 py-3">Auction</th>
-              <th className="px-5 py-3">Status</th>
-              <th className="px-5 py-3">Current bid</th>
-              <th className="px-5 py-3">Bids</th>
-              <th className="px-5 py-3">Ends</th>
-              <th className="px-5 py-3 text-right">Controls</th>
-            </tr>
-          </thead>
-          <tbody>
-            {query.data?.items.map((row) => (
-              <tr key={row.id} className="border-t">
-                <td className="px-5 py-4 font-semibold">{row.title}</td>
-                <td className="px-5 py-4">
-                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
+      <Frame>
+        <Table variant="card">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Auctions - {query.data?.total ?? 0}</TableHead>
+              <TableHead className="w-40">Status</TableHead>
+              <TableHead className="w-40">Current bid</TableHead>
+              <TableHead className="w-24">Bids</TableHead>
+              <TableHead className="w-48">Ends</TableHead>
+              <TableHead className="w-56 text-right">Controls</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell className="font-semibold">
+                  {row.title}
+                </TableCell>
+                <TableCell>
+                  <Badge size="sm" variant={statusVariant(row.status)}>
                     {row.status}
-                  </span>
-                </td>
-                <td className="px-5 py-4">
+                  </Badge>
+                </TableCell>
+                <TableCell className="tabular-nums">
                   {formatMinorAmount(row.currentAmountMinor, row.currency)}
-                </td>
-                <td className="px-5 py-4">{row.bidCount}</td>
-                <td className="px-5 py-4 text-xs text-slate-500">
+                </TableCell>
+                <TableCell className="tabular-nums">
+                  {row.bidCount}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">
                   {new Date(row.endsAt).toLocaleString("en-NP")}
-                </td>
-                <td className="px-5 py-4 text-right">
+                </TableCell>
+                <TableCell className="text-right">
                   <div className="flex justify-end gap-2">
-                    {canManage && row.status === "LIVE" && (
-                      <button
-                        type="button"
+                    {canManage && row.status === "LIVE" ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
                         disabled={action.isPending}
-                        onClick={() => action.mutate({ id: row.id, kind: "PAUSE" })}
-                        className="rounded border px-3 py-1.5 text-xs disabled:opacity-50"
+                        onClick={() =>
+                          action.mutate({ id: row.id, kind: "PAUSE" })
+                        }
                       >
                         Pause
-                      </button>
-                    )}
-                    {canManage && row.status === "PAUSED" && (
-                      <button
-                        type="button"
+                      </Button>
+                    ) : null}
+                    {canManage && row.status === "PAUSED" ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
                         disabled={action.isPending}
-                        onClick={() => action.mutate({ id: row.id, kind: "RESUME" })}
-                        className="rounded border px-3 py-1.5 text-xs disabled:opacity-50"
+                        onClick={() =>
+                          action.mutate({ id: row.id, kind: "RESUME" })
+                        }
                       >
                         Resume
-                      </button>
-                    )}
-                    {canManage &&
-                      (["DRAFT", "SCHEDULED", "LIVE", "PAUSED"] as const).includes(
-                        row.status as "DRAFT" | "SCHEDULED" | "LIVE" | "PAUSED",
-                      ) && (
-                      <button
-                        type="button"
+                      </Button>
+                    ) : null}
+                    {canManage && cancellable.includes(row.status) ? (
+                      <Button
+                        size="sm"
+                        variant="destructive-outline"
                         disabled={action.isPending}
-                        onClick={() => action.mutate({ id: row.id, kind: "CANCEL" })}
-                        className="rounded border border-red-200 px-3 py-1.5 text-xs text-red-700 disabled:opacity-50"
+                        onClick={() =>
+                          setCancelling({ id: row.id, title: row.title })
+                        }
                       >
                         Cancel
-                      </button>
-                    )}
+                      </Button>
+                    ) : null}
                   </div>
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      </div>
+            {items.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="p-0">
+                  <Empty className="py-14">
+                    <EmptyMedia variant="icon">
+                      <Gavel />
+                    </EmptyMedia>
+                    <EmptyTitle>
+                      {query.isLoading
+                        ? "Loading auctions…"
+                        : "No auctions match this filter"}
+                    </EmptyTitle>
+                    <EmptyDescription>
+                      {query.isError
+                        ? "Auctions could not be loaded."
+                        : "Scheduled and live auctions appear here."}
+                    </EmptyDescription>
+                  </Empty>
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
+      </Frame>
 
-      <AdminPagination
-        page={page}
-        pageCount={query.data?.pageCount ?? 1}
-        onPage={setPage}
+      <TablePagination
+        currentPage={page}
+        totalPages={query.data?.pageCount ?? 1}
+        totalItems={query.data?.total}
+        pageSize={query.data?.pageSize}
+        onPageChange={setPage}
       />
-    </section>
+
+      <Dialog
+        open={Boolean(cancelling)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setCancelling(null);
+            setReason("");
+          }
+        }}
+      >
+        <DialogPopup>
+          <DialogHeader>
+            <DialogTitle>Cancel auction</DialogTitle>
+            <DialogDescription>
+              {cancelling?.title} stops accepting bids. Registered bidders are
+              notified with this reason.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            <Field>
+              <FieldLabel>Cancellation reason</FieldLabel>
+              <Textarea
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder="Explain why the auction is being cancelled"
+                minLength={3}
+                required
+              />
+            </Field>
+          </DialogPanel>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline">Keep running</Button>} />
+            <Button
+              variant="destructive"
+              loading={action.isPending}
+              disabled={reason.trim().length < 3}
+              onClick={() => {
+                if (!cancelling) return;
+                action.mutate({
+                  id: cancelling.id,
+                  kind: "CANCEL",
+                  cancelReason: reason.trim(),
+                });
+              }}
+            >
+              Cancel auction
+            </Button>
+          </DialogFooter>
+        </DialogPopup>
+      </Dialog>
+    </div>
   );
 }

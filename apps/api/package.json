@@ -10,7 +10,7 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "jest --config jest.config.json --runInBand",
-    "test:e2e": "bun test ./test/app.e2e-spec.ts ./test/phase-one-governance.e2e-spec.ts ./test/auction-concurrency.e2e-spec.ts ./test/listing-payment-flow.e2e-spec.ts ./test/support-chat.e2e-spec.ts ./test/viewing-scheduler.e2e-spec.ts"
+    "test:e2e": "bun test ./test/app.e2e-spec.ts ./test/phase-one-governance.e2e-spec.ts ./test/auction-concurrency.e2e-spec.ts ./test/listing-payment-flow.e2e-spec.ts ./test/support-chat.e2e-spec.ts ./test/viewing-scheduler.e2e-spec.ts ./src/features/support/message-safety.spec.ts"
   },
   "dependencies": {
     "@nestjs/bullmq": "catalog:",

@@ -1,4 +1,5 @@
-﻿export * from "./account-shell";
+export * from "./account-shell";
+export * from "./account-overview";
 export * from "./connected-accounts";
 export * from "./alerts-center";
 export * from "./messages-center";

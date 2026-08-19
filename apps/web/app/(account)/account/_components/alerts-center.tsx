@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, BellOff, Trash2 } from "lucide-react";
@@ -6,13 +6,14 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { savedSearchSchema } from "@real-estate/contracts";
 import { apiRequest } from "@/shared/http/api";
+import { useConfirm } from "@/shared/components/confirm-dialog";
 
 const savedSearchListSchema = z.array(savedSearchSchema);
 const deletedSchema = z.object({ deleted: z.boolean() });
 
 function filterSummary(filters: Record<string, unknown>): string {
   const labels: string[] = [];
-  if (typeof filters.q === "string" && filters.q) labels.push(`â€œ${filters.q}â€`);
+  if (typeof filters.q === "string" && filters.q) labels.push(`“${filters.q}”`);
   if (typeof filters.type === "string") labels.push(filters.type.toLowerCase());
   if (typeof filters.propertyType === "string") {
     labels.push(filters.propertyType.toLowerCase());
@@ -23,11 +24,12 @@ function filterSummary(filters: Record<string, unknown>): string {
   if (typeof filters.bedrooms === "number") {
     labels.push(`${filters.bedrooms}+ bedrooms`);
   }
-  return labels.length ? labels.join(" Â· ") : "All matching properties";
+  return labels.length ? labels.join(" · ") : "All matching properties";
 }
 
 export function AlertsCenter() {
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const query = useQuery({
     queryKey: ["saved-searches"],
     queryFn: () =>
@@ -71,7 +73,7 @@ export function AlertsCenter() {
   });
 
   if (query.isLoading) {
-    return <div className="surface rounded-2xl p-8 text-sm text-slate-500">Loading saved searchesâ€¦</div>;
+    return <div className="surface rounded-2xl p-8 text-sm text-slate-500">Loading saved searches…</div>;
   }
   if (query.isError) {
     return <div className="surface rounded-2xl p-8 text-sm text-red-600">Unable to load saved searches.</div>;
@@ -115,11 +117,15 @@ export function AlertsCenter() {
               type="button"
               aria-label={`Delete ${item.name}`}
               disabled={toggle.isPending || remove.isPending}
-              onClick={() => {
-                if (globalThis.confirm(`Delete the saved search â€œ${item.name}â€?`)) {
-                  remove.mutate(item.id);
-                }
-              }}
+              onClick={() =>
+                confirm.ask({
+                  title: "Delete saved search",
+                  description: `“${item.name}” and its alerts will be removed.`,
+                  confirmLabel: "Delete",
+                  destructive: true,
+                  onConfirm: () => remove.mutate(item.id),
+                })
+              }
               className="rounded-full border border-red-100 p-2 text-red-600 hover:bg-red-50 disabled:opacity-50"
             >
               <Trash2 className="size-4" />
@@ -133,6 +139,7 @@ export function AlertsCenter() {
           Save a property search and enable alerts to receive new-match notifications.
         </div>
       )}
+      {confirm.dialog}
     </div>
   );
 }

@@ -2,7 +2,11 @@
 
 import { useEffect, useMemo, useRef } from "react"
 import { useListingFeed } from "@/features/listings/queries/use-listing-feed"
-import { PropertyPost, type PropertyPostData } from "@/app/_components/property-post"
+import {
+  PropertyPost,
+  PropertyPostSkeleton,
+  type PropertyPostData,
+} from "@/app/_components/property-post"
 import { formatMinorAmount } from "@/shared/utilities/money"
 
 type FeedListing = ReturnType<
@@ -20,7 +24,9 @@ function toPost(listing: FeedListing): PropertyPostData {
     description: listing.description,
     images: listing.coverImageUrl ? [listing.coverImageUrl] : [],
     agent: {
-      ...(listing.agent ? { id: listing.agent.id } : {}),
+      ...(listing.agent
+        ? { id: listing.agent.username ?? listing.agent.id }
+        : {}),
       name: listing.agent?.name ?? "Bhumiraj Estates",
       image: listing.agent?.image ?? null,
       verified: listing.agent?.verified ?? false,
@@ -43,21 +49,6 @@ function toPost(listing: FeedListing): PropertyPostData {
     category: listing.listingType === "RENT" ? "For rent" : "For sale",
     listingId: listing.id,
   }
-}
-
-function PostSkeleton() {
-  return (
-    <div className="rounded-2xl border p-4">
-      <div className="flex items-center gap-3">
-        <div className="size-10 animate-pulse rounded-full bg-[#f1f1ef]" />
-        <div className="flex-1 space-y-2">
-          <div className="h-3.5 w-40 animate-pulse rounded bg-[#f1f1ef]" />
-          <div className="h-3 w-24 animate-pulse rounded bg-[#f1f1ef]" />
-        </div>
-      </div>
-      <div className="mt-4 aspect-[4/3] w-full animate-pulse rounded-xl bg-[#f1f1ef]" />
-    </div>
-  )
 }
 
 /**
@@ -97,8 +88,8 @@ export function AgentListingFeed({
   if (feed.isPending) {
     return (
       <div className="flex flex-col gap-6">
-        <PostSkeleton />
-        <PostSkeleton />
+        <PropertyPostSkeleton />
+        <PropertyPostSkeleton />
       </div>
     )
   }
@@ -122,10 +113,10 @@ export function AgentListingFeed({
   return (
     <div className="flex flex-col gap-6">
       {posts.map((post) => (
-        <PropertyPost key={post.slug} post={post} />
+        <PropertyPost key={post.slug} post={post} showAgent={false} />
       ))}
 
-      {isFetchingNextPage ? <PostSkeleton /> : null}
+      {isFetchingNextPage ? <PropertyPostSkeleton /> : null}
       <div ref={sentinelRef} className="h-8" />
 
       {!hasNextPage ? (

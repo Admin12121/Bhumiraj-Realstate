@@ -10,6 +10,8 @@ import {
   getSupportThreads,
   replyToSupportThread,
 } from "@/features/support/api/support-api"
+import { Frame } from "@/components/ui/frame"
+import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs"
 import { useHasStaffPermission } from "./admin-shell"
 
 const STATUSES = ["OPEN", "ASSIGNED", "CLOSED"] as const
@@ -65,37 +67,25 @@ export function SupportInbox() {
   const items = threads.data?.items ?? []
 
   return (
-    <section className="surface overflow-hidden rounded-2xl">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-        <div>
-          <h2 className="text-lg font-semibold">Support enquiries</h2>
-          <p className="text-sm text-slate-500">
-            General questions from the website. Guest conversations are erased
-            when they go quiet.
-          </p>
-        </div>
-        <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+    <div className="grid gap-4">
+      <Tabs
+        value={status}
+        onValueChange={(value) => {
+          setStatus(value as (typeof STATUSES)[number])
+          setSelected(null)
+        }}
+      >
+        <TabsList>
           {STATUSES.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => {
-                setStatus(option)
-                setSelected(null)
-              }}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                status === option
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
+            <TabsTab key={option} value={option}>
               {option.charAt(0) + option.slice(1).toLowerCase()}
-            </button>
+            </TabsTab>
           ))}
-        </div>
-      </div>
+        </TabsList>
+      </Tabs>
 
-      <div className="grid lg:grid-cols-[320px_minmax(0,1fr)]">
+      <Frame>
+        <div className="grid overflow-hidden rounded-xl border bg-background bg-clip-padding lg:grid-cols-[320px_minmax(0,1fr)]">
         <div className="border-b lg:border-r lg:border-b-0">
           {threads.isPending ? (
             <p className="p-5 text-sm text-slate-500">Loading…</p>
@@ -224,8 +214,9 @@ export function SupportInbox() {
               ) : null}
             </>
           )}
+          </div>
         </div>
-      </div>
-    </section>
+      </Frame>
+    </div>
   )
 }

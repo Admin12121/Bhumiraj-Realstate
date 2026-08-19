@@ -24,7 +24,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
-import { Input } from "@/components/ui/input"
 import {
   Select,
   SelectItem,
@@ -40,8 +39,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Frame } from "@/components/ui/frame"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group"
+import { TablePagination } from "@/components/ui/table-pagination"
 import { Textarea } from "@/components/ui/textarea"
-import { AdminPagination } from "./admin-pagination"
 import { useHasStaffPermission } from "./admin-shell"
 import { useStepUp } from "./step-up-dialog"
 
@@ -122,11 +127,10 @@ export function AdminUsersTable() {
   })
 
   return (
-    <section className="surface overflow-hidden rounded-2xl">
-      <div className="grid gap-3 border-b p-4 md:grid-cols-[1fr_180px_160px_auto] md:items-center">
-        <div className="relative">
-          <Search className="absolute top-1/2 left-3 z-10 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
+    <div className="grid gap-4">
+      <div className="grid gap-3 lg:grid-cols-[minmax(18rem,26rem)_minmax(1rem,1fr)_13rem_13rem]">
+        <InputGroup>
+          <InputGroupInput
             value={search}
             onChange={(event) => {
               setSearch(event.target.value)
@@ -134,9 +138,14 @@ export function AdminUsersTable() {
             }}
             placeholder="Search name or email"
             aria-label="Search users"
-            className="[&_input]:pl-9"
+            type="search"
           />
-        </div>
+          <InputGroupAddon>
+            <Search />
+          </InputGroupAddon>
+        </InputGroup>
+
+        <div aria-hidden className="hidden lg:block" />
         <Select
           items={accountTypeFilterItems}
           value={accountType}
@@ -179,33 +188,31 @@ export function AdminUsersTable() {
             ))}
           </SelectPopup>
         </Select>
-        <span className="text-xs text-muted-foreground">
-          {query.data?.total ?? 0} users
-        </span>
       </div>
 
-      <Table className="min-w-[1050px]">
-        <TableHeader className="bg-muted/50 text-[11px] tracking-wider uppercase">
-          <TableRow>
-            <TableHead className="px-5">User</TableHead>
-            <TableHead className="px-5">Account type</TableHead>
-            <TableHead className="px-5">Security</TableHead>
-            <TableHead className="px-5">Listings</TableHead>
-            <TableHead className="px-5">Lifecycle</TableHead>
-            <TableHead className="px-5">Joined</TableHead>
-            <TableHead className="px-5 text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
+      <Frame>
+        <Table variant="card">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Users - {query.data?.total ?? 0}</TableHead>
+              <TableHead className="w-44">Account type</TableHead>
+              <TableHead className="w-44">Security</TableHead>
+              <TableHead className="w-24">Listings</TableHead>
+              <TableHead className="w-32">Lifecycle</TableHead>
+              <TableHead className="w-32">Joined</TableHead>
+              <TableHead className="w-32 text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
         <TableBody>
           {query.data?.items.map((user) => (
             <TableRow key={user.id} className="align-top">
-              <TableCell className="px-5 py-4">
+              <TableCell>
                 <p className="font-semibold">{user.name}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {user.email}
                 </p>
               </TableCell>
-              <TableCell className="px-5 py-4">
+              <TableCell>
                 {canManageType &&
                 (user.accountType === "USER" ||
                   user.accountType === "AGENT") ? (
@@ -245,13 +252,13 @@ export function AdminUsersTable() {
                   </Badge>
                 )}
               </TableCell>
-              <TableCell className="px-5 py-4 text-xs leading-5">
+              <TableCell className="text-xs leading-5">
                 {user.emailVerified ? "Email verified" : "Email unverified"}
                 <br />
                 {user.twoFactorEnabled ? "2FA enabled" : "2FA disabled"}
               </TableCell>
-              <TableCell className="px-5 py-4">{user.listings}</TableCell>
-              <TableCell className="px-5 py-4">
+              <TableCell>{user.listings}</TableCell>
+              <TableCell>
                 <Badge
                   variant={
                     user.banned || user.lifecycleStatus !== "ACTIVE"
@@ -262,10 +269,10 @@ export function AdminUsersTable() {
                   {user.banned ? "SUSPENDED" : user.lifecycleStatus}
                 </Badge>
               </TableCell>
-              <TableCell className="px-5 py-4 text-xs text-muted-foreground">
+              <TableCell className="text-xs text-muted-foreground">
                 {new Date(user.createdAt).toLocaleDateString()}
               </TableCell>
-              <TableCell className="px-5 py-4 text-right">
+              <TableCell className="text-right">
                 {canManageStatus && (
                   <Button
                     size="sm"
@@ -283,29 +290,32 @@ export function AdminUsersTable() {
               </TableCell>
             </TableRow>
           ))}
-          {(query.isLoading ||
-            query.isError ||
-            query.data?.items.length === 0) && (
-            <TableRow>
-              <TableCell
-                colSpan={7}
-                className="p-10 text-center text-muted-foreground"
-              >
-                {query.isLoading
-                  ? "Loading users…"
-                  : query.isError
-                    ? "Users could not be loaded."
-                    : "No users match these filters."}
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
+            {(query.isLoading ||
+              query.isError ||
+              query.data?.items.length === 0) && (
+              <TableRow>
+                <TableCell
+                  colSpan={7}
+                  className="h-28 text-center text-muted-foreground"
+                >
+                  {query.isLoading
+                    ? "Loading users…"
+                    : query.isError
+                      ? "Users could not be loaded."
+                      : "No users match these filters."}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Frame>
 
-      <AdminPagination
-        page={query.data?.page ?? page}
-        pageCount={query.data?.pageCount ?? 1}
-        onPage={setPage}
+      <TablePagination
+        currentPage={query.data?.page ?? page}
+        totalPages={query.data?.pageCount ?? 1}
+        totalItems={query.data?.total}
+        pageSize={query.data?.pageSize}
+        onPageChange={setPage}
       />
 
       <Dialog
@@ -357,6 +367,6 @@ export function AdminUsersTable() {
           </DialogFooter>
         </DialogPopup>
       </Dialog>
-    </section>
+    </div>
   )
 }

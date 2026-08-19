@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { useInfiniteQuery } from "@tanstack/react-query";
@@ -6,6 +6,22 @@ import { z } from "zod";
 import { InfiniteScrollTrigger } from "@/shared/components/infinite-scroll-trigger";
 import { apiRequest } from "@/shared/http/api";
 import { formatMinorAmount } from "@/shared/utilities/money";
+import { Gavel } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const myBidsSchema = z.object({
   items: z.array(
@@ -46,53 +62,66 @@ export function MyBids() {
   return (
     <div className="surface overflow-hidden rounded-2xl">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[680px] text-left text-sm">
-          <thead className="bg-slate-50 text-xs text-slate-500">
-            <tr>
-              <th className="p-4">Auction</th>
-              <th className="p-4">Bid</th>
-              <th className="p-4">Status</th>
-              <th className="p-4">Date</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table className="min-w-[680px]">
+          <TableHeader>
+            <TableRow>
+              <TableHead className="p-4">Auction</TableHead>
+              <TableHead className="p-4">Bid</TableHead>
+              <TableHead className="p-4">Status</TableHead>
+              <TableHead className="p-4">Date</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {items.map((bid) => (
-              <tr key={bid.id} className="border-t">
-                <td className="p-4">
+              <TableRow key={bid.id}>
+                <TableCell className="p-4">
                   <Link
                     className="font-semibold hover:text-emerald-700"
                     href={`/auctions/${bid.auctionId}`}
                   >
                     {bid.title}
                   </Link>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     Sequence #{bid.sequence}
                   </p>
-                </td>
-                <td className="p-4">
+                </TableCell>
+                <TableCell className="p-4 tabular-nums">
                   {formatMinorAmount(bid.amountMinor, bid.currency)}
-                </td>
-                <td className="p-4">{bid.status}</td>
-                <td className="p-4 text-xs text-slate-500">
+                </TableCell>
+                <TableCell className="p-4">
+                  <Badge size="sm" variant="secondary">
+                    {bid.status}
+                  </Badge>
+                </TableCell>
+                <TableCell className="p-4 text-xs text-muted-foreground">
                   {new Date(bid.acceptedAt).toLocaleString()}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+            {!items.length && !query.isLoading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="p-0">
+                  <Empty className="py-14">
+                    <EmptyMedia variant="icon">
+                      <Gavel />
+                    </EmptyMedia>
+                    <EmptyTitle>No bids yet</EmptyTitle>
+                    <EmptyDescription>
+                      Auctions you take part in will be listed here.
+                    </EmptyDescription>
+                  </Empty>
+                </TableCell>
+              </TableRow>
+            ) : null}
+          </TableBody>
+        </Table>
       </div>
-
-      {!items.length && !query.isLoading && (
-        <p className="p-10 text-center text-sm text-slate-500">
-          You have not placed a bid.
-        </p>
-      )}
 
       <InfiniteScrollTrigger
         hasNextPage={Boolean(query.hasNextPage)}
         isFetchingNextPage={query.isFetchingNextPage}
         fetchNextPage={query.fetchNextPage}
-        label="Loading bid historyâ€¦"
+        label="Loading bid history…"
       />
     </div>
   );

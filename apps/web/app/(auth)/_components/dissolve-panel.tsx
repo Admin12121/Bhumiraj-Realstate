@@ -22,8 +22,10 @@ const RANGE = 1 + SPREAD_A + SPREAD_B
 const DURATION = 1400
 const INTERVAL = 5200
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#@$%*+=?!~<>[]{}|"
-const BAND = "#0b5d34"
-const GLYPH = "#f4f1ec"
+// White band with dark glyphs: it reads on any photograph and keeps the
+// effect neutral rather than tinting the imagery with a brand colour.
+const BAND = "#ffffff"
+const GLYPH = "#171717"
 
 function hash(row: number, col: number, seed: number) {
   const value = Math.sin(row * seed + col * (seed * 2.45)) * 43758.5453
@@ -247,10 +249,12 @@ export function DissolvePanel({ slides }: { slides: DissolveSlide[] }) {
       <canvas
         ref={canvasRef}
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-[100] size-full"
+        className="pointer-events-none absolute inset-0 z-[101] size-full"
       />
 
-      <div className="pointer-events-none absolute inset-0 z-[101] bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+      {/* Below the canvas: above it, the 85% black bottom darkened the white
+          band into grey mush. */}
+      <div className="pointer-events-none absolute inset-0 z-[100] bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
 
       {caption ? (
         <div className="absolute inset-x-0 bottom-0 z-[102] p-10 text-white">

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -245,7 +245,7 @@ export function LiveAuction({ auctionId }: { auctionId: string }) {
   );
 
   if (auction.isLoading) {
-    return <main className="mx-auto max-w-7xl p-8">Loading live auctionâ€¦</main>;
+    return <main className="mx-auto max-w-7xl p-8">Loading live auction…</main>;
   }
   if (!snapshot) {
     return <main className="mx-auto max-w-7xl p-8">Auction unavailable.</main>;
@@ -372,7 +372,7 @@ export function LiveAuction({ auctionId }: { auctionId: string }) {
                   }
                   className="brand-button h-12 w-full rounded-xl font-semibold disabled:opacity-50"
                 >
-                  {bid.isPending ? "Submittingâ€¦" : "Place bid"}
+                  {bid.isPending ? "Submitting…" : "Place bid"}
                 </button>
               </div>
             )}
@@ -420,7 +420,7 @@ export function LiveAuction({ auctionId }: { auctionId: string }) {
                 disabled={bids.isFetchingNextPage}
                 className="mt-4 w-full rounded-xl border py-2 text-sm font-semibold"
               >
-                {bids.isFetchingNextPage ? "Loadingâ€¦" : "Load earlier bids"}
+                {bids.isFetchingNextPage ? "Loading…" : "Load earlier bids"}
               </button>
             )}
           </section>

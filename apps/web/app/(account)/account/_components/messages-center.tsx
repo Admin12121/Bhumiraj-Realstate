@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
@@ -202,7 +202,7 @@ export function MessagesCenter() {
               className="flex w-full items-center justify-center gap-2 p-4 text-xs font-semibold text-emerald-700"
             >
               <ArrowDown className="size-4" />
-              {conversations.isFetchingNextPage ? "Loadingâ€¦" : "Load more conversations"}
+              {conversations.isFetchingNextPage ? "Loading…" : "Load more conversations"}
             </button>
           )}
           {!conversations.isLoading && !conversationItems.length && (
@@ -237,7 +237,7 @@ export function MessagesCenter() {
                   className="mx-auto mb-5 flex items-center gap-2 rounded-full border bg-white px-4 py-2 text-xs font-semibold text-slate-600"
                 >
                   <ArrowDown className="size-3.5 rotate-180" />
-                  {messages.isFetchingNextPage ? "Loadingâ€¦" : "Load earlier messages"}
+                  {messages.isFetchingNextPage ? "Loading…" : "Load earlier messages"}
                 </button>
               )}
               <div className="space-y-3">
@@ -262,7 +262,7 @@ export function MessagesCenter() {
                 ))}
                 {messages.isLoading && (
                   <div className="grid place-items-center py-12 text-sm text-slate-500">
-                    <LoaderCircle className="mb-2 size-5 animate-spin" /> Loading messagesâ€¦
+                    <LoaderCircle className="mb-2 size-5 animate-spin" /> Loading messages…
                   </div>
                 )}
                 <div ref={endRef} />
@@ -283,7 +283,7 @@ export function MessagesCenter() {
                 }}
                 maxLength={5000}
                 rows={1}
-                placeholder="Write a messageâ€¦"
+                placeholder="Write a message…"
                 className="min-h-11 flex-1 resize-none rounded-xl border px-4 py-3 text-sm outline-none focus:border-emerald-600"
               />
               <button

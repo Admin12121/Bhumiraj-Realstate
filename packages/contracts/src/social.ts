@@ -23,7 +23,7 @@ export const savedSearchFiltersSchema = z
     q: z.string().trim().max(100).optional(),
     type: listingTypeSchema.optional(),
     propertyType: propertyTypeSchema.optional(),
-    agentId: idSchema.optional(),
+    agentId: userIdSchema.optional(),
     district: z.string().trim().max(80).optional(),
     minPriceMinor: positiveMinorAmountSchema.optional(),
     maxPriceMinor: positiveMinorAmountSchema.optional(),
@@ -97,7 +97,7 @@ export const messageAttachmentSchema = z.object({
 export const messageSchema = z.object({
   id: idSchema,
   conversationId: idSchema,
-  senderId: idSchema,
+  senderId: userIdSchema,
   body: z.string(),
   createdAt: isoDateSchema,
   mine: z.boolean(),
@@ -105,6 +105,6 @@ export const messageSchema = z.object({
 });
 export const messagePageSchema = cursorPageSchema(messageSchema);
 export const sendMessageSchema = z.object({ body: z.string().trim().min(1).max(5000), mediaAssetIds: z.array(idSchema).max(10).default([]) });
-export const createConversationSchema = z.object({ listingId: idSchema.optional(), participantId: idSchema, message: z.string().trim().min(1).max(5000) });
+export const createConversationSchema = z.object({ listingId: idSchema.optional(), participantId: userIdSchema, message: z.string().trim().min(1).max(5000) });
 
 export const cursorSocialQuerySchema = cursorQuerySchema;

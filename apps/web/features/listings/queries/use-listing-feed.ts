@@ -15,5 +15,9 @@ export function useListingFeed(filters: Partial<ListingFeedQuery> = {}) {
       ),
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     staleTime: 30_000,
+    // Changing a filter keeps the current results on screen while the next set
+    // loads. Without this the list empties to a skeleton and snaps back, and
+    // the map briefly loses its markers and flies somewhere in between.
+    placeholderData: (previous) => previous,
   });
 }

@@ -908,6 +908,7 @@ model MediaAsset {
   listingMedia       ListingMedia[]
   propertyDocument   PropertyDocument?
   messageAttachments MessageAttachment[]
+  supportMessages    SupportMessage[]    @relation("SupportMessageAttachment")
 
   @@index([ownerId, status, createdAt])
   @@index([status, createdAt])
@@ -1513,16 +1514,21 @@ model SupportThread {
 }
 
 model SupportMessage {
-  id         String            @id @default(uuid())
-  threadId   String
-  authorRole SupportAuthorRole
-  authorId   String?
-  body       String            @db.VarChar(4000)
-  createdAt  DateTime          @default(now()) @db.Timestamptz(3)
+  id            String            @id @default(uuid())
+  threadId      String
+  authorRole    SupportAuthorRole
+  authorId      String?
+  body          String            @db.VarChar(4000)
+  attachmentId  String?
+  /// Set when the text tripped a safety heuristic, so staff can triage it.
+  flaggedReason String?           @db.VarChar(200)
+  createdAt     DateTime          @default(now()) @db.Timestamptz(3)
 
-  thread SupportThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
-  author User?         @relation("SupportMessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  thread     SupportThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author     User?         @relation("SupportMessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  attachment MediaAsset?   @relation("SupportMessageAttachment", fields: [attachmentId], references: [id], onDelete: SetNull)
 
   @@index([threadId, createdAt, id])
   @@index([authorId, createdAt])
+  @@index([flaggedReason])
 }

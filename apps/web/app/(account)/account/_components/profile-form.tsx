@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useRef } from "react";
 import type { FormEvent } from "react";
@@ -61,7 +61,7 @@ export function ProfileForm() {
   }
 
   if (profile.isLoading) {
-    return <div className="surface rounded-2xl p-8">Loading profileâ€¦</div>;
+    return <div className="surface rounded-2xl p-8">Loading profile…</div>;
   }
   if (!profile.data) {
     return <div className="surface rounded-2xl p-8">Unable to load your profile.</div>;
@@ -153,7 +153,7 @@ export function ProfileForm() {
           className="brand-button flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-60"
         >
           {mutation.isPending && <LoaderCircle className="size-4 animate-spin" />}
-          {mutation.isPending ? "Savingâ€¦" : "Save changes"}
+          {mutation.isPending ? "Saving…" : "Save changes"}
         </button>
       </div>
     </form>

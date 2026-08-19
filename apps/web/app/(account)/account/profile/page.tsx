@@ -1,4 +1,4 @@
-﻿import { AccountShell, ProfileForm } from "../_components";
+import { AccountShell, ProfileForm } from "../_components";
 
 export default function Page() {
   return (

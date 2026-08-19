@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { idSchema, isoDateSchema } from "./common";
+import { idSchema, isoDateSchema, userIdSchema } from "./common";
 
 export const accountSessionSchema = z.object({
   id: idSchema,
@@ -10,7 +10,7 @@ export const accountSessionSchema = z.object({
   current: z.boolean(),
 });
 export const accountOverviewSchema = z.object({
-  id: idSchema,
+  id: userIdSchema,
   name: z.string(),
   email: z.string().email(),
   emailVerified: z.boolean(),

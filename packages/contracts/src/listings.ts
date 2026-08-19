@@ -112,6 +112,7 @@ export const listingCardSchema = z.object({
   agent: z
     .object({
       id: userIdSchema,
+      username: z.string().nullable(),
       name: z.string(),
       image: z.string().url().nullable(),
       verified: z.boolean(),

@@ -1,4 +1,4 @@
-﻿import { AccountShell, SavedProperties } from "../_components";
+import { AccountShell, SavedProperties } from "../_components";
 
 export default function Page() {
   return (

@@ -1,3 +1,4 @@
+import createMDX from "@next/mdx";
 import type { NextConfig } from "next";
 
 type RemotePattern = NonNullable<
@@ -104,6 +105,9 @@ const nextConfig: NextConfig = {
   watchOptions: { pollIntervalMs: 1000 },
   poweredByHeader: false,
   images: {
+    // Next defaults to a single quality of 75; property photography earns more.
+    qualities: [75, 90],
+    formats: ["image/avif", "image/webp"],
     remotePatterns: [
       remotePattern(mediaUrl()),
       {
@@ -113,6 +117,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  pageExtensions: ["ts", "tsx", "mdx"],
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
@@ -121,4 +126,8 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Legal copy lives in .mdx under app/(public)/legal so it can be edited as
+// prose without touching a component.
+const withMDX = createMDX();
+
+export default withMDX(nextConfig);

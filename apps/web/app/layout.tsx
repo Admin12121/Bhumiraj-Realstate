@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Instrument_Sans } from "next/font/google";
 import { ConnectivityStatus } from "@/app/_components/connectivity-status";

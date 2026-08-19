@@ -411,3 +411,31 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   height: 0;
   display: none;
 }
+
+/* Ported from the CodeSandbox hover-grid component. White blocks with dark
+   symbols, fading in as the cursor passes and out 300ms later. */
+[data-slot="hero-grid-overlay"] {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+[data-slot="hero-grid-block"] {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  background-color: #ffffff;
+  color: #171717;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+  user-select: none;
+}
+
+[data-slot="hero-grid-block"][data-state="active"] {
+  opacity: 1;
+}

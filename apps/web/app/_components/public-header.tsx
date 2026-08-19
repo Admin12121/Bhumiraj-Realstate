@@ -7,6 +7,7 @@ import { useEffect, useState } from "react"
 import { HousePlus, LogIn, LogOut, Menu, UserRoundPlus } from "lucide-react"
 import { signOut, useSession } from "@real-estate/auth/client"
 import { Button } from "@/components/ui/button"
+import { AccountMenu } from "./account-menu"
 import {
   Drawer,
   DrawerHeader,
@@ -56,6 +57,7 @@ export function PublicHeader() {
   const showDivider = isScrolled
   const inverse = homePage && !solid
   const authenticated = Boolean(session.data)
+  const sessionPending = session.isPending
   const userName: string | null = session.data?.user?.name ?? null
 
   // Signed-in users get the marketplace plus their account sections; guests get
@@ -116,17 +118,32 @@ export function PublicHeader() {
         {/* Desktop keeps the reference's inline actions. */}
         <div className="hidden shrink-0 items-center gap-1 lg:flex">
           <Button size="sm" render={<Link href="/post-property">Post property</Link>} />
-          <Link
-            href={authenticated ? "/account" : "/sign-in"}
-            className={cn(
-              "h-10 rounded-full px-4 text-[14px] leading-10 font-medium transition-colors",
-              inverse
-                ? "text-white hover:bg-white/10"
-                : "text-[#202020] hover:bg-black/[.05]",
-            )}
-          >
-            {authenticated ? "Account" : "Log in"}
-          </Link>
+          {sessionPending ? (
+            // Holding the slot while the session resolves; rendering "Log in"
+            // first made an already-signed-in user watch the header change
+            // under them a moment later.
+            <span
+              aria-hidden="true"
+              className={cn(
+                "size-10 shrink-0 animate-pulse rounded-full",
+                inverse ? "bg-white/20" : "bg-black/[.06]",
+              )}
+            />
+          ) : authenticated ? (
+            <AccountMenu inverse={inverse} />
+          ) : (
+            <Link
+              href="/sign-in"
+              className={cn(
+                "h-10 rounded-full px-4 text-[14px] leading-10 font-medium transition-colors",
+                inverse
+                  ? "text-white hover:bg-white/10"
+                  : "text-[#202020] hover:bg-black/[.05]",
+              )}
+            >
+              Log in
+            </Link>
+          )}
         </div>
 
         {/* Below desktop the actions collapse into one menu so the brand fits. */}

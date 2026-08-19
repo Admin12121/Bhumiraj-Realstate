@@ -1,4 +1,4 @@
-﻿import { AccountShell, MyBids } from "../_components";
+import { AccountShell, MyBids } from "../_components";
 
 export default function Page() {
   return (

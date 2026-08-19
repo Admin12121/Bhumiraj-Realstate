@@ -1,4 +1,4 @@
-﻿import { AuthCard, ForgotPasswordForm } from "../_components";
+import { AuthCard, ForgotPasswordForm } from "../_components";
 
 export default function ForgotPasswordPage() {
   return (

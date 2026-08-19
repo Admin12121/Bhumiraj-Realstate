@@ -474,6 +474,7 @@ export class ListingsService {
       agent: assigned
         ? {
             id: assigned.agent.user.id,
+            username: assigned.agent.user.profile?.username ?? null,
             name: assigned.agent.user.name,
             image: assigned.agent.user.image,
             verified: assigned.agent.verifiedAt !== null,

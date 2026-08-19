@@ -1,4 +1,4 @@
-﻿import { Suspense } from "react";
+import { Suspense } from "react";
 import { AuthCard, ResetPasswordForm } from "../_components";
 
 export default function ResetPasswordPage() {

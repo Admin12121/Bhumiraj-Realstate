@@ -19,10 +19,10 @@ export const getSupportThread = (signal?: AbortSignal) =>
     signal,
   })
 
-export const sendSupportMessage = (body: string) =>
+export const sendSupportMessage = (body: string, attachmentId?: string) =>
   apiRequest("/support/messages", {
     method: "POST",
-    body: { body },
+    body: { body, ...(attachmentId ? { attachmentId } : {}) },
     schema: sentSchema,
   })
 

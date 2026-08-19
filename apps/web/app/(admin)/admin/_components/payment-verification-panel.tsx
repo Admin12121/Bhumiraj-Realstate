@@ -12,6 +12,21 @@ import {
   reviewPaymentProof,
 } from "@/features/listings/api/listing-payments-api"
 import { formatMinorAmount } from "@/shared/utilities/money"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogPanel,
+  DialogPopup,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Field, FieldLabel } from "@/components/ui/field"
+import { Frame } from "@/components/ui/frame"
+import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs"
+import { Textarea } from "@/components/ui/textarea"
 import { useHasStaffPermission } from "./admin-shell"
 
 const STATUSES = ["SUBMITTED", "APPROVED", "REJECTED"] as const
@@ -26,6 +41,9 @@ export function PaymentVerificationPanel() {
   const queryClient = useQueryClient()
   const [status, setStatus] = useState<(typeof STATUSES)[number]>("SUBMITTED")
   const [assigning, setAssigning] = useState<string | null>(null)
+  // A rejection reason is required, so the decision waits on the dialog.
+  const [rejecting, setRejecting] = useState<string | null>(null)
+  const [rejectionReason, setRejectionReason] = useState("")
 
   const proofs = useQuery({
     queryKey: ["admin", "payment-proofs", status],
@@ -43,18 +61,18 @@ export function PaymentVerificationPanel() {
     mutationFn: ({
       id,
       decision,
+      rejectionReason,
     }: {
       id: string
       decision: "APPROVE" | "REJECT"
-    }) => {
-      if (decision === "REJECT") {
-        const reason = window.prompt("Why is this payment being rejected?")?.trim()
-        if (!reason) throw new Error("A rejection reason is required.")
-        return reviewPaymentProof(id, { decision, rejectionReason: reason })
-      }
-      return reviewPaymentProof(id, { decision })
-    },
+      rejectionReason?: string
+    }) =>
+      decision === "REJECT"
+        ? reviewPaymentProof(id, { decision, rejectionReason: rejectionReason! })
+        : reviewPaymentProof(id, { decision }),
     onSuccess: async (result) => {
+      setRejecting(null)
+      setRejectionReason("")
       toast.success(
         result.listingStatus === "AWAITING_AGENT"
           ? "Payment verified. Assign an agent to publish."
@@ -81,31 +99,22 @@ export function PaymentVerificationPanel() {
   const items = proofs.data?.items ?? []
 
   return (
-    <section className="surface overflow-hidden rounded-2xl">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b p-4">
-        <div>
-          <h2 className="text-lg font-semibold">Listing payments</h2>
-          <p className="text-sm text-slate-500">
-            Verify owner-submitted payment proofs, then assign an agent.
-          </p>
-        </div>
-        <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+    <div className="grid gap-4">
+      <Tabs
+        value={status}
+        onValueChange={(value) => setStatus(value as (typeof STATUSES)[number])}
+      >
+        <TabsList>
           {STATUSES.map((option) => (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setStatus(option)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                status === option
-                  ? "bg-white text-slate-900 shadow-sm"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
+            <TabsTab key={option} value={option}>
               {option.charAt(0) + option.slice(1).toLowerCase()}
-            </button>
+            </TabsTab>
           ))}
-        </div>
-      </div>
+        </TabsList>
+      </Tabs>
+
+      <Frame>
+        <div className="rounded-xl border bg-background bg-clip-padding">
 
       {proofs.isPending ? (
         <p className="p-6 text-sm text-slate-500">Loading payments…</p>
@@ -141,37 +150,32 @@ export function PaymentVerificationPanel() {
 
                 {proof.status === "SUBMITTED" && canReview ? (
                   <div className="flex shrink-0 gap-2">
-                    <button
-                      type="button"
+                    <Button
                       disabled={review.isPending}
                       onClick={() =>
                         review.mutate({ id: proof.id, decision: "APPROVE" })
                       }
-                      className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-emerald-700 px-3 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
                     >
-                      <Check className="size-4" /> Verify
-                    </button>
-                    <button
-                      type="button"
+                      <Check /> Verify
+                    </Button>
+                    <Button
+                      variant="destructive-outline"
                       disabled={review.isPending}
-                      onClick={() =>
-                        review.mutate({ id: proof.id, decision: "REJECT" })
-                      }
-                      className="inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-60"
+                      onClick={() => setRejecting(proof.id)}
                     >
-                      <X className="size-4" /> Reject
-                    </button>
+                      <X /> Reject
+                    </Button>
                   </div>
                 ) : proof.status === "APPROVED" && canAssign ? (
-                  <button
-                    type="button"
+                  <Button
+                    variant="outline"
+                    className="shrink-0"
                     onClick={() =>
                       setAssigning(assigning === proof.listingId ? null : proof.listingId)
                     }
-                    className="inline-flex h-9 shrink-0 items-center rounded-lg border px-3 text-sm font-medium hover:bg-slate-50"
                   >
                     {assigning === proof.listingId ? "Cancel" : "Assign agent"}
-                  </button>
+                  </Button>
                 ) : null}
               </div>
 
@@ -231,7 +235,60 @@ export function PaymentVerificationPanel() {
             </li>
           ))}
         </ul>
-      )}
-    </section>
+        )}
+        </div>
+      </Frame>
+
+      <Dialog
+        open={Boolean(rejecting)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRejecting(null)
+            setRejectionReason("")
+          }
+        }}
+      >
+        <DialogPopup>
+          <DialogHeader>
+            <DialogTitle>Reject payment</DialogTitle>
+            <DialogDescription>
+              The listing is returned to the owner with this reason so they can
+              submit a corrected proof.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            <Field>
+              <FieldLabel>Reason for rejection</FieldLabel>
+              <Textarea
+                value={rejectionReason}
+                onChange={(event) => setRejectionReason(event.target.value)}
+                placeholder="Explain what is wrong with the payment proof"
+                minLength={3}
+                required
+              />
+            </Field>
+          </DialogPanel>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline">Cancel</Button>} />
+            <Button
+              variant="destructive"
+              loading={review.isPending}
+              disabled={rejectionReason.trim().length < 3}
+              onClick={() => {
+                if (!rejecting) return
+                review.mutate({
+                  id: rejecting,
+                  decision: "REJECT",
+                  rejectionReason: rejectionReason.trim(),
+                })
+              }}
+            >
+              Reject payment
+            </Button>
+          </DialogFooter>
+        </DialogPopup>
+      </Dialog>
+    </div>
   )
 }
+
