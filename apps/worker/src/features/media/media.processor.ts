@@ -90,20 +90,31 @@ async function scanWithClamAv(source: Buffer): Promise<void> {
       else resolve();
     };
 
-    socket.once("error", (error) => finish(error));
-    socket.on("data", (chunk: Buffer) => responseChunks.push(chunk));
-    socket.once("end", () => {
+    const evaluate = () => {
       const response = Buffer.concat(responseChunks)
         .toString("utf8")
         .replace(/\0/g, "")
         .trim();
-      if (response.endsWith("OK")) return finish();
-      if (response.includes("FOUND")) {
-        return finish(new Error(`Malware detected: ${response}`));
+      if (!response) return false;
+      if (response.endsWith("OK")) {
+        finish();
+        return true;
       }
-      return finish(
-        new Error(`Unexpected ClamAV response: ${response || "empty"}`),
-      );
+      if (response.includes("FOUND")) {
+        finish(new Error(`Malware detected: ${response}`));
+        return true;
+      }
+      finish(new Error(`Unexpected ClamAV response: ${response}`));
+      return true;
+    };
+
+    socket.once("error", (error) => finish(error));
+    socket.on("data", (chunk: Buffer) => {
+      responseChunks.push(chunk);
+      evaluate();
+    });
+    socket.once("end", () => {
+      if (!evaluate()) finish(new Error("Unexpected ClamAV response: empty"));
     });
 
     socket.once("connect", () => {
@@ -112,7 +123,9 @@ async function scanWithClamAv(source: Buffer): Promise<void> {
       for (let offset = 0; offset < source.length; offset += chunkSize) {
         socket.write(clamavFrame(source.subarray(offset, offset + chunkSize)));
       }
-      socket.end(Buffer.alloc(4));
+      // Terminator only. Half-closing here instead makes clamd treat the
+      // connection as abandoned and drop the scan without ever replying.
+      socket.write(Buffer.alloc(4));
     });
   });
 }

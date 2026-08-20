@@ -9,6 +9,7 @@ import { useSession } from "@real-estate/auth/client"
 import { apiRequest } from "@/shared/http/api"
 import { queryKeys } from "@/shared/query/query-keys"
 import { cn } from "@/lib/utils"
+import { errorMessage } from "@/shared/http/error-message";
 
 const favoriteResponseSchema = z.object({ saved: z.boolean() })
 
@@ -48,7 +49,7 @@ export function SaveButton({
         result.saved ? "Property saved" : "Removed from saved properties",
       )
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   const saved = favorite.data?.saved ?? initialSaved

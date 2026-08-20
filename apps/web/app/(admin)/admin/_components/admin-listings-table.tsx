@@ -48,6 +48,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { PanelEmptyRow } from "./panel-layout";
 import { useHasStaffPermission } from "./admin-shell";
+import { errorMessage } from "@/shared/http/error-message";
 
 const statuses = [
   "ALL",
@@ -113,7 +114,7 @@ export function AdminListingsTable() {
       setReason("");
       await queryClient.invalidateQueries({ queryKey: ["admin", "listings"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const items = query.data?.items ?? [];

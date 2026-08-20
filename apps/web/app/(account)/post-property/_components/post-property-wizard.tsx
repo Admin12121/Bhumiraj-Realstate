@@ -3,22 +3,29 @@
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import {
-  CheckCircle2,
-  Gavel,
-  ImagePlus,
-  Loader2,
-  MapPin,
-  UploadCloud,
-} from "lucide-react";
+import { Check, UploadCloud } from "lucide-react";
 import { createListingSchema } from "@real-estate/contracts";
 import { createListing, submitListing } from "@/features/listings/api/listings-api";
 import { uploadPropertyImage } from "@/features/media/api/media-api";
 import { toast } from "sonner";
 import {
-  Field as FieldRoot,
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
   FieldLabel,
+  FieldSeparator,
 } from "@/components/ui/field";
+import { Fieldset } from "@/components/ui/fieldset";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { FileUploader } from "@/components/ui/file-uploader";
+import { useFileUpload } from "@/hooks/use-file-upload";
+import { LocationPicker } from "./location-picker";
+import { errorMessage } from "@/shared/http/error-message";
+import { cn } from "@/lib/utils";
 import {
   Select,
   SelectItem,
@@ -28,6 +35,74 @@ import {
 } from "@/components/ui/select";
 
 const steps = ["Property", "Location", "Details", "Images", "Review"];
+
+const option = (value: string) => ({ value, label: value.replace(/_/g, " ") });
+const LISTING_TYPES = ["SALE", "RENT", "AUCTION"].map(option);
+const PROPERTY_TYPES = [
+  "HOUSE",
+  "FLAT",
+  "LAND",
+  "BUSINESS",
+  "OFFICE",
+  "SHOP",
+].map(option);
+const RENT_PERIODS = ["MONTH", "YEAR"].map(option);
+const PRECISIONS = ["APPROXIMATE", "EXACT"].map(option);
+const FURNISHINGS = ["UNFURNISHED", "SEMI_FURNISHED", "FURNISHED"].map(option);
+
+type SpecField = {
+  key: keyof FormState;
+  label: string;
+  required?: boolean;
+};
+type AuctionField = {
+  key: keyof FormState;
+  label: string;
+  type: string;
+  optional?: boolean;
+};
+
+const SPEC_FIELDS: readonly SpecField[] = [
+  { key: "bedrooms", label: "Bedrooms" },
+  { key: "bathrooms", label: "Bathrooms" },
+  { key: "kitchens", label: "Kitchens" },
+  { key: "floors", label: "Floors" },
+  { key: "areaSqFt", label: "Area (sq. ft.)", required: true },
+  { key: "parkingSpaces", label: "Parking spaces" },
+  { key: "builtYear", label: "Built year" },
+] satisfies readonly SpecField[];
+
+const AUCTION_FIELDS: readonly AuctionField[] = [
+  { key: "auctionStartingAmount", label: "Starting amount (NPR)", type: "number" },
+  {
+    key: "auctionReserveAmount",
+    label: "Reserve amount (NPR)",
+    type: "number",
+    optional: true,
+  },
+  {
+    key: "auctionMinimumIncrement",
+    label: "Minimum increment (NPR)",
+    type: "number",
+  },
+  { key: "auctionStartsAt", label: "Starts at", type: "datetime-local" },
+  { key: "auctionEndsAt", label: "Ends at", type: "datetime-local" },
+  {
+    key: "auctionExtensionWindow",
+    label: "Extension window (seconds)",
+    type: "number",
+  },
+  {
+    key: "auctionExtensionDuration",
+    label: "Extension duration (seconds)",
+    type: "number",
+  },
+  {
+    key: "auctionMaximumExtension",
+    label: "Maximum extension (minutes)",
+    type: "number",
+  },
+] satisfies readonly AuctionField[];
 
 function localDateTime(offsetMs: number) {
   const date = new Date(Date.now() + offsetMs);
@@ -70,12 +145,92 @@ const initialForm = {
 };
 
 type FormState = typeof initialForm;
+type Errors = Partial<Record<keyof FormState | "images", string>>;
+
+/**
+ * The rules the API enforces, checked next to the field they belong to.
+ *
+ * Submitting first and reporting afterwards is what produced a wall of
+ * validation text on the last step for a title typed on the first one.
+ */
+function validateStep(
+  step: number,
+  form: FormState,
+  imageCount: number,
+): Errors {
+  const errors: Errors = {};
+  const isAuction = form.listingType === "AUCTION";
+
+  if (step === 0) {
+    if (form.title.trim().length < 10) {
+      errors.title = "Give the listing a title of at least 10 characters.";
+    }
+    if (form.description.trim().length < 50) {
+      errors.description =
+        "Describe the property in at least 50 characters so buyers know what it is.";
+    }
+    if (isAuction) {
+      if (!form.auctionStartingAmount) {
+        errors.auctionStartingAmount = "Set the amount bidding starts at.";
+      }
+    } else if (!form.price) {
+      errors.price = "Enter the asking price.";
+    }
+  }
+
+  if (step === 1) {
+    if (form.province.trim().length < 2) errors.province = "Choose a province.";
+    if (form.district.trim().length < 2) errors.district = "Choose a district.";
+    if (form.municipality.trim().length < 2) {
+      errors.municipality = "Enter the municipality.";
+    }
+    if (form.locality.trim().length < 2) {
+      errors.locality = "Enter the locality or tole.";
+    }
+  }
+
+  if (step === 2) {
+    if (!form.areaSqFt || Number(form.areaSqFt) <= 0) {
+      errors.areaSqFt = "Enter the area in square feet.";
+    }
+    if (isAuction) {
+      if (!form.auctionEndsAt || !form.auctionStartsAt) {
+        errors.auctionEndsAt = "Set when the auction starts and ends.";
+      } else if (
+        new Date(form.auctionEndsAt) <= new Date(form.auctionStartsAt)
+      ) {
+        errors.auctionEndsAt = "The auction must end after it starts.";
+      }
+    }
+  }
+
+  if (step === 3 && imageCount === 0) {
+    errors.images = "Add at least one photo of the property.";
+  }
+
+  return errors;
+}
 
 export function PostPropertyWizard() {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [files, setFiles] = useState<File[]>([]);
   const [form, setForm] = useState<FormState>(initialForm);
+  const [errors, setErrors] = useState<Errors>({});
+  // How far the form has been validated, so the stepper can offer those steps
+  // without letting anyone skip ahead past an incomplete one.
+  const [reached, setReached] = useState(0);
+
+  const MAX_IMAGES = 20;
+  const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+  const [
+    { files: uploads, isDragging, errors: uploadErrors },
+    upload,
+  ] = useFileUpload({
+    accept: "image/jpeg,image/png,image/webp,image/avif",
+    maxFiles: MAX_IMAGES,
+    maxSize: MAX_IMAGE_BYTES,
+  });
+  const files = uploads.map((item) => item.file);
 
   const isAuction = form.listingType === "AUCTION";
   const isRent = form.listingType === "RENT";
@@ -155,237 +310,452 @@ export function PostPropertyWizard() {
       toast.success("Property saved. Complete the listing fee to continue.");
       router.push(`/post-property/pay/${listing.id}`);
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((current) => ({ ...current, [key]: value }));
+    // Clearing as they type stops a message sitting under a field they fixed.
+    setErrors((current) => {
+      if (!(key in current)) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
   };
 
+  /** Validates every step up to `target`, stopping at the first that fails. */
+  function goTo(target: number) {
+    if (target <= step) {
+      setErrors({});
+      setStep(target);
+      return;
+    }
+    for (let index = step; index < target; index += 1) {
+      const found = validateStep(index, form, files.length);
+      if (Object.keys(found).length > 0) {
+        setErrors(found);
+        setStep(index);
+        return;
+      }
+    }
+    setErrors({});
+    setReached((current) => Math.max(current, target));
+    setStep(target);
+  }
+
   return (
-    <div className="surface overflow-hidden rounded-[24px]">
-      <div className="border-b bg-slate-50 px-6 py-5">
-        <div className="flex justify-between gap-2">
-          {steps.map((label, index) => (
+    <div>
+      <nav aria-label="Progress" className="flex gap-2 overflow-x-auto pb-6">
+        {steps.map((label, index) => {
+          const done = index < step;
+          const current = index === step;
+          return (
             <div key={label} className="flex flex-1 items-center gap-2">
-              <span
-                className={`flex size-8 items-center justify-center rounded-full text-xs font-bold ${
-                  index <= step
-                    ? "bg-emerald-700 text-white"
-                    : "bg-white text-slate-400"
-                }`}
+              <button
+                type="button"
+                aria-current={current ? "step" : undefined}
+                // Only steps already cleared are reachable; the rest would jump
+                // over validation that has not run yet.
+                disabled={index > reached || mutation.isPending}
+                onClick={() => goTo(index)}
+                className="flex min-w-0 items-center gap-2 rounded-md text-start focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 disabled:cursor-not-allowed"
               >
-                {index < step ? <CheckCircle2 className="size-4" /> : index + 1}
-              </span>
-              <span className="hidden text-xs font-semibold sm:block">{label}</span>
-              {index < steps.length - 1 && (
-                <span className="h-px flex-1 bg-slate-200" />
-              )}
+                <span
+                  className={cn(
+                    "flex size-7 shrink-0 items-center justify-center rounded-full border font-medium text-xs transition-colors",
+                    done || current
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-input text-muted-foreground",
+                  )}
+                >
+                  {done ? <Check className="size-3.5" /> : index + 1}
+                </span>
+                <span
+                  className={cn(
+                    "hidden truncate text-sm sm:block",
+                    current ? "font-medium" : "text-muted-foreground",
+                  )}
+                >
+                  {label}
+                </span>
+              </button>
+              {index < steps.length - 1 ? (
+                <span aria-hidden className="h-px flex-1 bg-border" />
+              ) : null}
             </div>
-          ))}
-        </div>
-      </div>
+          );
+        })}
+      </nav>
 
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          if (step < steps.length - 1) setStep((current) => current + 1);
+          const found = validateStep(step, form, files.length);
+          if (Object.keys(found).length > 0) {
+            setErrors(found);
+            return;
+          }
+          if (step < steps.length - 1) goTo(step + 1);
           else mutation.mutate();
         }}
-        className="p-6 sm:p-8"
       >
         {step === 0 && (
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field
-              label="Listing title"
-              value={form.title}
-              onChange={(value) => set("title", value)}
-              placeholder="Modern 4BHK house in Bhaisepati"
-              className="sm:col-span-2"
-            />
-            <SelectField
-              label="Listing type"
-              value={form.listingType}
-              onChange={(value) => set("listingType", value)}
-              options={["SALE", "RENT", "AUCTION"]}
-            />
-            <SelectField
-              label="Property type"
-              value={form.propertyType}
-              onChange={(value) => set("propertyType", value)}
-              options={[
-                "HOUSE",
-                "APARTMENT",
-                "LAND",
-                "COMMERCIAL",
-                "OFFICE",
-                "WAREHOUSE",
-              ]}
-            />
-            {!isAuction && (
-              <Field
-                label={isRent ? "Rent (NPR)" : "Price (NPR)"}
-                type="number"
-                value={form.price}
-                onChange={(value) => set("price", value)}
-                placeholder="34500000"
-              />
-            )}
-            {isRent && (
-              <SelectField
-                label="Rent period"
-                value={form.rentPeriod}
-                onChange={(value) => set("rentPeriod", value)}
-                options={["DAY", "WEEK", "MONTH", "YEAR"]}
-              />
-            )}
-            <label className="text-sm font-medium sm:col-span-2">
-              Description
-              <textarea
-                required
-                minLength={50}
-                value={form.description}
-                onChange={(event) => set("description", event.target.value)}
-                rows={7}
-                className="mt-2 w-full rounded-xl border p-3"
-                placeholder="Describe the property, neighborhood, access and important conditions."
-              />
-            </label>
-          </div>
+          <Fieldset>
+            <FieldGroup>
+              <Field invalid={Boolean(errors.title)}>
+                <FieldLabel htmlFor="listing-title">Listing title</FieldLabel>
+                <Input
+                  id="listing-title"
+                  value={form.title}
+                  onChange={(event) => set("title", event.target.value)}
+                  placeholder="Modern 4BHK house in Bhaisepati"
+                  maxLength={140}
+                />
+              <FieldError match>{errors.title}</FieldError>
+                </Field>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field>
+                  <FieldLabel htmlFor="listing-type">Listing type</FieldLabel>
+                  <Select
+                    items={LISTING_TYPES}
+                    value={form.listingType}
+                    onValueChange={(value) => set("listingType", String(value))}
+                  >
+                    <SelectTrigger id="listing-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectPopup>
+                      {LISTING_TYPES.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectPopup>
+                  </Select>
+                </Field>
+
+                <Field>
+                  <FieldLabel htmlFor="property-type">Property type</FieldLabel>
+                  <Select
+                    items={PROPERTY_TYPES}
+                    value={form.propertyType}
+                    onValueChange={(value) => set("propertyType", String(value))}
+                  >
+                    <SelectTrigger id="property-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectPopup>
+                      {PROPERTY_TYPES.map((item) => (
+                        <SelectItem key={item.value} value={item.value}>
+                          {item.label}
+                        </SelectItem>
+                      ))}
+                    </SelectPopup>
+                  </Select>
+                </Field>
+              </div>
+
+              {!isAuction && (
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field invalid={Boolean(errors.price)}>
+                    <FieldLabel htmlFor="listing-price">
+                      {isRent ? "Rent (NPR)" : "Price (NPR)"}
+                    </FieldLabel>
+                    <Input
+                      id="listing-price"
+                      type="number"
+                      min={1}
+                      value={form.price}
+                      onChange={(event) => set("price", event.target.value)}
+                    />
+                  <FieldError match>{errors.price}</FieldError>
+                </Field>
+
+                  {isRent && (
+                    <Field>
+                      <FieldLabel htmlFor="rent-period">Rent period</FieldLabel>
+                      <Select
+                        items={RENT_PERIODS}
+                        value={form.rentPeriod}
+                        onValueChange={(value) =>
+                          set("rentPeriod", String(value))
+                        }
+                      >
+                        <SelectTrigger id="rent-period">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectPopup>
+                          {RENT_PERIODS.map((item) => (
+                            <SelectItem key={item.value} value={item.value}>
+                              {item.label}
+                            </SelectItem>
+                          ))}
+                        </SelectPopup>
+                      </Select>
+                    </Field>
+                  )}
+                </div>
+              )}
+
+              <Field invalid={Boolean(errors.description)}>
+                <FieldLabel htmlFor="listing-description">
+                  Description
+                </FieldLabel>
+                <Textarea
+                  id="listing-description"
+                  value={form.description}
+                  onChange={(event) => set("description", event.target.value)}
+                  rows={6}
+                  placeholder="Describe the property, neighbourhood, access and important conditions."
+                />
+                <FieldDescription>
+                  Buyers read this first. Mention what a photo cannot show.
+                </FieldDescription>
+              <FieldError match>{errors.description}</FieldError>
+                </Field>
+            </FieldGroup>
+          </Fieldset>
         )}
 
         {step === 1 && (
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Province" value={form.province} onChange={(value) => set("province", value)} />
-            <Field label="District" value={form.district} onChange={(value) => set("district", value)} />
-            <Field label="Municipality" value={form.municipality} onChange={(value) => set("municipality", value)} />
-            <Field label="Ward" required={false} value={form.ward} onChange={(value) => set("ward", value)} />
-            <Field label="Locality" value={form.locality} onChange={(value) => set("locality", value)} />
-            <Field label="Street" required={false} value={form.street} onChange={(value) => set("street", value)} />
-            <Field label="Latitude" required={false} type="number" step="any" value={form.latitude} onChange={(value) => set("latitude", value)} />
-            <Field label="Longitude" required={false} type="number" step="any" value={form.longitude} onChange={(value) => set("longitude", value)} />
-            <SelectField
-              label="Public map precision"
-              value={form.publicLocationPrecision}
-              onChange={(value) => set("publicLocationPrecision", value)}
-              options={["APPROXIMATE", "LOCALITY", "EXACT"]}
-              className="sm:col-span-2"
-            />
-            <div className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-900 sm:col-span-2">
-              <MapPin className="mr-2 inline size-4" />
-              Exact coordinates stay private unless you explicitly select exact public precision.
-            </div>
-          </div>
+          <Fieldset>
+            <FieldGroup>
+              <LocationPicker
+                province={form.province}
+                district={form.district}
+                latitude={form.latitude}
+                longitude={form.longitude}
+                onProvinceChange={(value) => set("province", value)}
+                onDistrictChange={(value) => set("district", value)}
+                onPointChange={(latitude, longitude) =>
+                  setForm((current) => ({ ...current, latitude, longitude }))
+                }
+              />
+
+              <FieldSeparator />
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field invalid={Boolean(errors.municipality)}>
+                  <FieldLabel htmlFor="municipality">Municipality</FieldLabel>
+                  <Input
+                    id="municipality"
+                    value={form.municipality}
+                    onChange={(event) =>
+                      set("municipality", event.target.value)
+                    }
+                  />
+                <FieldError match>{errors.municipality}</FieldError>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="ward">Ward</FieldLabel>
+                  <Input
+                    id="ward"
+                    value={form.ward}
+                    onChange={(event) => set("ward", event.target.value)}
+                  />
+                </Field>
+                <Field invalid={Boolean(errors.locality)}>
+                  <FieldLabel htmlFor="locality">Locality</FieldLabel>
+                  <Input
+                    id="locality"
+                    value={form.locality}
+                    onChange={(event) => set("locality", event.target.value)}
+                  />
+                <FieldError match>{errors.locality}</FieldError>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="street">Street</FieldLabel>
+                  <Input
+                    id="street"
+                    value={form.street}
+                    onChange={(event) => set("street", event.target.value)}
+                  />
+                </Field>
+              </div>
+
+              <Field>
+                <FieldLabel htmlFor="precision">
+                  Public map precision
+                </FieldLabel>
+                <Select
+                  items={PRECISIONS}
+                  value={form.publicLocationPrecision}
+                  onValueChange={(value) =>
+                    set("publicLocationPrecision", String(value))
+                  }
+                >
+                  <SelectTrigger id="precision">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {PRECISIONS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+                <FieldDescription>
+                  Exact coordinates stay private unless you choose exact public
+                  precision.
+                </FieldDescription>
+              </Field>
+            </FieldGroup>
+          </Fieldset>
         )}
 
         {step === 2 && (
-          <div className="space-y-6">
-            <div className="grid gap-5 sm:grid-cols-2">
-              <Field label="Bedrooms" required={false} type="number" value={form.bedrooms} onChange={(value) => set("bedrooms", value)} />
-              <Field label="Bathrooms" required={false} type="number" value={form.bathrooms} onChange={(value) => set("bathrooms", value)} />
-              <Field label="Kitchens" required={false} type="number" value={form.kitchens} onChange={(value) => set("kitchens", value)} />
-              <Field label="Floors" required={false} type="number" value={form.floors} onChange={(value) => set("floors", value)} />
-              <Field label="Area (sq. ft.)" type="number" value={form.areaSqFt} onChange={(value) => set("areaSqFt", value)} />
-              <Field label="Parking spaces" required={false} type="number" value={form.parkingSpaces} onChange={(value) => set("parkingSpaces", value)} />
-              <Field label="Built year" required={false} type="number" value={form.builtYear} onChange={(value) => set("builtYear", value)} />
-              <SelectField label="Furnishing" value={form.furnishing} onChange={(value) => set("furnishing", value)} options={["UNFURNISHED", "SEMI_FURNISHED", "FURNISHED"]} />
-            </div>
+          <div className="grid gap-8">
+            <Fieldset>
+              <FieldGroup>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  {SPEC_FIELDS.map((spec) => (
+                    <Field key={spec.key} invalid={Boolean(errors[spec.key])}>
+                      <FieldLabel htmlFor={`spec-${spec.key}`}>
+                        {spec.label}
+                      </FieldLabel>
+                      <Input
+                        id={`spec-${spec.key}`}
+                        type="number"
+                        min={0}
+                        value={form[spec.key]}
+                        onChange={(event) => set(spec.key, event.target.value)}
+                      />
+                      <FieldError match>{errors[spec.key]}</FieldError>
+                    </Field>
+                  ))}
+                  <Field>
+                    <FieldLabel htmlFor="furnishing">Furnishing</FieldLabel>
+                    <Select
+                      items={FURNISHINGS}
+                      value={form.furnishing}
+                      onValueChange={(value) =>
+                        set("furnishing", String(value))
+                      }
+                    >
+                      <SelectTrigger id="furnishing">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectPopup>
+                        {FURNISHINGS.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectPopup>
+                    </Select>
+                  </Field>
+                </div>
+              </FieldGroup>
+            </Fieldset>
 
             {isAuction && (
-              <section className="rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
-                <div className="mb-4 flex items-center gap-2">
-                  <Gavel className="size-5 text-amber-800" />
-                  <div>
-                    <h2 className="font-semibold text-amber-950">Live bidding configuration</h2>
-                    <p className="text-xs text-amber-800">The schedule is reviewed before publication.</p>
-                  </div>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <Field label="Starting amount (NPR)" type="number" value={form.auctionStartingAmount} onChange={(value) => set("auctionStartingAmount", value)} />
-                  <Field label="Reserve amount (NPR)" required={false} type="number" value={form.auctionReserveAmount} onChange={(value) => set("auctionReserveAmount", value)} />
-                  <Field label="Minimum increment (NPR)" type="number" value={form.auctionMinimumIncrement} onChange={(value) => set("auctionMinimumIncrement", value)} />
-                  <Field label="Starts at" type="datetime-local" value={form.auctionStartsAt} onChange={(value) => set("auctionStartsAt", value)} />
-                  <Field label="Ends at" type="datetime-local" value={form.auctionEndsAt} onChange={(value) => set("auctionEndsAt", value)} />
-                  <Field label="Extension window (seconds)" type="number" value={form.auctionExtensionWindow} onChange={(value) => set("auctionExtensionWindow", value)} />
-                  <Field label="Extension duration (seconds)" type="number" value={form.auctionExtensionDuration} onChange={(value) => set("auctionExtensionDuration", value)} />
-                  <Field label="Maximum extension (minutes)" type="number" value={form.auctionMaximumExtension} onChange={(value) => set("auctionMaximumExtension", value)} />
-                </div>
-              </section>
+              <>
+                <FieldSeparator />
+                <Fieldset>
+                  <FieldGroup>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      {AUCTION_FIELDS.map((auction) => (
+                        <Field
+                          key={auction.key}
+                          invalid={Boolean(errors[auction.key])}
+                        >
+                          <FieldLabel htmlFor={`auction-${auction.key}`}>
+                            {auction.label}
+                          </FieldLabel>
+                          <Input
+                            id={`auction-${auction.key}`}
+                            type={auction.type}
+                            value={form[auction.key]}
+                            onChange={(event) =>
+                              set(auction.key, event.target.value)
+                            }
+                          />
+                          <FieldError match>{errors[auction.key]}</FieldError>
+                        </Field>
+                      ))}
+                    </div>
+                  </FieldGroup>
+                </Fieldset>
+              </>
             )}
           </div>
         )}
 
         {step === 3 && (
-          <div>
-            <label className="grid min-h-56 cursor-pointer place-items-center rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/40 p-8 text-center">
-              <input
-                type="file"
-                accept="image/jpeg,image/png,image/webp,image/avif"
-                multiple
-                className="sr-only"
-                onChange={(event) =>
-                  setFiles(Array.from(event.target.files ?? []).slice(0, 20))
-                }
+          <Fieldset>
+            <FieldGroup>
+              <FileUploader
+                title="Select property images"
+                files={uploads}
+                isDragging={isDragging}
+                errors={uploadErrors}
+                inputProps={upload.getInputProps()}
+                maxFiles={MAX_IMAGES}
+                maxSize={MAX_IMAGE_BYTES}
+                onOpen={upload.openFileDialog}
+                onRemove={upload.removeFile}
+                onClear={upload.clearFiles}
+                onDragEnter={upload.handleDragEnter}
+                onDragLeave={upload.handleDragLeave}
+                onDragOver={upload.handleDragOver}
+                onDrop={upload.handleDrop}
               />
-              <span>
-                <ImagePlus className="mx-auto size-10 text-emerald-700" />
-                <span className="mt-3 block font-semibold">Select property images</span>
-                <span className="mt-1 block text-xs text-slate-500">
-                  JPEG, PNG, WebP or AVIF · up to 25 MB each
-                </span>
-              </span>
-            </label>
-            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {files.map((file) => (
-                <div key={`${file.name}-${file.size}`} className="truncate rounded-lg border bg-white p-2 text-xs">
-                  {file.name}
-                </div>
-              ))}
-            </div>
-          </div>
+              {errors.images ? (
+                <p className="text-destructive-foreground text-xs" role="alert">
+                  {errors.images}
+                </p>
+              ) : null}
+            </FieldGroup>
+          </Fieldset>
         )}
 
         {step === 4 && (
           <div className="space-y-4">
-            <div className="rounded-2xl border p-5">
-              <h2 className="text-xl font-semibold">{form.title || "Untitled property"}</h2>
-              <p className="mt-2 text-sm text-slate-500">
-                {form.propertyType} · {form.listingType} · {form.locality}, {form.district}
+            <div className="rounded-xl border p-5">
+              <h2 className="font-semibold text-xl">
+                {form.title || "Untitled property"}
+              </h2>
+              <p className="mt-2 text-muted-foreground text-sm">
+                {form.propertyType} · {form.listingType} · {form.locality},{" "}
+                {form.district}
               </p>
-              <p className="mt-3 font-semibold text-emerald-900">NPR {previewPrice}</p>
+              <p className="mt-3 font-semibold tabular-nums">
+                NPR {previewPrice}
+              </p>
               <p className="mt-4 text-sm leading-6">{form.description}</p>
-              <p className="mt-4 text-sm font-semibold">{files.length} image(s) ready to upload</p>
+              <p className="mt-4 font-medium text-sm">
+                {files.length} image(s) ready to upload
+              </p>
             </div>
-            <div className="rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
-              Moderators verify the listing, ownership information and auction schedule before publication.
-            </div>
+            <Alert>
+              <AlertDescription>
+                Moderators verify the listing, ownership information and auction
+                schedule before publication.
+              </AlertDescription>
+            </Alert>
           </div>
         )}
 
-        <div className="mt-8 flex justify-between">
-          <button
+        <div className="mt-8 flex items-center justify-between gap-3 border-t pt-6">
+          <Button
             type="button"
+            variant="outline"
             disabled={step === 0 || mutation.isPending}
-            onClick={() => setStep((current) => current - 1)}
-            className="rounded-xl border px-5 py-2.5 text-sm font-semibold disabled:opacity-40"
+            onClick={() => goTo(step - 1)}
           >
             Back
-          </button>
-          <button
-            disabled={mutation.isPending}
-            className="brand-button flex items-center gap-2 rounded-xl px-6 py-2.5 text-sm font-semibold"
-          >
-            {mutation.isPending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : step === steps.length - 1 ? (
-              <UploadCloud className="size-4" />
-            ) : null}
+          </Button>
+          <Button type="submit" loading={mutation.isPending}>
+            {step === steps.length - 1 ? <UploadCloud /> : null}
             {mutation.isPending
               ? "Uploading and submitting…"
               : step === steps.length - 1
                 ? "Submit property"
                 : "Continue"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
@@ -404,75 +774,4 @@ function optionalNumber(value: string) {
 
 function optionalInteger(value: string) {
   return value.trim() ? Math.trunc(Number(value)) : undefined;
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  type = "text",
-  placeholder,
-  className = "",
-  required = true,
-  step,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: string;
-  placeholder?: string;
-  className?: string;
-  required?: boolean;
-  step?: string;
-}) {
-  return (
-    <label className={`text-sm font-medium ${className}`}>
-      {label}
-      <input
-        required={required}
-        type={type}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="mt-2 h-11 w-full rounded-xl border px-3 outline-none focus:border-emerald-600"
-      />
-    </label>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  onChange,
-  options,
-  className = "",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  options: string[];
-  className?: string;
-}) {
-  return (
-    <FieldRoot className={className}>
-      <FieldLabel className="text-sm font-medium">{label}</FieldLabel>
-      <Select
-        items={options.map((option) => ({ value: option, label: option }))}
-        value={value}
-        onValueChange={(next) => onChange(String(next))}
-      >
-        <SelectTrigger aria-label={label} className="h-11 w-full">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectPopup>
-          {options.map((option) => (
-            <SelectItem key={option} value={option}>
-              {option}
-            </SelectItem>
-          ))}
-        </SelectPopup>
-      </Select>
-    </FieldRoot>
-  );
 }

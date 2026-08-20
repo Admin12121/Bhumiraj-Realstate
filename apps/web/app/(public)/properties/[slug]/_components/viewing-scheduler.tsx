@@ -10,6 +10,7 @@ import {
   getViewingSlots,
   requestViewing,
 } from "@/features/viewings/api/viewings-api"
+import { errorMessage } from "@/shared/http/error-message";
 
 /**
  * Slot picker for a property viewing. Times come from the representing agent's
@@ -51,7 +52,7 @@ export function ViewingScheduler({
       onClose()
       await queryClient.invalidateQueries({ queryKey: ["viewings"] })
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   const days = useMemo(() => slots.data?.days ?? [], [slots.data])

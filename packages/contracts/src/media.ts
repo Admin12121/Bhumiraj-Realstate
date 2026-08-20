@@ -11,6 +11,7 @@ export const mediaPurposeSchema = z.enum([
   "AGENCY_LOGO",
   "MESSAGE_ATTACHMENT",
   "PAYMENT_PROOF",
+  "PAYMENT_QR",
 ]);
 
 /** Upload ceilings. Images are re-encoded to AVIF after upload. */
@@ -38,6 +39,7 @@ const IMAGE_ONLY_PURPOSES = new Set([
   "COVER_IMAGE",
   "AGENCY_LOGO",
   "PAYMENT_PROOF",
+  "PAYMENT_QR",
 ]);
 
 export const createUploadSchema = z

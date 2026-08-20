@@ -69,6 +69,7 @@ import {
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
+import { errorMessage } from "@/shared/http/error-message";
 
 type StaffRole = z.infer<typeof staffRoleSummarySchema>
 type EditorTab = "display" | "permissions" | "members"
@@ -168,7 +169,7 @@ export function StaffRolesPanel() {
       await refresh()
       if (isCreate) setEditing(null)
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   const assignMember = useMutation({
@@ -181,7 +182,7 @@ export function StaffRolesPanel() {
         client.invalidateQueries({ queryKey: ["admin", "staff"] }),
       ])
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   const unassignMember = useMutation({
@@ -194,7 +195,7 @@ export function StaffRolesPanel() {
         client.invalidateQueries({ queryKey: ["admin", "staff"] }),
       ])
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   const remove = useMutation({
@@ -205,7 +206,7 @@ export function StaffRolesPanel() {
       setEditing(null)
       await refresh()
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   const allKeys = useMemo(

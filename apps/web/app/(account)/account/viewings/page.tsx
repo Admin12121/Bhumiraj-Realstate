@@ -7,7 +7,6 @@ export default function Page() {
   return (
     <AccountShell
       title="Viewings"
-      description="Requests from buyers, your confirmed appointments, and the hours you are available."
     >
       <AgentViewingsPanel />
     </AccountShell>

@@ -63,6 +63,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PanelEmptyRow, PanelSearch } from "./panel-layout";
 import { useHasStaffPermission } from "./admin-shell";
 import { useStepUp } from "./step-up-dialog";
+import { errorMessage } from "@/shared/http/error-message";
 
 type ModerationKind = "LISTING_REPORT" | "USER_REPORT";
 type ModerationDecision = "IN_REVIEW" | "RESOLVED" | "DISMISSED";
@@ -168,7 +169,7 @@ export function ModerationPanel() {
       setNote("");
       await client.invalidateQueries({ queryKey: ["admin", "moderation"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const items = query.data?.items ?? [];
@@ -744,7 +745,7 @@ export function SettingsPanel() {
       setDraft(null);
       await client.invalidateQueries({ queryKey: ["admin", "settings"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   if (!values) {

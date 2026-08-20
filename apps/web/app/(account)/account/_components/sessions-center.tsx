@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { errorMessage } from "@/shared/http/error-message";
 
 const sessionsKey = ["account", "sessions"] as const
 
@@ -58,7 +59,7 @@ export function SessionsCenter() {
       toast.success("Session revoked.")
       await queryClient.invalidateQueries({ queryKey: sessionsKey })
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   const items = sessions.data ?? []

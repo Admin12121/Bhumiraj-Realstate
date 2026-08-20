@@ -11,6 +11,7 @@ import {
   uploadMedia,
   waitForMediaReady,
 } from "@/features/media/api/media-api";
+import { errorMessage } from "@/shared/http/error-message";
 
 export function ProfileForm() {
   const queryClient = useQueryClient();
@@ -52,7 +53,7 @@ export function ProfileForm() {
       if (coverRef.current) coverRef.current.value = "";
       void queryClient.invalidateQueries({ queryKey: queryKeys.profile("me") });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   function submit(event: FormEvent<HTMLFormElement>) {

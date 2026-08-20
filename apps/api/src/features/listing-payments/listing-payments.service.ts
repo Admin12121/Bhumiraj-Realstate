@@ -13,10 +13,14 @@ import {
   listingFeeSettingsSchema,
   type ListingFeeSettings,
 } from "@real-estate/contracts";
+import { apiEnv } from "../../bootstrap-env";
 import { decodeCursor, encodeCursor } from "../../shared/utils/cursor";
 import { notify } from "../../shared/notifications/notify";
 
 const LISTING_FEE_SETTING_KEY = "listingFee";
+
+/** Largest first — a downscaled QR code stops being scannable. */
+const QR_VARIANT_PREFERENCE = ["full", "large", "card", "thumb"] as const;
 
 /** Used until an administrator saves a fee configuration. */
 const DEFAULT_FEE: ListingFeeSettings = {
@@ -43,13 +47,69 @@ export class ListingPaymentsService {
     if (!row) return DEFAULT_FEE;
 
     const parsed = listingFeeSettingsSchema.safeParse(row.value);
-    return parsed.success ? parsed.data : DEFAULT_FEE;
+    if (!parsed.success) return DEFAULT_FEE;
+    // Resolved on read as well as on write, so the stored URL cannot go stale
+    // if the CDN host changes or an image is replaced.
+    return this.resolveMethodImages(parsed.data);
+  }
+
+  /**
+   * Turns the uploaded QR assets into CDN URLs.
+   *
+   * The URL is derived rather than accepted from the client, so an
+   * administrator cannot point the payment screen at an arbitrary image.
+   */
+  private async resolveMethodImages(
+    input: ListingFeeSettings,
+  ): Promise<ListingFeeSettings> {
+    const assetIds = input.methods
+      .map((method) => method.imageAssetId)
+      .filter((id): id is string => Boolean(id));
+
+    const assets = assetIds.length
+      ? await prisma.mediaAsset.findMany({
+          where: {
+            id: { in: assetIds },
+            purpose: "PAYMENT_QR",
+            status: "READY",
+          },
+          select: {
+            id: true,
+            objectKey: true,
+            variants: { select: { name: true, objectKey: true } },
+          },
+        })
+      : [];
+
+    const base = apiEnv.CDN_BASE_URL.replace(/\/$/, "");
+    const urlById = new Map(
+      assets.map((asset) => {
+        // Deliberately the biggest rendition: a QR downscaled to a thumbnail
+        // stops scanning, and there is only ever one of these on screen.
+        const variant =
+          QR_VARIANT_PREFERENCE.map((name) =>
+            asset.variants.find((entry) => entry.name === name),
+          ).find(Boolean) ?? asset.variants[0];
+        return [asset.id, `${base}/${variant?.objectKey ?? asset.objectKey}`];
+      }),
+    );
+
+    return {
+      ...input,
+      methods: input.methods.map((method) => ({
+        ...method,
+        imageUrl: method.imageAssetId
+          ? (urlById.get(method.imageAssetId) ?? null)
+          : null,
+      })),
+    };
   }
 
   async updateFeeSettings(
-    input: ListingFeeSettings,
+    raw: ListingFeeSettings,
     actorId: string,
   ): Promise<ListingFeeSettings> {
+    const input = await this.resolveMethodImages(raw);
     await prisma.$transaction(async (tx) => {
       await tx.systemSetting.upsert({
         where: { key: LISTING_FEE_SETTING_KEY },
@@ -223,7 +283,7 @@ export class ListingPaymentsService {
         listing: { select: { title: true, slug: true } },
         submittedBy: { select: { id: true, name: true, email: true } },
         reviewedBy: { select: { id: true, name: true } },
-        mediaAsset: { select: { objectKey: true } },
+        mediaAsset: { select: { id: true } },
       },
     });
 
@@ -241,9 +301,9 @@ export class ListingPaymentsService {
         amountMinor: row.amountMinor.toString(),
         currency: row.currency,
         status: row.status,
-        // Proof media is private; the object key is resolved to a signed URL by
-        // the media service when a reviewer opens the record.
-        proofUrl: row.mediaAsset.objectKey,
+        // Proof media is private; the reviewer exchanges this id for a signed
+        // URL through the media service when they open the record.
+        mediaAssetId: row.mediaAsset.id,
         submittedBy: row.submittedBy,
         reviewedBy: row.reviewedBy,
         reviewedAt: row.reviewedAt?.toISOString() ?? null,

@@ -82,6 +82,7 @@ import {
   PanelToolbar,
   PanelToolbarSpacer,
 } from "./panel-layout"
+import { errorMessage } from "@/shared/http/error-message";
 
 type StaffMember = z.infer<typeof staffMemberSchema>
 
@@ -154,7 +155,7 @@ export function StaffMembersPanel({
       resetPromotion()
       await refresh()
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
   const updateRoles = useMutation({
     mutationFn: async () => {
@@ -167,7 +168,7 @@ export function StaffMembersPanel({
       setEditing(null)
       await refresh()
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
   const revoke = useMutation({
     mutationFn: (userId: string) => guard(() => revokeStaffMember(userId)),
@@ -176,7 +177,7 @@ export function StaffMembersPanel({
       setRevoking(null)
       await refresh()
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
   const changeStatus = useMutation({
     mutationFn: ({
@@ -198,7 +199,7 @@ export function StaffMembersPanel({
       setSuspensionReason("")
       await refresh()
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   function openEditor(member: StaffMember) {

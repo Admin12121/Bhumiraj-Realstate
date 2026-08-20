@@ -7,6 +7,17 @@ import { toast } from "sonner";
 import { savedSearchSchema } from "@real-estate/contracts";
 import { apiRequest } from "@/shared/http/api";
 import { useConfirm } from "@/shared/components/confirm-dialog";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { errorMessage } from "@/shared/http/error-message";
 
 const savedSearchListSchema = z.array(savedSearchSchema);
 const deletedSchema = z.object({ deleted: z.boolean() });
@@ -53,7 +64,7 @@ export function AlertsCenter() {
       );
       toast.success(updated.alertsEnabled ? "Search alerts enabled" : "Search alerts disabled");
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const remove = useMutation({
@@ -69,7 +80,7 @@ export function AlertsCenter() {
       );
       toast.success("Saved search deleted");
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   if (query.isLoading) {
@@ -135,9 +146,22 @@ export function AlertsCenter() {
       ))}
 
       {!query.data?.length && (
-        <div className="surface rounded-2xl p-10 text-center text-sm text-slate-500">
-          Save a property search and enable alerts to receive new-match notifications.
-        </div>
+        <Empty>
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Bell />
+            </EmptyMedia>
+            <EmptyTitle>No alerts set up</EmptyTitle>
+            <EmptyDescription>
+              Save a search and turn on alerts to hear about new matches.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button render={<Link href="/search?type=SALE" />} size="sm">
+              Start a search
+            </Button>
+          </EmptyContent>
+        </Empty>
       )}
       {confirm.dialog}
     </div>

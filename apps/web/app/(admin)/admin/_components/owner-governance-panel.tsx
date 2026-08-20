@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PanelSection } from "./panel-layout"
 import { useStepUp } from "./step-up-dialog"
+import { errorMessage } from "@/shared/http/error-message";
 
 /**
  * Ownership lives with platform settings, not with staff administration.
@@ -68,7 +69,7 @@ export function OwnerGovernancePanel() {
       setConfirmation("")
       await client.invalidateQueries({ queryKey: ["admin"] })
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   // Only the sitting owner can hand ownership on, so nobody else sees the door.

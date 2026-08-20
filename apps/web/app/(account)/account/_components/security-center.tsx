@@ -27,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { errorMessage } from "@/shared/http/error-message";
 
 type PasskeyRecord = {
   id: string;
@@ -80,7 +81,7 @@ export function SecurityCenter() {
       );
       void queryClient.invalidateQueries({ queryKey: queryKeys.account.overview });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const cancellation = useMutation({
@@ -89,7 +90,7 @@ export function SecurityCenter() {
       toast.success("Account deletion cancelled.");
       void queryClient.invalidateQueries({ queryKey: queryKeys.account.overview });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const removePasskey = useMutation({
@@ -104,7 +105,7 @@ export function SecurityCenter() {
       void queryClient.invalidateQueries({ queryKey: queryKeys.account.passkeys });
       void queryClient.invalidateQueries({ queryKey: queryKeys.account.overview });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const renamePasskey = useMutation({
@@ -118,7 +119,7 @@ export function SecurityCenter() {
       toast.success("Passkey renamed");
       void queryClient.invalidateQueries({ queryKey: queryKeys.account.passkeys });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   async function enableTwoFactor() {

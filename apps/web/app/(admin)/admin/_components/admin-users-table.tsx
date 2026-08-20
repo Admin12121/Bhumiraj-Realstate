@@ -71,6 +71,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { PanelEmptyRow } from "./panel-layout"
 import { useHasStaffPermission } from "./admin-shell"
 import { useStepUp } from "./step-up-dialog"
+import { errorMessage } from "@/shared/http/error-message";
 
 const accountTypes = ["USER", "AGENT"] as const
 const accountTypeFilters = ["ALL", "OWNER", "STAFF", "AGENT", "USER"] as const
@@ -146,7 +147,7 @@ export function AdminUsersTable() {
       setSuspensionReason("")
       await queryClient.invalidateQueries({ queryKey: ["admin", "users"] })
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   return (

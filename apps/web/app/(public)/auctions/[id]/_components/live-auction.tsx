@@ -33,6 +33,7 @@ import {
 } from "@/features/auctions/api/auctions-api";
 import { queryKeys } from "@/shared/query/query-keys";
 import { formatMinorAmount } from "@/shared/utilities/money";
+import { errorMessage } from "@/shared/http/error-message";
 
 function minorToInput(value: bigint) {
   const whole = value / 100n;
@@ -126,7 +127,7 @@ export function LiveAuction({ auctionId }: { auctionId: string }) {
         queryKey: queryKeys.auctions.bids(auctionId),
       });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const registration = useMutation({
@@ -137,7 +138,7 @@ export function LiveAuction({ auctionId }: { auctionId: string }) {
         queryKey: queryKeys.auctions.detail(auctionId),
       });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   useEffect(() => {

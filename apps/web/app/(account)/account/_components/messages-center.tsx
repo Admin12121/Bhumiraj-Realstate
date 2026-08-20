@@ -1,18 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { io, type Socket } from "socket.io-client";
 import { z } from "zod";
-import {
-  ArrowDown,
-  CheckCheck,
-  LoaderCircle,
-  MessageCircle,
-  Send,
-} from "lucide-react";
+import { ArrowUp, CheckCheck, MessageCircle, Send, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { queryKeys } from "@/shared/query/query-keys";
 import {
@@ -23,6 +17,36 @@ import {
   useConversations,
   useMessages,
 } from "@/features/messaging/queries/use-messaging";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Message,
+  MessageContent,
+  MessageFooter,
+  MessageGroup,
+} from "@/components/ui/message";
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller";
+import {
+  NestedSidebar,
+  NestedSidebarItem,
+} from "@/components/ui/nested-sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { errorMessage } from "@/shared/http/error-message";
 
 const realtimeMessageSchema = z.object({
   type: z.literal("message.created"),
@@ -31,13 +55,16 @@ const realtimeMessageSchema = z.object({
 });
 type ConversationsData = ReturnType<typeof useConversations>["data"];
 
+function participantNames(names: readonly { name: string }[]): string {
+  return names.map((item) => item.name).join(", ") || "Conversation";
+}
+
 export function MessagesCenter() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const selectedFromUrl = searchParams.get("conversation") ?? undefined;
   const [draft, setDraft] = useState("");
-  const endRef = useRef<HTMLDivElement>(null);
 
   const conversations = useConversations();
   const conversationItems = useMemo(
@@ -88,9 +115,8 @@ export function MessagesCenter() {
       void queryClient.invalidateQueries({
         queryKey: queryKeys.conversations.all,
       });
-      requestAnimationFrame(() => endRef.current?.scrollIntoView({ behavior: "smooth" }));
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   useEffect(() => {
@@ -125,7 +151,9 @@ export function MessagesCenter() {
     socket.on("notification:event", (raw: unknown) => {
       const parsed = realtimeMessageSchema.safeParse(raw);
       if (!parsed.success) return;
-      void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all });
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.conversations.all,
+      });
       if (parsed.data.conversationId === selectedId) {
         void queryClient.invalidateQueries({
           queryKey: queryKeys.conversations.messages(selectedId),
@@ -137,12 +165,6 @@ export function MessagesCenter() {
       socket.disconnect();
     };
   }, [queryClient, selectedId]);
-
-  useEffect(() => {
-    if (selectedId) {
-      requestAnimationFrame(() => endRef.current?.scrollIntoView());
-    }
-  }, [messageItems.length, selectedId]);
 
   function selectConversation(id: string) {
     router.replace(`/account/messages?conversation=${encodeURIComponent(id)}`);
@@ -156,160 +178,181 @@ export function MessagesCenter() {
   }
 
   return (
-    <section className="surface grid min-h-[660px] overflow-hidden rounded-2xl lg:grid-cols-[320px_1fr]">
-      <aside className="border-b lg:border-b-0 lg:border-r">
-        <div className="border-b p-4">
-          <h2 className="font-semibold">Conversations</h2>
-          <p className="mt-1 text-xs text-slate-500">Buyers, sellers and agents.</p>
-        </div>
-        <div className="max-h-[590px] overflow-y-auto">
-          {conversationItems.map((conversation) => {
-            const person = conversation.participants[0];
-            const active = conversation.id === selectedId;
-            return (
-              <button
-                key={conversation.id}
-                type="button"
-                onClick={() => selectConversation(conversation.id)}
-                className={`flex w-full items-center gap-3 border-b p-4 text-left ${active ? "bg-emerald-50" : "hover:bg-slate-50"}`}
-              >
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 font-semibold text-emerald-800">
-                  {person?.name[0]?.toUpperCase() ?? "M"}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="truncate font-semibold">
-                      {conversation.participants.map((item) => item.name).join(", ") || "Conversation"}
-                    </p>
-                    {conversation.unreadCount > 0 && (
-                      <span className="grid min-w-5 place-items-center rounded-full bg-emerald-700 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                        {conversation.unreadCount}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 truncate text-xs text-slate-500">
-                    {conversation.lastMessage?.body || "No messages"}
-                  </p>
-                </div>
-              </button>
-            );
-          })}
-          {conversations.hasNextPage && (
-            <button
-              type="button"
-              onClick={() => conversations.fetchNextPage()}
-              disabled={conversations.isFetchingNextPage}
-              className="flex w-full items-center justify-center gap-2 p-4 text-xs font-semibold text-emerald-700"
-            >
-              <ArrowDown className="size-4" />
-              {conversations.isFetchingNextPage ? "Loading…" : "Load more conversations"}
-            </button>
-          )}
-          {!conversations.isLoading && !conversationItems.length && (
-            <p className="p-10 text-center text-sm text-slate-500">
+    <NestedSidebar
+      fullHeight
+      width="20rem"
+      items={(open) => {
+        if (conversations.isLoading) {
+          return (
+            <div className="flex flex-col gap-2 p-2">
+              {[0, 1, 2, 3].map((key) => (
+                <Skeleton key={key} className="h-10 w-full rounded-md" />
+              ))}
+            </div>
+          );
+        }
+        if (conversationItems.length === 0) {
+          return open ? (
+            <p className="px-3 py-6 text-center text-muted-foreground text-sm">
               Your conversations will appear here.
             </p>
-          )}
-        </div>
-      </aside>
-
-      <div className="flex min-h-[560px] flex-col">
-        {selectedId ? (
+          ) : null;
+        }
+        return (
           <>
-            <header className="flex items-center gap-3 border-b p-4">
-              <span className="flex size-10 items-center justify-center rounded-full bg-emerald-100 font-semibold text-emerald-800">
-                {selectedConversation?.participants[0]?.name[0]?.toUpperCase() ?? "M"}
-              </span>
-              <div>
-                <p className="font-semibold">
-                  {selectedConversation?.participants.map((item) => item.name).join(", ") || "Conversation"}
-                </p>
-                <p className="text-xs text-slate-500">Messages are delivered in real time.</p>
-              </div>
-            </header>
-
-            <div className="flex-1 overflow-y-auto bg-slate-50/60 p-4 sm:p-6">
-              {messages.hasNextPage && (
-                <button
-                  type="button"
-                  onClick={() => messages.fetchNextPage()}
-                  disabled={messages.isFetchingNextPage}
-                  className="mx-auto mb-5 flex items-center gap-2 rounded-full border bg-white px-4 py-2 text-xs font-semibold text-slate-600"
-                >
-                  <ArrowDown className="size-3.5 rotate-180" />
-                  {messages.isFetchingNextPage ? "Loading…" : "Load earlier messages"}
-                </button>
-              )}
-              <div className="space-y-3">
-                {messageItems.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`flex ${message.mine ? "justify-end" : "justify-start"}`}
-                  >
-                    <div
-                      className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm shadow-sm ${message.mine ? "rounded-br-md bg-emerald-800 text-white" : "rounded-bl-md bg-white text-slate-700"}`}
-                    >
-                      <p className="whitespace-pre-wrap leading-6">{message.body}</p>
-                      <p className={`mt-1 flex items-center justify-end gap-1 text-[10px] ${message.mine ? "text-emerald-100" : "text-slate-400"}`}>
-                        {new Date(message.createdAt).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                        {message.mine && <CheckCheck className="size-3" />}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                {messages.isLoading && (
-                  <div className="grid place-items-center py-12 text-sm text-slate-500">
-                    <LoaderCircle className="mb-2 size-5 animate-spin" /> Loading messages…
-                  </div>
-                )}
-                <div ref={endRef} />
-              </div>
-            </div>
-
-            <form onSubmit={submit} className="flex gap-3 border-t bg-white p-4">
-              <label className="sr-only" htmlFor="message-body">Message</label>
-              <textarea
-                id="message-body"
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && !event.shiftKey) {
-                    event.preventDefault();
-                    event.currentTarget.form?.requestSubmit();
-                  }
-                }}
-                maxLength={5000}
-                rows={1}
-                placeholder="Write a message…"
-                className="min-h-11 flex-1 resize-none rounded-xl border px-4 py-3 text-sm outline-none focus:border-emerald-600"
-              />
-              <button
-                type="submit"
-                disabled={!draft.trim() || send.isPending}
-                className="brand-button grid size-11 shrink-0 place-items-center rounded-xl disabled:opacity-50"
-                aria-label="Send message"
+            {conversationItems.map((conversation) => (
+              <NestedSidebarItem
+                key={conversation.id}
+                icon={<UserRound />}
+                isActive={conversation.id === selectedId}
+                label={participantNames(conversation.participants)}
+                onClick={() => selectConversation(conversation.id)}
+                open={open}
+                {...(conversation.unreadCount > 0
+                  ? {
+                      trailing: (
+                        <Badge className="tabular-nums">
+                          {conversation.unreadCount}
+                        </Badge>
+                      ),
+                    }
+                  : {})}
               >
-                {send.isPending ? (
-                  <LoaderCircle className="size-4 animate-spin" />
-                ) : (
-                  <Send className="size-4" />
-                )}
-              </button>
-            </form>
+                <span className="grid min-w-0 flex-1 leading-tight">
+                  <span className="truncate font-medium">
+                    {participantNames(conversation.participants)}
+                  </span>
+                  {conversation.lastMessage?.body ? (
+                    <span className="truncate text-[11px] text-muted-foreground">
+                      {conversation.lastMessage.body}
+                    </span>
+                  ) : null}
+                </span>
+              </NestedSidebarItem>
+            ))}
+            {conversations.hasNextPage && open ? (
+              <Button
+                className="mt-1 w-full"
+                loading={conversations.isFetchingNextPage}
+                onClick={() => conversations.fetchNextPage()}
+                size="sm"
+                variant="ghost"
+              >
+                Load more
+              </Button>
+            ) : null}
           </>
-        ) : (
-          <div className="grid flex-1 place-items-center p-10 text-center">
-            <div>
-              <MessageCircle className="mx-auto size-10 text-emerald-700" />
-              <h2 className="mt-4 font-semibold">Select a conversation</h2>
-              <p className="mt-2 text-sm text-slate-500">Start from a public profile or property listing.</p>
-            </div>
-          </div>
-        )}
-      </div>
-    </section>
+        );
+      }}
+      header={(toggle) => (
+        <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+          {toggle}
+          {selectedConversation ? (
+            <p className="min-w-0 flex-1 truncate font-medium text-sm">
+              {participantNames(selectedConversation.participants)}
+            </p>
+          ) : null}
+        </div>
+      )}
+    >
+      {!selectedId ? (
+        <Empty className="flex-1">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <MessageCircle />
+            </EmptyMedia>
+            <EmptyTitle>No conversation selected</EmptyTitle>
+            <EmptyDescription>
+              Start one from a public profile or a property listing.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <MessageScrollerProvider>
+          <MessageScroller className="flex-1">
+            <MessageScrollerViewport className="px-4 py-4 sm:px-6">
+              <MessageScrollerContent>
+                {messages.hasNextPage ? (
+                  <Button
+                    className="mx-auto"
+                    loading={messages.isFetchingNextPage}
+                    onClick={() => messages.fetchNextPage()}
+                    size="sm"
+                    variant="outline"
+                  >
+                    <ArrowUp />
+                    Load earlier messages
+                  </Button>
+                ) : null}
+                {messages.isLoading
+                  ? [0, 1, 2].map((key) => (
+                      <Skeleton key={key} className="h-16 w-2/3 rounded-2xl" />
+                    ))
+                  : messageItems.map((message) => (
+                      <MessageScrollerItem
+                        key={message.id}
+                        scrollAnchor={message === messageItems.at(-1)}
+                      >
+                        <MessageGroup>
+                          <Message align={message.mine ? "end" : "start"}>
+                            <MessageContent>
+                              <span className="max-w-[82%] rounded-2xl bg-muted px-4 py-3 text-sm leading-6 whitespace-pre-wrap in-data-[align=end]:bg-primary in-data-[align=end]:text-primary-foreground">
+                                {message.body}
+                              </span>
+                            </MessageContent>
+                          </Message>
+                          <MessageFooter
+                            className={message.mine ? "justify-end" : undefined}
+                          >
+                            {new Date(message.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                            {message.mine ? (
+                              <CheckCheck className="ms-1 size-3" />
+                            ) : null}
+                          </MessageFooter>
+                        </MessageGroup>
+                      </MessageScrollerItem>
+                    ))}
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+            <MessageScrollerButton />
+          </MessageScroller>
+
+          <form
+            onSubmit={submit}
+            className="flex shrink-0 items-end gap-2 border-t bg-background p-3"
+          >
+            <Textarea
+              id="message-body"
+              aria-label="Message"
+              value={draft}
+              onChange={(event) => setDraft(event.target.value)}
+              onKeyDown={(event) => {
+                // Enter sends; Shift+Enter is a newline, as everywhere else.
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
+              maxLength={5000}
+              rows={1}
+              placeholder="Write a message…"
+              className="max-h-32 min-h-10 flex-1 resize-none"
+            />
+            <Button
+              type="submit"
+              size="icon"
+              aria-label="Send message"
+              loading={send.isPending}
+              disabled={!draft.trim()}
+            >
+              <Send />
+            </Button>
+          </form>
+        </MessageScrollerProvider>
+      )}
+    </NestedSidebar>
   );
 }

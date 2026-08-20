@@ -17,6 +17,7 @@ import {
   type NavigationItem,
 } from "@/app/_components/navigation-model";
 import { WorkspaceUserMenu } from "@/app/_components/workspace-user-menu";
+import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { isStaffRole } from "@/shared/security/landing-path";
 import { useAgentSummary } from "@/features/listings/queries/use-agent-workspace";
 import { Button } from "@/components/ui/button";
@@ -112,6 +113,7 @@ function AccountHeader({ title }: { title: string }) {
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
         <h1 className="truncate text-base font-medium">{title}</h1>
       </div>
+      <NotificationBell />
       <Button
         variant="ghost"
         size="sm"
@@ -125,13 +127,14 @@ function AccountHeader({ title }: { title: string }) {
 }
 
 export function AccountShell({
+  bleed = false,
   children,
   title,
-  description,
 }: {
+  /** Drops the page padding so a full-height screen owns the area under the header. */
+  bleed?: boolean;
   children: ReactNode;
   title: string;
-  description: string;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -247,13 +250,13 @@ export function AccountShell({
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset className="min-w-0 bg-slate-50 pb-24 min-[800px]:pb-0">
+      <SidebarInset className="min-w-0 bg-muted/40 pb-24 min-[800px]:pb-0">
         <AccountHeader title={title} />
 
-        <main id="main-content" className="min-w-0 p-4 sm:p-6 lg:p-8">
-          <p className="mb-6 max-w-2xl text-sm text-muted-foreground">
-            {description}
-          </p>
+        <main
+          id="main-content"
+          className={bleed ? "min-w-0" : "min-w-0 p-4 sm:p-6 lg:p-8"}
+        >
           {children}
         </main>
       </SidebarInset>

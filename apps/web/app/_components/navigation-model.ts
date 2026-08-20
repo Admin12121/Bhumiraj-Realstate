@@ -45,11 +45,12 @@ export const guestMarketplaceNavigation: NavigationItem[] = [
   { label: "Explore", icon: Search, href: "/search?type=SALE" },
 ];
 
+// Alerts is reached from the bell in the header, so it is not repeated here.
 export const accountNavigation: NavigationItem[] = [
+  { label: "Post property", icon: HousePlus, href: "/post-property" },
   { label: "Saved", icon: Bookmark, href: "/account/saved" },
   { label: "My bids", icon: Gavel, href: "/account/bids" },
   { label: "Messages", icon: MessageCircle, href: "/account/messages" },
-  { label: "Alerts", icon: Bell, href: "/account/alerts" },
 ];
 
 /**

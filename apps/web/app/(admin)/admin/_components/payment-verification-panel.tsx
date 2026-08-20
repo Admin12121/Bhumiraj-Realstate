@@ -8,6 +8,9 @@ import {
   BadgeCheck,
   BadgeDollarSign,
   Check,
+  EllipsisVertical,
+  Receipt,
+  UserRoundCog,
   X,
 } from "lucide-react"
 import {
@@ -16,6 +19,7 @@ import {
   getPaymentProofs,
   reviewPaymentProof,
 } from "@/features/listings/api/listing-payments-api"
+import { getMediaDownloadUrl } from "@/features/media/api/media-api"
 import { formatMinorAmount } from "@/shared/utilities/money"
 import { Button } from "@/components/ui/button"
 import {
@@ -29,6 +33,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Field, FieldLabel } from "@/components/ui/field"
+import {
+  Menu,
+  MenuGroup,
+  MenuGroupLabel,
+  MenuItem,
+  MenuPopup,
+  MenuSeparator,
+  MenuTrigger,
+} from "@/components/ui/menu"
 import { Frame } from "@/components/ui/frame"
 import {
   Table,
@@ -42,6 +55,7 @@ import { PanelEmptyRow } from "./panel-layout"
 import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { useHasStaffPermission } from "./admin-shell"
+import { errorMessage } from "@/shared/http/error-message";
 
 const STATUSES = ["SUBMITTED", "APPROVED", "REJECTED"] as const
 
@@ -58,6 +72,25 @@ export function PaymentVerificationPanel() {
   // A rejection reason is required, so the decision waits on the dialog.
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [rejectionReason, setRejectionReason] = useState("")
+  // The receipt itself. Private media, so the URL is signed and short-lived.
+  const [proofUrl, setProofUrl] = useState<string | null>(null)
+  const [loadingProof, setLoadingProof] = useState(false)
+
+  async function openProof(assetId: string) {
+    setLoadingProof(true)
+    try {
+      const { url } = await getMediaDownloadUrl(assetId)
+      setProofUrl(url)
+    } catch (cause) {
+      toast.error(
+        cause instanceof Error
+          ? cause.message
+          : "The payment proof could not be opened.",
+      )
+    } finally {
+      setLoadingProof(false)
+    }
+  }
 
   const proofs = useQuery({
     queryKey: ["admin", "payment-proofs", status],
@@ -95,7 +128,7 @@ export function PaymentVerificationPanel() {
       await queryClient.invalidateQueries({ queryKey: ["admin", "payment-proofs"] })
       await queryClient.invalidateQueries({ queryKey: ["admin", "listings"] })
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   const assign = useMutation({
@@ -107,7 +140,7 @@ export function PaymentVerificationPanel() {
       await queryClient.invalidateQueries({ queryKey: ["admin", "payment-proofs"] })
       await queryClient.invalidateQueries({ queryKey: ["admin", "assignable-agents"] })
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   const items = proofs.data?.items ?? []
@@ -223,43 +256,81 @@ export function PaymentVerificationPanel() {
                   ) : null}
                 </TableCell>
                 <TableCell className="text-right">
-                  {proof.status === "SUBMITTED" && canReview ? (
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        disabled={review.isPending}
-                        onClick={() =>
-                          review.mutate({ id: proof.id, decision: "APPROVE" })
-                        }
-                      >
-                        <Check /> Verify
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive-outline"
-                        disabled={review.isPending}
-                        onClick={() => setRejecting(proof.id)}
-                      >
-                        <X /> Reject
-                      </Button>
-                    </div>
-                  ) : proof.status === "APPROVED" && canAssign ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
-                        setAssigning(
-                          assigning === proof.listingId ? null : proof.listingId,
-                        )
+                  <Menu>
+                    <MenuTrigger
+                      render={
+                        <Button
+                          aria-label={`Actions for ${proof.listingTitle}`}
+                          size="icon-sm"
+                          variant="ghost"
+                        />
                       }
                     >
-                      {assigning === proof.listingId ? "Cancel" : "Assign agent"}
-                    </Button>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      No action
-                    </span>
-                  )}
+                      <EllipsisVertical />
+                    </MenuTrigger>
+                    <MenuPopup align="end">
+                      <MenuGroup>
+                        <MenuGroupLabel>Payment</MenuGroupLabel>
+                        <MenuItem
+                          disabled={loadingProof}
+                          onClick={() => void openProof(proof.mediaAssetId)}
+                        >
+                          <Receipt />
+                          View proof
+                        </MenuItem>
+                      </MenuGroup>
+                      {proof.status === "SUBMITTED" && canReview ? (
+                        <>
+                          <MenuSeparator />
+                          <MenuGroup>
+                            <MenuGroupLabel>Decision</MenuGroupLabel>
+                            <MenuItem
+                              disabled={review.isPending}
+                              onClick={() =>
+                                review.mutate({
+                                  id: proof.id,
+                                  decision: "APPROVE",
+                                })
+                              }
+                            >
+                              <Check />
+                              Verify payment
+                            </MenuItem>
+                            <MenuItem
+                              disabled={review.isPending}
+                              onClick={() => setRejecting(proof.id)}
+                              variant="destructive"
+                            >
+                              <X />
+                              Reject payment
+                            </MenuItem>
+                          </MenuGroup>
+                        </>
+                      ) : null}
+                      {proof.status === "APPROVED" && canAssign ? (
+                        <>
+                          <MenuSeparator />
+                          <MenuGroup>
+                            <MenuGroupLabel>Listing</MenuGroupLabel>
+                            <MenuItem
+                              onClick={() =>
+                                setAssigning(
+                                  assigning === proof.listingId
+                                    ? null
+                                    : proof.listingId,
+                                )
+                              }
+                            >
+                              <UserRoundCog />
+                              {assigning === proof.listingId
+                                ? "Cancel assignment"
+                                : "Assign agent"}
+                            </MenuItem>
+                          </MenuGroup>
+                        </>
+                      ) : null}
+                    </MenuPopup>
+                  </Menu>
                 </TableCell>
               </TableRow>
             ))}
@@ -328,6 +399,36 @@ export function PaymentVerificationPanel() {
             >
               Reject payment
             </Button>
+          </DialogFooter>
+        </DialogPopup>
+      </Dialog>
+
+      <Dialog
+        open={proofUrl !== null}
+        onOpenChange={(next) => {
+          if (!next) setProofUrl(null)
+        }}
+      >
+        <DialogPopup className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Payment proof</DialogTitle>
+            <DialogDescription>
+              Check the amount and reference against the record before
+              verifying.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            {proofUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={proofUrl}
+                alt="Payment receipt"
+                className="max-h-[70vh] w-full rounded-lg border bg-muted/40 object-contain"
+              />
+            ) : null}
+          </DialogPanel>
+          <DialogFooter>
+            <DialogClose render={<Button variant="outline">Close</Button>} />
           </DialogFooter>
         </DialogPopup>
       </Dialog>

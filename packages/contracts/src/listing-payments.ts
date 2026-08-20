@@ -30,7 +30,9 @@ export const paymentMethodSchema = z.object({
   id: z.string().min(1).max(40),
   label: z.string().min(1).max(80),
   kind: z.enum(["QR", "BANK_TRANSFER", "WALLET"]),
-  /** QR image or wallet deep link. */
+  /** Uploaded QR/logo. Administrators set this; the URL below is derived. */
+  imageAssetId: idSchema.nullable().default(null),
+  /** Resolved CDN URL for imageAssetId. Server-derived — sending it is ignored. */
   imageUrl: z.url().nullable().default(null),
   accountName: z.string().max(120).nullable().default(null),
   accountNumber: z.string().max(60).nullable().default(null),
@@ -84,8 +86,8 @@ export const paymentProofSchema = z.object({
   amountMinor: minorAmountSchema,
   currency: z.string().length(3),
   status: paymentProofStatusSchema,
-  /** Signed, short-lived URL; payment proofs are private media. */
-  proofUrl: z.string().nullable(),
+  /** Payment proofs are private media, so reviewers fetch a signed URL by id. */
+  mediaAssetId: idSchema,
   submittedBy: z.object({
     id: idSchema,
     name: z.string(),

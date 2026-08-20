@@ -1,5 +1,6 @@
 import {
   createUploadSchema,
+  mediaDownloadSchema,
   mediaStatusSchema,
   uploadSessionSchema
 } from "@real-estate/contracts";
@@ -92,4 +93,13 @@ export async function waitForMediaReady(
 export async function uploadPropertyImage(file: File) {
   const assetId = await uploadMedia(file, "LISTING_IMAGE");
   return waitForMediaReady(assetId);
+}
+
+/** Signed, short-lived URL for a private asset (payment proofs, documents). */
+export function getMediaDownloadUrl(assetId: string, signal?: AbortSignal) {
+  return apiRequest(`/media/${assetId}/download`, {
+    method: "GET",
+    schema: mediaDownloadSchema,
+    signal,
+  });
 }

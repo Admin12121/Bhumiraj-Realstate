@@ -4,7 +4,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { z } from "zod";
+import { Bookmark, Search } from "lucide-react";
 import { InfiniteScrollTrigger } from "@/shared/components/infinite-scroll-trigger";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { apiRequest } from "@/shared/http/api";
 import { formatOptionalMinorAmount } from "@/shared/utilities/money";
 
@@ -84,9 +94,23 @@ export function SavedProperties() {
       ))}
 
       {!items.length && !query.isLoading && (
-        <div className="surface col-span-full rounded-2xl p-10 text-center text-sm text-slate-500">
-          No saved properties yet.
-        </div>
+        <Empty className="col-span-full">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Bookmark />
+            </EmptyMedia>
+            <EmptyTitle>Nothing saved yet</EmptyTitle>
+            <EmptyDescription>
+              Tap the bookmark on any property to keep it here.
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            <Button render={<Link href="/search?type=SALE" />} size="sm">
+              <Search />
+              Browse properties
+            </Button>
+          </EmptyContent>
+        </Empty>
       )}
 
       <InfiniteScrollTrigger

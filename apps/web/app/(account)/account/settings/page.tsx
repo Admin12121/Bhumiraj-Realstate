@@ -17,7 +17,6 @@ export default async function Page({
   return (
     <AccountShell
       title="Settings"
-      description="Your profile, how the account is protected, and where you are signed in."
     >
       <AccountSettingsTabs initialTab={initialTab} />
     </AccountShell>

@@ -7,6 +7,7 @@ import {
   adminMessagesResponseSchema,
   adminAccessSchema,
   adminUserDetailSchema,
+  listingFeeSettingsSchema,
   adminUsersResponseSchema,
   staffMembersResponseSchema,
   staffCandidatesResponseSchema,
@@ -44,6 +45,21 @@ export const getAdminUsers = (
     `/admin/users?${queryString({ page, pageSize, search, accountType, status })}`,
     { method: "GET", schema: adminUsersResponseSchema }
   )
+
+export const getListingFeeSettings = () =>
+  apiRequest("/admin/listing-fee", {
+    method: "GET",
+    schema: listingFeeSettingsSchema,
+  })
+
+export const updateListingFeeSettings = (
+  body: z.infer<typeof listingFeeSettingsSchema>,
+) =>
+  apiRequest("/admin/listing-fee", {
+    method: "PUT",
+    body,
+    schema: listingFeeSettingsSchema,
+  })
 
 export const getAdminUserDetail = (id: string) =>
   apiRequest(`/admin/users/${encodeURIComponent(id)}`, {

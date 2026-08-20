@@ -5,7 +5,6 @@ export default function InvitationsPage() {
   return (
     <AccountShell
       title="Platform invitation"
-      description="Accept a staff or agent invitation sent to your verified email."
     >
       <Suspense
         fallback={

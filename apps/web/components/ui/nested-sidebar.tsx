@@ -37,6 +37,7 @@ const COLLAPSED_WIDTH = "3.25rem";
 export function NestedSidebar({
   actions,
   children,
+  fullHeight = false,
   header,
   items,
   onBack,
@@ -47,6 +48,11 @@ export function NestedSidebar({
   actions?: ReactNode;
   /** The detail pane. */
   children: ReactNode;
+  /**
+   * Fills the area under the app header instead of sitting in the page flow.
+   * Use with `AdminShell bleed` / `AccountShell bleed`, which drop the padding.
+   */
+  fullHeight?: boolean;
   /** The detail pane's header row. Put the toggle it is handed at the start. */
   header: (toggle: ReactNode) => ReactNode;
   /** The rail's items. `open` is false in icon-only mode, where labels hide. */
@@ -88,7 +94,12 @@ export function NestedSidebar({
       open={open}
       persistOpen={false}
       unstyled
-      className="flex min-h-[24rem] overflow-hidden rounded-xl border bg-background bg-clip-padding"
+      className={cn(
+        "flex overflow-hidden bg-background",
+        fullHeight
+          ? "h-[calc(100dvh-var(--header-height))] border-t"
+          : "min-h-[24rem] rounded-xl border bg-clip-padding",
+      )}
       style={
         {
           "--sidebar-width": open ? `min(100%, ${width})` : COLLAPSED_WIDTH,

@@ -44,6 +44,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PanelEmptyRow } from "./panel-layout";
 import { useHasStaffPermission } from "./admin-shell";
 import { useStepUp } from "./step-up-dialog";
+import { errorMessage } from "@/shared/http/error-message";
 
 const auctionStatuses = [
   "ALL",
@@ -106,7 +107,7 @@ export function AdminAuctionsTable() {
       setReason("");
       await queryClient.invalidateQueries({ queryKey: ["admin", "auctions"] });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const items = query.data?.items ?? [];

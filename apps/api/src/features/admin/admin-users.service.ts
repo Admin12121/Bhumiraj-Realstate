@@ -82,7 +82,9 @@ export class AdminUsersService {
     return prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`
-          SELECT pg_advisory_xact_lock(hashtext('admin-user-governance'))
+          SELECT pg_advisory_xact_lock(
+            hashtext('admin-user-governance')
+          )::text AS lock_result
         `;
         const [actor, target] = await Promise.all([
           tx.user.findUnique({
@@ -194,7 +196,9 @@ export class AdminUsersService {
     return prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`
-          SELECT pg_advisory_xact_lock(hashtext('admin-user-governance'))
+          SELECT pg_advisory_xact_lock(
+            hashtext('admin-user-governance')
+          )::text AS lock_result
         `;
         const [actor, target] = await Promise.all([
           tx.user.findUnique({
@@ -267,7 +271,9 @@ export class AdminUsersService {
     return prisma.$transaction(
       async (tx) => {
         await tx.$queryRaw`
-          SELECT pg_advisory_xact_lock(hashtext('admin-user-governance'))
+          SELECT pg_advisory_xact_lock(
+            hashtext('admin-user-governance')
+          )::text AS lock_result
         `;
         const [actor, target] = await Promise.all([
           tx.user.findUnique({

@@ -20,6 +20,7 @@ import {
 } from "@/features/listings/queries/use-agent-workspace"
 import { queryKeys } from "@/shared/query/query-keys"
 import { Button } from "@/components/ui/button"
+import { errorMessage } from "@/shared/http/error-message";
 
 function remaining(expiresAt: string | null): string | null {
   if (!expiresAt) return null
@@ -135,7 +136,7 @@ function OfferRow({
       setNote("")
       await queryClient.invalidateQueries({ queryKey: queryKeys.agent.all })
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   const countdown = remaining(offer.expiresAt)

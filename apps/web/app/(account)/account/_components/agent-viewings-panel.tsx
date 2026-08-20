@@ -14,6 +14,7 @@ import {
 } from "@/features/viewings/api/viewings-api"
 import { useAgentSummary } from "@/features/listings/queries/use-agent-workspace"
 import { Button } from "@/components/ui/button"
+import { errorMessage } from "@/shared/http/error-message";
 
 const DAYS = [
   "Sunday",
@@ -86,7 +87,7 @@ function AvailabilityEditor() {
       toast.success("Viewing hours saved.")
       await queryClient.invalidateQueries({ queryKey: ["agent", "viewings"] })
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   const invalid = days.some((day) => day.enabled && day.start >= day.end)
@@ -233,7 +234,7 @@ function ViewingRow({
       setNote("")
       await queryClient.invalidateQueries({ queryKey: ["agent", "viewings"] })
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   return (

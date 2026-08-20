@@ -60,6 +60,7 @@ import {
   PanelToolbar,
   PanelToolbarSpacer,
 } from "./panel-layout"
+import { errorMessage } from "@/shared/http/error-message";
 
 type Agent = z.infer<typeof adminAgentSchema>
 const availabilityItems = [
@@ -127,7 +128,7 @@ export function AgentGovernancePanel() {
       setCandidateSearch("")
       await refresh()
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
   const invite = useMutation({
     mutationFn: () => guard(() => createAgentInvitation(inviteEmail)),
@@ -140,7 +141,7 @@ export function AgentGovernancePanel() {
       )
       await refresh()
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
   const changeStatus = useMutation({
     mutationFn: () => {
@@ -153,7 +154,7 @@ export function AgentGovernancePanel() {
       setStatusAgent(null)
       await refresh()
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
   const changeAvailability = useMutation({
     mutationFn: () => {
@@ -165,12 +166,12 @@ export function AgentGovernancePanel() {
       setAvailabilityAgent(null)
       await refresh()
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
   const revokeInvite = useMutation({
     mutationFn: (id: string) => guard(() => revokeAgentInvitation(id)),
     onSuccess: refresh,
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   const openStatus = (

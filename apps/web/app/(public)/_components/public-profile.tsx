@@ -37,6 +37,7 @@ import {
   startConversation,
   unfollowProfile,
 } from "@/features/profiles/api/profiles-api";
+import { errorMessage } from "@/shared/http/error-message";
 
 export function PublicProfile({ id }: { id: string }) {
   // The first message opens in a real composer; a prompt() gave no room to
@@ -85,7 +86,7 @@ export function PublicProfile({ id }: { id: string }) {
       if (context?.previous) {
         queryClient.setQueryData(queryKeys.profiles.detail(id), context.previous);
       }
-      toast.error(error.message);
+      toast.error(errorMessage(error));
     },
     onSuccess: (result) => {
       queryClient.setQueryData(
@@ -112,7 +113,7 @@ export function PublicProfile({ id }: { id: string }) {
       void queryClient.invalidateQueries({ queryKey: queryKeys.conversations.all });
       router.push(`/account/messages?conversation=${conversation.id}`);
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   useEffect(() => {

@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/sidebar"
 import { MobileBottomNavigation } from "@/app/_components/mobile-bottom-navigation"
 import { WorkspaceUserMenu } from "@/app/_components/workspace-user-menu"
+import { NotificationBell } from "@/features/notifications/components/notification-bell"
 import { StepUpProvider } from "./step-up-dialog"
 import { TwoFactorNudge } from "./two-factor-nudge"
 import type { NavigationItem } from "@/app/_components/navigation-model"
@@ -262,6 +263,7 @@ function AdminHeader({
         <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
         <h1 className="truncate text-base font-medium">{title}</h1>
       </div>
+      <NotificationBell />
       <Badge size="sm" variant={accountType === "OWNER" ? "success" : "secondary"}>
         {accountType}
       </Badge>

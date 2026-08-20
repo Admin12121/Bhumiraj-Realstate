@@ -22,6 +22,9 @@ const PRIVATE_PURPOSES = new Set([
   "KYC_DOCUMENT",
   "AGENT_LICENSE",
   "MESSAGE_ATTACHMENT",
+  // A payment receipt shows an account number and often a balance. It was
+  // being copied to the public CDN, where anyone with the URL could read it.
+  "PAYMENT_PROOF",
 ]);
 
 const MAX_ACTIVE_UPLOADS_PER_USER = 20;
@@ -77,7 +80,9 @@ export class MediaService implements OnModuleDestroy {
       // Serialize quota checks for one account so concurrent upload-session
       // creation cannot bypass active/daily limits.
       await tx.$queryRaw`
-        SELECT pg_advisory_xact_lock(hashtextextended(${`media-upload:${userId}`}, 0))
+        SELECT pg_advisory_xact_lock(
+          hashtextextended(${`media-upload:${userId}`}, 0)
+        )::text AS lock_result
       `;
 
       const [activeUploads, dailyUsage] = await Promise.all([

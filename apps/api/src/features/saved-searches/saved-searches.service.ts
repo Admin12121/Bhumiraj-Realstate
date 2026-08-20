@@ -28,7 +28,9 @@ export class SavedSearchesService {
       return await prisma.$transaction(
         async (tx) => {
           await tx.$queryRaw`
-            SELECT pg_advisory_xact_lock(hashtext(${`saved-search:${userId}`}))
+            SELECT pg_advisory_xact_lock(
+              hashtext(${`saved-search:${userId}`})
+            )::text AS lock_result
           `;
           const count = await tx.savedSearch.count({ where: { userId } });
           if (count >= 50) {

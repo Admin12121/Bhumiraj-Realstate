@@ -1,222 +1,306 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
-import { Check, Clock, Loader2, Send } from "lucide-react"
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  Check,
+  Clock,
+  MessagesSquare,
+  Send,
+  UserRound,
+} from "lucide-react";
 import {
   closeSupportThread,
   getSupportThreadDetail,
   getSupportThreads,
   replyToSupportThread,
-} from "@/features/support/api/support-api"
-import { Frame } from "@/components/ui/frame"
-import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs"
-import { useHasStaffPermission } from "./admin-shell"
+} from "@/features/support/api/support-api";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Message,
+  MessageContent,
+  MessageFooter,
+  MessageGroup,
+} from "@/components/ui/message";
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller";
+import {
+  NestedSidebar,
+  NestedSidebarItem,
+} from "@/components/ui/nested-sidebar";
+import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { useHasStaffPermission } from "./admin-shell";
+import { errorMessage } from "@/shared/http/error-message";
 
-const STATUSES = ["OPEN", "ASSIGNED", "CLOSED"] as const
+const STATUSES = ["OPEN", "ASSIGNED", "CLOSED"] as const;
+type Status = (typeof STATUSES)[number];
+
+const STATUS_LABEL: Record<Status, string> = {
+  OPEN: "Open",
+  ASSIGNED: "Assigned",
+  CLOSED: "Closed",
+};
 
 function expiryLabel(expiresAt: string | null): string | null {
-  if (!expiresAt) return null
-  const ms = new Date(expiresAt).getTime() - Date.now()
-  if (ms <= 0) return "Expiring now"
-  return `Guest · erases in ${Math.max(1, Math.round(ms / 60000))}m`
+  if (!expiresAt) return null;
+  const ms = new Date(expiresAt).getTime() - Date.now();
+  if (ms <= 0) return "Expiring now";
+  return `Erases in ${Math.max(1, Math.round(ms / 60000))}m`;
 }
 
 /** Staff inbox for general site enquiries. */
 export function SupportInbox() {
-  const canReply = useHasStaffPermission("admin.support.reply")
-  const queryClient = useQueryClient()
-  const [status, setStatus] = useState<(typeof STATUSES)[number]>("OPEN")
-  const [selected, setSelected] = useState<string | null>(null)
-  const [draft, setDraft] = useState("")
+  const canReply = useHasStaffPermission("admin.support.reply");
+  const queryClient = useQueryClient();
+  const [status, setStatus] = useState<Status>("OPEN");
+  const [selected, setSelected] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
 
   const threads = useQuery({
     queryKey: ["admin", "support", status],
     queryFn: ({ signal }) => getSupportThreads({ status, limit: 25 }, signal),
     refetchInterval: 15_000,
     placeholderData: (previous) => previous,
-  })
+  });
 
   const detail = useQuery({
     queryKey: ["admin", "support", "thread", selected],
     queryFn: ({ signal }) => getSupportThreadDetail(selected!, signal),
     enabled: selected !== null,
     refetchInterval: 10_000,
-  })
+  });
 
   const reply = useMutation({
     mutationFn: (body: string) => replyToSupportThread(selected!, body),
     onSuccess: async () => {
-      setDraft("")
-      await queryClient.invalidateQueries({ queryKey: ["admin", "support"] })
+      setDraft("");
+      await queryClient.invalidateQueries({ queryKey: ["admin", "support"] });
     },
-    onError: (error: Error) => toast.error(error.message),
-  })
+    onError: (error: unknown) => toast.error(errorMessage(error)),
+  });
 
   const close = useMutation({
     mutationFn: () => closeSupportThread(selected!),
     onSuccess: async () => {
-      toast.success("Conversation closed.")
-      setSelected(null)
-      await queryClient.invalidateQueries({ queryKey: ["admin", "support"] })
+      toast.success("Conversation closed.");
+      setSelected(null);
+      await queryClient.invalidateQueries({ queryKey: ["admin", "support"] });
     },
-    onError: (error: Error) => toast.error(error.message),
-  })
+    onError: (error: unknown) => toast.error(errorMessage(error)),
+  });
 
-  const items = threads.data?.items ?? []
+  const items = threads.data?.items ?? [];
+  const active = items.find((item) => item.id === selected) ?? null;
+  const messages = detail.data?.messages ?? [];
 
   return (
-    <div className="grid gap-4">
-      <Tabs
-        value={status}
-        onValueChange={(value) => {
-          setStatus(value as (typeof STATUSES)[number])
-          setSelected(null)
-        }}
-      >
-        <TabsList>
-          {STATUSES.map((option) => (
-            <TabsTab key={option} value={option}>
-              {option.charAt(0) + option.slice(1).toLowerCase()}
-            </TabsTab>
-          ))}
-        </TabsList>
-      </Tabs>
-
-      <Frame>
-        <div className="grid overflow-hidden rounded-xl border bg-background bg-clip-padding lg:grid-cols-[320px_minmax(0,1fr)]">
-        <div className="border-b lg:border-r lg:border-b-0">
-          {threads.isPending ? (
-            <p className="p-5 text-sm text-slate-500">Loading…</p>
-          ) : items.length === 0 ? (
-            <p className="p-5 text-sm text-slate-500">
-              No {status.toLowerCase()} conversations.
+    <NestedSidebar
+      fullHeight
+      width="20rem"
+      actions={
+        <Select
+          value={status}
+          onValueChange={(value) => {
+            setStatus(value as Status);
+            setSelected(null);
+          }}
+        >
+          <SelectTrigger aria-label="Filter conversations" className="h-7 w-32">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectPopup>
+            {STATUSES.map((option) => (
+              <SelectItem key={option} value={option}>
+                {STATUS_LABEL[option]}
+              </SelectItem>
+            ))}
+          </SelectPopup>
+        </Select>
+      }
+      items={(open) => {
+        if (threads.isPending) {
+          return (
+            <div className="flex flex-col gap-2 p-2">
+              {[0, 1, 2, 3].map((key) => (
+                <Skeleton key={key} className="h-10 w-full rounded-md" />
+              ))}
+            </div>
+          );
+        }
+        if (items.length === 0) {
+          return open ? (
+            <p className="px-3 py-6 text-center text-muted-foreground text-sm">
+              No {STATUS_LABEL[status].toLowerCase()} conversations.
             </p>
-          ) : (
-            <ul className="max-h-[560px] divide-y overflow-y-auto">
-              {items.map((item) => {
-                const expiry = expiryLabel(item.expiresAt)
-                return (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => setSelected(item.id)}
-                      className={`w-full px-4 py-3 text-left transition-colors hover:bg-slate-50 ${
-                        selected === item.id ? "bg-emerald-50/60" : ""
-                      }`}
-                    >
-                      <div className="flex items-baseline justify-between gap-2">
-                        <span className="truncate text-sm font-medium">
-                          {item.visitorName}
-                        </span>
-                        <span className="shrink-0 text-xs text-slate-400">
-                          {item.messageCount} msg
-                        </span>
-                      </div>
-                      {item.lastMessagePreview ? (
-                        <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
-                          {item.lastMessagePreview}
-                        </p>
-                      ) : null}
-                      {expiry ? (
-                        <p className="mt-1 flex items-center gap-1 text-[11px] font-medium text-amber-700">
-                          <Clock className="size-3" />
-                          {expiry}
-                        </p>
-                      ) : item.assignedToName ? (
-                        <p className="mt-1 text-[11px] text-slate-400">
-                          {item.assignedToName}
-                        </p>
-                      ) : null}
-                    </button>
-                  </li>
-                )
-              })}
-            </ul>
-          )}
-        </div>
-
-        <div className="flex min-h-[360px] flex-col">
-          {!selected ? (
-            <p className="grid flex-1 place-items-center p-6 text-sm text-slate-500">
-              Select a conversation.
-            </p>
-          ) : detail.isPending ? (
-            <p className="p-6 text-sm text-slate-500">Loading conversation…</p>
-          ) : (
-            <>
-              <div className="flex-1 space-y-3 overflow-y-auto p-5">
-                {(detail.data?.messages ?? []).map((message) => {
-                  const staff = message.authorRole === "STAFF"
-                  return (
-                    <div
-                      key={message.id}
-                      className={`flex flex-col ${staff ? "items-end" : "items-start"}`}
-                    >
-                      <span
-                        className={`max-w-[80%] rounded-2xl px-3.5 py-2.5 text-sm leading-6 ${
-                          staff
-                            ? "bg-emerald-700 text-white"
-                            : "bg-slate-100 text-slate-800"
-                        }`}
-                      >
-                        {message.body}
-                      </span>
-                      <span className="mt-1 text-[11px] text-slate-400">
-                        {staff ? (message.authorName ?? "Staff") : "Visitor"}
-                      </span>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {canReply ? (
-                <form
-                  className="flex items-end gap-2 border-t p-3"
-                  onSubmit={(event) => {
-                    event.preventDefault()
-                    const body = draft.trim()
-                    if (body) reply.mutate(body)
-                  }}
-                >
-                  <textarea
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    rows={1}
-                    maxLength={4000}
-                    placeholder="Write a reply…"
-                    aria-label="Reply"
-                    className="max-h-28 min-h-10 flex-1 resize-none rounded-xl border px-3 py-2 text-sm outline-none focus:border-emerald-700"
-                  />
-                  <button
-                    type="submit"
-                    disabled={reply.isPending || !draft.trim()}
-                    aria-label="Send reply"
-                    className="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-700 text-white disabled:opacity-40"
-                  >
-                    {reply.isPending ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Send className="size-4" />
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => close.mutate()}
-                    disabled={close.isPending}
-                    className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-sm font-medium disabled:opacity-50"
-                  >
-                    <Check className="size-4" />
-                    Close
-                  </button>
-                </form>
-              ) : null}
-            </>
-          )}
+          ) : null;
+        }
+        return items.map((item) => {
+          const expiry = expiryLabel(item.expiresAt);
+          return (
+            <NestedSidebarItem
+              key={item.id}
+              icon={<UserRound />}
+              isActive={selected === item.id}
+              label={item.visitorName}
+              onClick={() => setSelected(item.id)}
+              open={open}
+              trailing={
+                <Badge variant="secondary" className="tabular-nums">
+                  {item.messageCount}
+                </Badge>
+              }
+            >
+              <span className="grid min-w-0 flex-1 leading-tight">
+                <span className="truncate font-medium">{item.visitorName}</span>
+                {expiry ? (
+                  <span className="flex items-center gap-1 truncate text-[11px] text-muted-foreground">
+                    <Clock className="size-3 shrink-0" />
+                    {expiry}
+                  </span>
+                ) : item.lastMessagePreview ? (
+                  <span className="truncate text-[11px] text-muted-foreground">
+                    {item.lastMessagePreview}
+                  </span>
+                ) : null}
+              </span>
+            </NestedSidebarItem>
+          );
+        });
+      }}
+      header={(toggle) => (
+        <div className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+          {toggle}
+          <div className="min-w-0 flex-1">
+            {active ? (
+              <>
+                <p className="truncate font-medium text-sm">
+                  {active.visitorName}
+                </p>
+                {active.assignedToName ? (
+                  <p className="truncate text-muted-foreground text-xs">
+                    {active.assignedToName}
+                  </p>
+                ) : null}
+              </>
+            ) : null}
           </div>
+          {active && canReply && active.status !== "CLOSED" ? (
+            <Button
+              size="sm"
+              variant="outline"
+              loading={close.isPending}
+              onClick={() => close.mutate()}
+            >
+              <Check />
+              Close
+            </Button>
+          ) : null}
         </div>
-      </Frame>
-    </div>
-  )
+      )}
+    >
+      {!selected ? (
+        <Empty className="flex-1">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <MessagesSquare />
+            </EmptyMedia>
+            <EmptyTitle>No conversation selected</EmptyTitle>
+            <EmptyDescription>
+              Pick an enquiry from the list to read and reply to it.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : detail.isPending ? (
+        <div className="flex flex-1 flex-col gap-4 p-5">
+          <Skeleton className="h-16 w-2/3 rounded-xl" />
+          <Skeleton className="h-16 w-1/2 self-end rounded-xl" />
+          <Skeleton className="h-16 w-3/5 rounded-xl" />
+        </div>
+      ) : (
+        <MessageScrollerProvider>
+          <MessageScroller className="flex-1">
+            <MessageScrollerViewport className="px-5 py-4">
+              <MessageScrollerContent>
+                {messages.map((message) => {
+                  const staff = message.authorRole === "STAFF";
+                  return (
+                    <MessageScrollerItem key={message.id}>
+                      <MessageGroup>
+                        <Message align={staff ? "end" : "start"}>
+                          <MessageContent>
+                            <span className="max-w-[80%] rounded-2xl bg-muted px-3.5 py-2.5 text-sm leading-6 in-data-[align=end]:bg-primary in-data-[align=end]:text-primary-foreground">
+                              {message.body}
+                            </span>
+                          </MessageContent>
+                        </Message>
+                        <MessageFooter
+                          className={staff ? "justify-end" : undefined}
+                        >
+                          {staff ? (message.authorName ?? "Staff") : "Visitor"}
+                        </MessageFooter>
+                      </MessageGroup>
+                    </MessageScrollerItem>
+                  );
+                })}
+              </MessageScrollerContent>
+            </MessageScrollerViewport>
+            <MessageScrollerButton />
+          </MessageScroller>
+
+          {canReply ? (
+            <form
+              className="flex shrink-0 items-end gap-2 border-t p-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const body = draft.trim();
+                if (body) reply.mutate(body);
+              }}
+            >
+              <Textarea
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                rows={1}
+                maxLength={4000}
+                placeholder="Write a reply…"
+                aria-label="Reply"
+                className="max-h-28 min-h-10 flex-1 resize-none"
+              />
+              <Button
+                type="submit"
+                size="icon"
+                aria-label="Send reply"
+                loading={reply.isPending}
+                disabled={!draft.trim()}
+              >
+                <Send />
+              </Button>
+            </form>
+          ) : null}
+        </MessageScrollerProvider>
+      )}
+    </NestedSidebar>
+  );
 }

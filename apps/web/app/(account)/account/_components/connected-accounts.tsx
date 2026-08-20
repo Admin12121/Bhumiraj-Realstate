@@ -7,6 +7,7 @@ import { authClient } from "@real-estate/auth/client"
 import { GoogleMark } from "@/app/(auth)/_components/auth-shared"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { errorMessage } from "@/shared/http/error-message";
 
 type LinkedAccount = { id: string; providerId: string; accountId: string }
 
@@ -41,7 +42,7 @@ export function ConnectedAccounts() {
       toast.success("Account disconnected.")
       await queryClient.invalidateQueries({ queryKey: accountsKey })
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   const linked = accounts.data ?? []

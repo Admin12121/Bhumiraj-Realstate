@@ -7,7 +7,6 @@ export default function Page() {
   return (
     <AccountShell
       title="Your account"
-      description="Everything you have saved, listed and arranged on Bhumiraj."
     >
       <AccountOverview />
     </AccountShell>

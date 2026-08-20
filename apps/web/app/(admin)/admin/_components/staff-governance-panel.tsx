@@ -52,6 +52,7 @@ import {
   PanelRecords,
   PanelSection,
 } from "./panel-layout"
+import { errorMessage } from "@/shared/http/error-message";
 
 export function StaffGovernancePanel() {
   const { guard } = useStepUp()
@@ -88,7 +89,7 @@ export function StaffGovernancePanel() {
         queryKey: ["admin", "staff-invitations"],
       })
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
   const revoke = useMutation({
     mutationFn: (id: string) => guard(() => revokeStaffInvitation(id)),
@@ -99,7 +100,7 @@ export function StaffGovernancePanel() {
         queryKey: ["admin", "staff-invitations"],
       })
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
   function toggleRole(id: string, checked: boolean) {
     setRoleIds((current) =>

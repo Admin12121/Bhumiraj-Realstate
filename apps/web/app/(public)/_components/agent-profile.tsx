@@ -21,6 +21,7 @@ import {
 } from "@/features/profiles/api/profiles-api"
 import { Skeleton } from "@/components/ui/skeleton"
 import { AgentListingFeed } from "./agent-listing-feed"
+import { errorMessage } from "@/shared/http/error-message";
 
 function Stars({ rating }: { rating: number }) {
   return (
@@ -112,7 +113,7 @@ export function AgentProfile({ handle }: { handle: string }) {
         queryKey: ["agent-profile", handle],
       })
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   })
 
   if (query.isPending) return <ProfileSkeleton />

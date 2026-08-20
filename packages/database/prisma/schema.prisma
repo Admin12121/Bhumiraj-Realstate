@@ -145,6 +145,7 @@ enum MediaPurpose {
   AGENCY_LOGO
   MESSAGE_ATTACHMENT
   PAYMENT_PROOF
+  PAYMENT_QR
 }
 
 enum MediaStatus {

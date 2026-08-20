@@ -29,4 +29,23 @@ export function FieldsetLegend({
   );
 }
 
+/**
+ * Explanatory text under a legend.
+ *
+ * `FieldDescription` is a Base UI Field part and throws outside a Field root,
+ * so a fieldset-level description needs its own element.
+ */
+export function FieldsetDescription({
+  className,
+  ...props
+}: React.ComponentProps<"p">): React.ReactElement {
+  return (
+    <p
+      className={cn("text-muted-foreground text-sm", className)}
+      data-slot="fieldset-description"
+      {...props}
+    />
+  );
+}
+
 export { FieldsetPrimitive };

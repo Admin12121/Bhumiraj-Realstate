@@ -40,6 +40,7 @@ import { TablePagination } from "@/components/ui/table-pagination";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 import { ProfileForm } from "@/app/(account)/account/_components";
 import { TableEmptyRow } from "@/components/ui/table-empty-row";
+import { errorMessage } from "@/shared/http/error-message";
 
 type PasskeyRecord = {
   id: string;
@@ -108,7 +109,7 @@ export function AccountSettingsTabs({
       toast.success("Device signed out.");
       void client.invalidateQueries({ queryKey: queryKeys.account.sessions });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const addPasskey = useMutation({
@@ -125,7 +126,7 @@ export function AccountSettingsTabs({
       toast.success("Passkey added.");
       refreshAccount();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const removePasskey = useMutation({
@@ -139,7 +140,7 @@ export function AccountSettingsTabs({
       toast.success("Passkey removed.");
       refreshAccount();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const renamePasskey = useMutation({
@@ -154,7 +155,7 @@ export function AccountSettingsTabs({
       setRenaming(null);
       refreshAccount();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const twoFactor = useMutation({
@@ -172,7 +173,7 @@ export function AccountSettingsTabs({
       setPassword("");
       refreshAccount();
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const changePassword = useMutation({
@@ -192,7 +193,7 @@ export function AccountSettingsTabs({
       setDialog(null);
       void client.invalidateQueries({ queryKey: queryKeys.account.sessions });
     },
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const signOutEverywhere = useMutation({
@@ -202,7 +203,7 @@ export function AccountSettingsTabs({
       await authClient.signOut();
     },
     onSuccess: () => location.assign("/sign-in"),
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
   const hasPassword = account.data?.providers.includes("credential") ?? false;
