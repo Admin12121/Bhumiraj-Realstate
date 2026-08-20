@@ -1,12 +1,9 @@
-import { AdminShell, SettingsPanel } from "../_components";
+import { AdminShell, AdminSettingsTabs } from "../_components";
 
 export default function Page() {
   return (
-    <AdminShell
-      title="Platform settings"
-      permission="admin.settings.read"
-    >
-      <SettingsPanel />
+    <AdminShell title="Platform settings" permission="admin.settings.read">
+      <AdminSettingsTabs />
     </AdminShell>
   );
 }

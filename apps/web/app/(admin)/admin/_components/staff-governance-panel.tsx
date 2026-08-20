@@ -2,16 +2,13 @@
 
 import { useState, type FormEvent } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Copy, MailPlus, ShieldAlert, Trash2 } from "lucide-react"
+import { Copy, MailPlus, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import {
   createStaffInvitation,
-  getAdminAccess,
   getStaffInvitations,
-  getStaffMembers,
   getStaffRbacCatalog,
   revokeStaffInvitation,
-  transferOwnership,
 } from "@/features/admin/api/admin-api"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -20,7 +17,6 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogPanel,
   AlertDialogPopup,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
@@ -37,7 +33,7 @@ import {
   DialogPopup,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
+import { Field, FieldLabel } from "@/components/ui/field"
 import { Form } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -51,7 +47,11 @@ import {
 } from "@/components/ui/table"
 
 import { useStepUp } from "./step-up-dialog"
-import { PanelHeading, PanelRecords, PanelSection } from "./panel-layout"
+import {
+  PanelEmptyRow,
+  PanelRecords,
+  PanelSection,
+} from "./panel-layout"
 
 export function StaffGovernancePanel() {
   const { guard } = useStepUp()
@@ -63,15 +63,7 @@ export function StaffGovernancePanel() {
   const [revokingInvitationId, setRevokingInvitationId] = useState<
     string | null
   >(null)
-  const [transferOpen, setTransferOpen] = useState(false)
-  const [targetUserId, setTargetUserId] = useState("")
-  const [previousOwnerRoleIds, setPreviousOwnerRoleIds] = useState<string[]>([])
-  const [confirmation, setConfirmation] = useState("")
 
-  const access = useQuery({
-    queryKey: ["admin", "access"],
-    queryFn: getAdminAccess,
-  })
   const catalog = useQuery({
     queryKey: ["admin", "rbac", "catalog"],
     queryFn: getStaffRbacCatalog,
@@ -79,11 +71,6 @@ export function StaffGovernancePanel() {
   const invitations = useQuery({
     queryKey: ["admin", "staff-invitations"],
     queryFn: () => getStaffInvitations(1),
-  })
-  const staff = useQuery({
-    queryKey: ["admin", "staff", "owner-transfer"],
-    queryFn: () => getStaffMembers(1, "", 100),
-    enabled: access.data?.accountType === "OWNER",
   })
   const manageableRoles =
     catalog.data?.roles.filter((role) => role.manageable) ?? []
@@ -114,16 +101,8 @@ export function StaffGovernancePanel() {
     },
     onError: (error: Error) => toast.error(error.message),
   })
-  const transfer = useMutation({
-    mutationFn: () =>
-      guard(() => transferOwnership(targetUserId, previousOwnerRoleIds)),
-    onSuccess: () => location.assign("/sign-in"),
-    onError: (error: Error) => toast.error(error.message),
-  })
-
-  function toggleRole(id: string, checked: boolean, ownerTransfer = false) {
-    const setter = ownerTransfer ? setPreviousOwnerRoleIds : setRoleIds
-    setter((current) =>
+  function toggleRole(id: string, checked: boolean) {
+    setRoleIds((current) =>
       checked
         ? [...new Set([...current, id])]
         : current.filter((roleId) => roleId !== id)
@@ -133,10 +112,7 @@ export function StaffGovernancePanel() {
   return (
     <div className="space-y-6">
       <PanelSection>
-        <PanelHeading
-          title="Staff invitations"
-          description="Invitations expire after seven days and can be accepted only by the matching verified email."
-          actions={
+        <div className="flex justify-end">
           <Button
             onClick={() => {
               setEmail("")
@@ -148,8 +124,7 @@ export function StaffGovernancePanel() {
             <MailPlus />
             Invite staff
           </Button>
-          }
-        />
+        </div>
 
         <PanelRecords>
         <Table variant="card">
@@ -200,47 +175,17 @@ export function StaffGovernancePanel() {
                 </TableCell>
               </TableRow>
             ))}
-            {(invitations.isPending ||
-              invitations.data?.items.length === 0) && (
-              <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="p-8 text-center text-muted-foreground"
-                >
-                  {invitations.isPending
-                    ? "Loading invitations…"
-                    : "No staff invitations yet."}
-                </TableCell>
-              </TableRow>
-            )}
+            <PanelEmptyRow
+              colSpan={5}
+              when={(invitations.data?.items.length ?? 0) === 0}
+              icon={MailPlus}
+              title={invitations.isPending ? "Loading…" : "No staff invitations"}
+              description={invitations.isError ? "Invitations could not be loaded." : "Invite a colleague and their invitation appears here until it is accepted."}
+            />
           </TableBody>
         </Table>
         </PanelRecords>
       </PanelSection>
-
-      {access.data?.accountType === "OWNER" && (
-        <section className="rounded-xl border border-destructive/30 bg-background p-5">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <h2 className="flex items-center gap-2 font-semibold">
-                <ShieldAlert className="size-5 text-destructive" /> Owner
-                governance
-              </h2>
-              <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-                Transfer the single owner authority to an active staff member
-                with verified email and 2FA. Both accounts will be signed out
-                and your account will receive the selected fallback roles.
-              </p>
-            </div>
-            <Button
-              variant="destructive-outline"
-              onClick={() => setTransferOpen(true)}
-            >
-              Transfer ownership
-            </Button>
-          </div>
-        </section>
-      )}
 
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
         <DialogPopup className="max-w-2xl">
@@ -345,94 +290,6 @@ export function StaffGovernancePanel() {
         </AlertDialogPopup>
       </AlertDialog>
 
-      <AlertDialog open={transferOpen} onOpenChange={setTransferOpen}>
-        <AlertDialogPopup className="max-w-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Transfer platform ownership</AlertDialogTitle>
-            <AlertDialogDescription>
-              This atomically moves the single owner authority and signs out
-              both accounts.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <Form
-            className="contents"
-            onSubmit={(event: FormEvent<HTMLFormElement>) => {
-              event.preventDefault()
-              transfer.mutate()
-            }}
-          >
-            <AlertDialogPanel className="space-y-5">
-              <Field>
-                <FieldLabel>Eligible new owner</FieldLabel>
-                <div className="space-y-2 rounded-xl border p-2">
-                  {staff.data?.items
-                    .filter(
-                      (member) =>
-                        member.accountType === "STAFF" &&
-                        member.membershipStatus === "ACTIVE" &&
-                        member.emailVerified &&
-                        member.twoFactorEnabled
-                    )
-                    .map((member) => (
-                      <Button
-                        key={member.id}
-                        type="button"
-                        variant={
-                          targetUserId === member.id ? "secondary" : "ghost"
-                        }
-                        className="h-auto w-full justify-start text-left"
-                        onClick={() => setTargetUserId(member.id)}
-                      >
-                        <span>
-                          <span className="block">{member.name}</span>
-                          <span className="block text-xs font-normal text-muted-foreground">
-                            {member.email}
-                          </span>
-                        </span>
-                      </Button>
-                    ))}
-                </div>
-                <FieldDescription>
-                  Ineligible staff are intentionally omitted until email
-                  verification and 2FA are complete.
-                </FieldDescription>
-              </Field>
-              <RoleChoices
-                title="Your fallback staff roles"
-                roles={manageableRoles}
-                selected={previousOwnerRoleIds}
-                onToggle={(id, checked) => toggleRole(id, checked, true)}
-              />
-              <Field>
-                <FieldLabel>Type TRANSFER OWNERSHIP to confirm</FieldLabel>
-                <Input
-                  name="confirmation"
-                  value={confirmation}
-                  onChange={(event) => setConfirmation(event.target.value)}
-                  autoComplete="off"
-                />
-              </Field>
-            </AlertDialogPanel>
-            <AlertDialogFooter>
-              <AlertDialogClose render={<Button variant="outline" />}>
-                Cancel
-              </AlertDialogClose>
-              <Button
-                type="submit"
-                variant="destructive"
-                loading={transfer.isPending}
-                disabled={
-                  !targetUserId ||
-                  previousOwnerRoleIds.length === 0 ||
-                  confirmation !== "TRANSFER OWNERSHIP"
-                }
-              >
-                Transfer ownership
-              </Button>
-            </AlertDialogFooter>
-          </Form>
-        </AlertDialogPopup>
-      </AlertDialog>
     </div>
   )
 }

@@ -1,12 +1,6 @@
-import { AccountShell, ProfileForm } from "../_components";
+import { redirect } from "next/navigation";
 
+/** Merged into the single settings screen; kept so existing links still work. */
 export default function Page() {
-  return (
-    <AccountShell
-      title="Your profile"
-      description="Manage the public information shown to buyers, sellers and agents."
-    >
-      <ProfileForm />
-    </AccountShell>
-  );
+  redirect("/account/settings?tab=profile");
 }

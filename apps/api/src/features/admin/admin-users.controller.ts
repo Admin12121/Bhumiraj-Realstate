@@ -30,6 +30,12 @@ export class AdminUsersController {
     return this.service.list(query);
   }
 
+  @Get(":id")
+  @StaffPermissions(ADMIN_PERMISSIONS.USERS_READ)
+  detail(@Param("id", new ZodValidationPipe(userIdSchema)) id: string) {
+    return this.service.detail(id);
+  }
+
   @Post(":id/account-type")
   @StaffPermissions(ADMIN_PERMISSIONS.USERS_TYPE_MANAGE)
   @StrongAuth()

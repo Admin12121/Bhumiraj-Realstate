@@ -35,7 +35,7 @@ export function NavUser({
       <SidebarMenuItem>
         <SidebarMenuButton
           className="h-12 rounded-xl"
-          render={<Link href="/account/profile" />}
+          render={<Link href="/account/settings" />}
           size="lg"
           tooltip={name || "My account"}
         >

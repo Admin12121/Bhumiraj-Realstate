@@ -46,6 +46,11 @@ export class AdminOperationsController {
     const startOfDay = new Date();
     startOfDay.setUTCHours(0, 0, 0, 0);
 
+    // Trailing window for the pulse chart and heatmap.
+    const WINDOW_DAYS = 45;
+    const windowStart = new Date(startOfDay);
+    windowStart.setUTCDate(windowStart.getUTCDate() - (WINDOW_DAYS - 1));
+
     const [
       activeListings,
       liveAuctions,
@@ -62,6 +67,10 @@ export class AdminOperationsController {
       paymentsAwaitingReview,
       listingsAwaitingAgent,
       openAgentOffers,
+      listingSeries,
+      bidSeries,
+      signupSeries,
+      eventSeries,
     ] = await prisma.$transaction([
       prisma.listing.count({ where: { status: 'PUBLISHED' } }),
       prisma.auction.count({ where: { status: 'LIVE' } }),
@@ -111,7 +120,55 @@ export class AdminOperationsController {
       prisma.listingPaymentProof.count({ where: { status: 'SUBMITTED' } }),
       prisma.listing.count({ where: { status: 'AWAITING_AGENT' } }),
       prisma.listingAssignment.count({ where: { status: 'OFFERED' } }),
+      prisma.listing.findMany({
+        where: { createdAt: { gte: windowStart } },
+        select: { createdAt: true },
+      }),
+      prisma.bid.findMany({
+        where: { acceptedAt: { gte: windowStart } },
+        select: { acceptedAt: true },
+      }),
+      prisma.user.findMany({
+        where: { createdAt: { gte: windowStart } },
+        select: { createdAt: true },
+      }),
+      prisma.auditLog.findMany({
+        where: { createdAt: { gte: windowStart } },
+        select: { createdAt: true },
+      }),
     ]);
+
+    /** Bucket timestamps into UTC days so every day in the window exists. */
+    const dayKey = (value: Date) => value.toISOString().slice(0, 10);
+    const buckets = new Map<
+      string,
+      { listings: number; bids: number; signups: number; events: number }
+    >();
+    for (let index = 0; index < WINDOW_DAYS; index += 1) {
+      const day = new Date(windowStart);
+      day.setUTCDate(day.getUTCDate() + index);
+      buckets.set(dayKey(day), {
+        listings: 0,
+        bids: 0,
+        signups: 0,
+        events: 0,
+      });
+    }
+    const tally = (
+      rows: { createdAt?: Date | null; acceptedAt?: Date | null }[],
+      field: 'listings' | 'bids' | 'signups' | 'events',
+    ) => {
+      for (const row of rows) {
+        const at = row.createdAt ?? row.acceptedAt;
+        if (!at) continue;
+        const bucket = buckets.get(dayKey(at));
+        if (bucket) bucket[field] += 1;
+      }
+    };
+    tally(listingSeries, 'listings');
+    tally(bidSeries, 'bids');
+    tally(signupSeries, 'signups');
+    tally(eventSeries, 'events');
 
     return {
       counts: {
@@ -128,6 +185,10 @@ export class AdminOperationsController {
         listingsAwaitingAgent,
         openAgentOffers,
       },
+      daily: [...buckets.entries()].map(([date, counts]) => ({
+        date,
+        ...counts,
+      })),
       recentActivity: recentActivity.map((row) => ({
         id: row.id,
         action: row.action,

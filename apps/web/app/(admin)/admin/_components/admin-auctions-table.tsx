@@ -22,12 +22,6 @@ import {
   DialogPopup,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Frame } from "@/components/ui/frame";
 import { TablePagination } from "@/components/ui/table-pagination";
@@ -47,6 +41,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { PanelEmptyRow } from "./panel-layout";
 import { useHasStaffPermission } from "./admin-shell";
 import { useStepUp } from "./step-up-dialog";
 
@@ -215,27 +210,13 @@ export function AdminAuctionsTable() {
                 </TableCell>
               </TableRow>
             ))}
-            {items.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="p-0">
-                  <Empty className="py-14">
-                    <EmptyMedia variant="icon">
-                      <Gavel />
-                    </EmptyMedia>
-                    <EmptyTitle>
-                      {query.isLoading
-                        ? "Loading auctions…"
-                        : "No auctions match this filter"}
-                    </EmptyTitle>
-                    <EmptyDescription>
-                      {query.isError
-                        ? "Auctions could not be loaded."
-                        : "Scheduled and live auctions appear here."}
-                    </EmptyDescription>
-                  </Empty>
-                </TableCell>
-              </TableRow>
-            ) : null}
+            <PanelEmptyRow
+              colSpan={6}
+              when={items.length === 0}
+              icon={Gavel}
+              title={query.isLoading ? "Loading…" : "No auctions match this filter"}
+              description={query.isError ? "Auctions could not be loaded." : "Scheduled and live auctions appear here."}
+            />
           </TableBody>
         </Table>
       </Frame>

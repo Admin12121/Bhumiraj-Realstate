@@ -342,4 +342,180 @@ export class AdminUsersService {
       });
     }
   }
+
+  /**
+   * One account, assembled for the console's detail page.
+   *
+   * Agents are gathered from two directions because "who has this customer
+   * dealt with" has two answers: people they messaged, and the agent actually
+   * representing a listing of theirs. Either alone reads as a gap.
+   */
+  async detail(id: string) {
+    const user = await prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        banned: true,
+        banReason: true,
+        emailVerified: true,
+        twoFactorEnabled: true,
+        lifecycleStatus: true,
+        image: true,
+        createdAt: true,
+        profile: { select: { lastSeenAt: true, phone: true, username: true } },
+        accounts: { select: { providerId: true } },
+        _count: {
+          select: {
+            listings: true,
+            conversationParticipants: true,
+            bids: true,
+            favorites: true,
+          },
+        },
+      },
+    });
+    if (!user) throw new NotFoundException('User not found.');
+
+    const [listings, payments, conversationPeers, assignedAgents, paymentCount] =
+      await Promise.all([
+        prisma.listing.findMany({
+          where: { createdById: id },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            status: true,
+            type: true,
+            priceMinor: true,
+            currency: true,
+            createdAt: true,
+          },
+        }),
+        prisma.listingPaymentProof.findMany({
+          where: { submittedById: id },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+          select: {
+            id: true,
+            listingId: true,
+            method: true,
+            reference: true,
+            amountMinor: true,
+            currency: true,
+            status: true,
+            rejectionReason: true,
+            createdAt: true,
+            reviewedAt: true,
+            listing: { select: { title: true } },
+          },
+        }),
+        prisma.conversationParticipant.findMany({
+          where: {
+            userId: { not: id },
+            conversation: { participants: { some: { userId: id } } },
+            user: { role: 'AGENT' },
+          },
+          orderBy: { joinedAt: 'desc' },
+          take: 50,
+          select: {
+            joinedAt: true,
+            user: { select: { id: true, name: true, email: true } },
+          },
+        }),
+        prisma.listingAssignment.findMany({
+          where: { status: 'ACCEPTED', listing: { createdById: id } },
+          orderBy: { updatedAt: 'desc' },
+          take: 50,
+          select: {
+            updatedAt: true,
+            agent: {
+              select: {
+                user: { select: { id: true, name: true, email: true } },
+              },
+            },
+          },
+        }),
+        prisma.listingPaymentProof.count({ where: { submittedById: id } }),
+      ]);
+
+    // One row per agent; the closer relationship (representing) wins the label.
+    const agents = new Map<
+      string,
+      {
+        id: string;
+        name: string;
+        email: string;
+        via: 'CONVERSATION' | 'ASSIGNMENT';
+        lastContactAt: string | null;
+      }
+    >();
+    for (const row of conversationPeers) {
+      agents.set(row.user.id, {
+        id: row.user.id,
+        name: row.user.name,
+        email: row.user.email,
+        via: 'CONVERSATION',
+        lastContactAt: row.joinedAt.toISOString(),
+      });
+    }
+    for (const row of assignedAgents) {
+      const agent = row.agent.user;
+      agents.set(agent.id, {
+        id: agent.id,
+        name: agent.name,
+        email: agent.email,
+        via: 'ASSIGNMENT',
+        lastContactAt: row.updatedAt.toISOString(),
+      });
+    }
+
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      accountType: user.role,
+      banned: user.banned ?? false,
+      banReason: user.banReason ?? null,
+      emailVerified: user.emailVerified,
+      twoFactorEnabled: user.twoFactorEnabled ?? false,
+      lifecycleStatus: user.lifecycleStatus,
+      image: user.image,
+      phone: user.profile?.phone ?? null,
+      username: user.profile?.username ?? null,
+      createdAt: user.createdAt.toISOString(),
+      lastSeenAt: user.profile?.lastSeenAt?.toISOString() ?? null,
+      providers: user.accounts.map((account) => account.providerId),
+      counts: {
+        listings: user._count.listings,
+        conversations: user._count.conversationParticipants,
+        payments: paymentCount,
+        bids: user._count.bids,
+        favorites: user._count.favorites,
+      },
+      listings: listings.map((listing) => ({
+        ...listing,
+        priceMinor: listing.priceMinor?.toString() ?? null,
+        createdAt: listing.createdAt.toISOString(),
+      })),
+      agents: [...agents.values()],
+      payments: payments.map((proof) => ({
+        id: proof.id,
+        listingId: proof.listingId,
+        listingTitle: proof.listing.title,
+        method: proof.method,
+        reference: proof.reference,
+        amountMinor: proof.amountMinor.toString(),
+        currency: proof.currency,
+        status: proof.status,
+        rejectionReason: proof.rejectionReason,
+        createdAt: proof.createdAt.toISOString(),
+        reviewedAt: proof.reviewedAt?.toISOString() ?? null,
+      })),
+    };
+  }
 }

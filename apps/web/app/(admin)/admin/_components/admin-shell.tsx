@@ -201,7 +201,12 @@ function AdminNavigation({
         )
         if (available.length === 0) return null
         return (
-          <SidebarGroup key={section.label}>
+          <SidebarGroup
+            key={section.label}
+            // System sits at the foot of the rail: it is where you go
+            // occasionally, not what you work in all day.
+            className={section.label === "System" ? "mt-auto" : undefined}
+          >
             <SidebarGroupLabel>{section.label}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
@@ -267,11 +272,17 @@ function AdminHeader({
 export function AdminShell({
   title,
   permission,
+  bleed = false,
   children,
 }: {
   title: string
   /** Permission required to view this page; omit for pages open to any staff. */
   permission?: string
+  /**
+   * Drops the page padding so a full-height editor can own the area under the
+   * header, the way the roles editor does.
+   */
+  bleed?: boolean
   children: ReactNode
 }) {
   const pathname = usePathname()
@@ -382,8 +393,11 @@ export function AdminShell({
               accountType={access.data.accountType}
             />
 
-            <main id="main-content" className="min-w-0 p-4 sm:p-6 lg:p-8">
-              <TwoFactorNudge />
+            <main
+              id="main-content"
+              className={bleed ? "min-w-0" : "min-w-0 p-4 sm:p-6 lg:p-8"}
+            >
+              {bleed ? null : <TwoFactorNudge />}
               {denied ? (
                 <div className="mx-auto max-w-md space-y-3 py-16 text-center">
                   <h2 className="text-lg font-semibold">

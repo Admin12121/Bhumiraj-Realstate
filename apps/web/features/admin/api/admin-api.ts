@@ -6,6 +6,7 @@ import {
   adminListingsResponseSchema,
   adminMessagesResponseSchema,
   adminAccessSchema,
+  adminUserDetailSchema,
   adminUsersResponseSchema,
   staffMembersResponseSchema,
   staffCandidatesResponseSchema,
@@ -43,6 +44,12 @@ export const getAdminUsers = (
     `/admin/users?${queryString({ page, pageSize, search, accountType, status })}`,
     { method: "GET", schema: adminUsersResponseSchema }
   )
+
+export const getAdminUserDetail = (id: string) =>
+  apiRequest(`/admin/users/${encodeURIComponent(id)}`, {
+    method: "GET",
+    schema: adminUserDetailSchema,
+  })
 
 export const setAdminUserAccountType = (
   id: string,
@@ -369,11 +376,17 @@ export const revokeAgentInvitation = (id: string) =>
     schema: z.object({ id: z.string(), status: z.literal("REVOKED") }),
   })
 
-export const getAdminAudit = (page: number, search = "") =>
-  apiRequest(`/admin/audit?${queryString({ page, pageSize: 25, search })}`, {
-    method: "GET",
-    schema: adminAuditResponseSchema,
-  })
+export const getAdminAudit = (
+  page: number,
+  search = "",
+  action = "",
+  entityType = "",
+  direction: "asc" | "desc" = "desc",
+) =>
+  apiRequest(
+    `/admin/audit?${queryString({ page, pageSize: 25, search, action, entityType, direction })}`,
+    { method: "GET", schema: adminAuditResponseSchema },
+  )
 
 export const getAdminMessages = (page: number, search = "") =>
   apiRequest(`/admin/messages?${queryString({ page, pageSize: 25, search })}`, {

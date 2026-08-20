@@ -11,6 +11,7 @@ import { useSession } from "@real-estate/auth/client";
 import { MarketplaceMobileNavigation } from "@/app/_components/mobile-bottom-navigation";
 import {
   accountNavigation,
+  accountSystemNavigation,
   agentNavigation,
   isActivePath,
   type NavigationItem,
@@ -49,14 +50,16 @@ function NavSection({
   items,
   pathname,
   badges,
+  className,
 }: {
   label: string;
   items: NavigationItem[];
   pathname: string;
   badges?: Record<string, number>;
+  className?: string;
 }) {
   return (
-    <SidebarGroup>
+    <SidebarGroup className={className}>
       <SidebarGroupLabel>{label}</SidebarGroupLabel>
       <SidebarMenu>
           {items.map((item) => {
@@ -223,6 +226,14 @@ export function AccountShell({
               badges={{ "/account/offers": pendingOffers }}
             />
           ) : null}
+
+          {/* Settings sits at the foot of the rail, as in the console. */}
+          <NavSection
+            label="System"
+            items={accountSystemNavigation}
+            pathname={pathname}
+            className="mt-auto"
+          />
         </SidebarContent>
 
         <SidebarFooter className="border-t">

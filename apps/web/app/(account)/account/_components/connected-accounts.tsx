@@ -92,7 +92,7 @@ export function ConnectedAccounts() {
               onClick={() =>
                 void authClient.linkSocial({
                   provider: "google",
-                  callbackURL: "/account/security",
+                  callbackURL: "/account/settings?tab=security",
                 })
               }
             >

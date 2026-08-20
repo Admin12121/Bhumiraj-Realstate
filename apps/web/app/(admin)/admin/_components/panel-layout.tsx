@@ -113,3 +113,5 @@ export function PanelPanel({ children }: { children: ReactNode }) {
 export function PanelToolbarSpacer() {
   return <div aria-hidden className="hidden lg:block" />;
 }
+
+export { TableEmptyRow as PanelEmptyRow } from "@/components/ui/table-empty-row";

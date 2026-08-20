@@ -237,6 +237,77 @@ export const transferOwnershipSchema = z.object({
   confirmation: z.literal("TRANSFER OWNERSHIP"),
 });
 
+/**
+ * Everything the console knows about one account, in the shape the detail page
+ * reads it: who they are, what they listed, who they talked to, what they paid.
+ */
+export const adminUserDetailSchema = z.object({
+  id: userIdSchema,
+  name: z.string(),
+  email: z.string().email(),
+  accountType: accountTypeSchema,
+  banned: z.boolean(),
+  banReason: z.string().nullable(),
+  emailVerified: z.boolean(),
+  twoFactorEnabled: z.boolean(),
+  lifecycleStatus: z.enum([
+    "ACTIVE",
+    "SUSPENDED",
+    "PENDING_DELETION",
+    "DELETED",
+  ]),
+  image: z.string().url().nullable(),
+  phone: z.string().nullable(),
+  username: z.string().nullable(),
+  createdAt: isoDateSchema,
+  lastSeenAt: isoDateSchema.nullable(),
+  providers: z.array(z.string()),
+  counts: z.object({
+    listings: z.number().int().nonnegative(),
+    conversations: z.number().int().nonnegative(),
+    payments: z.number().int().nonnegative(),
+    bids: z.number().int().nonnegative(),
+    favorites: z.number().int().nonnegative(),
+  }),
+  listings: z.array(
+    z.object({
+      id: idSchema,
+      title: z.string(),
+      slug: z.string(),
+      status: z.string(),
+      type: z.string(),
+      priceMinor: z.string().nullable(),
+      currency: z.string(),
+      createdAt: isoDateSchema,
+    }),
+  ),
+  agents: z.array(
+    z.object({
+      id: userIdSchema,
+      name: z.string(),
+      email: z.string().email(),
+      /** How the two are connected: a conversation, or a represented listing. */
+      via: z.enum(["CONVERSATION", "ASSIGNMENT"]),
+      lastContactAt: isoDateSchema.nullable(),
+    }),
+  ),
+  payments: z.array(
+    z.object({
+      id: idSchema,
+      listingId: idSchema,
+      listingTitle: z.string(),
+      method: z.string(),
+      reference: z.string().nullable(),
+      amountMinor: z.string(),
+      currency: z.string(),
+      status: z.string(),
+      rejectionReason: z.string().nullable(),
+      createdAt: isoDateSchema,
+      reviewedAt: isoDateSchema.nullable(),
+    }),
+  ),
+});
+
 export const adminListingSchema = z.object({
   id: idSchema,
   title: z.string(),
@@ -492,6 +563,20 @@ export const adminOverviewSchema = z.object({
     /** Offers sent but not yet answered by an agent. */
     openAgentOffers: z.number().int().nonnegative(),
   }),
+  /**
+   * One row per day for the trailing window, oldest first. Drives the pulse
+   * chart and the activity heatmap; days with nothing still appear so the
+   * shape of a quiet week is visible rather than compressed away.
+   */
+  daily: z.array(
+    z.object({
+      date: z.string(),
+      listings: z.number().int().nonnegative(),
+      bids: z.number().int().nonnegative(),
+      signups: z.number().int().nonnegative(),
+      events: z.number().int().nonnegative(),
+    }),
+  ),
   recentActivity: z.array(
     z.object({
       id: idSchema,

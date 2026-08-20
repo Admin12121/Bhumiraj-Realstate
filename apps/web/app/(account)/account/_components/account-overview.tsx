@@ -65,7 +65,7 @@ export function AccountOverview() {
 
   const tiles: Tile[] = [
     {
-      href: "/account/profile",
+      href: "/account/settings?tab=profile",
       label: "Profile",
       hint: "Your name, photo and public details",
       icon: UserRound,
@@ -95,13 +95,13 @@ export function AccountOverview() {
       icon: Gavel,
     },
     {
-      href: "/account/security",
+      href: "/account/settings?tab=security",
       label: "Security",
       hint: "Password and two-factor authentication",
       icon: ShieldCheck,
     },
     {
-      href: "/account/sessions",
+      href: "/account/settings?tab=sessions",
       label: "Sessions",
       hint: "Devices signed in to your account",
       icon: KeyRound,

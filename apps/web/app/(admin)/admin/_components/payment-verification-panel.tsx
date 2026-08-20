@@ -3,8 +3,13 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
-import { AlertTriangle, BadgeCheck, Check, X } from "lucide-react"
-import { AGENT_CASELOAD_WARN_AT } from "@real-estate/contracts"
+import {
+  AlertTriangle,
+  BadgeCheck,
+  BadgeDollarSign,
+  Check,
+  X,
+} from "lucide-react"
 import {
   assignListing,
   getAssignableAgents,
@@ -25,6 +30,15 @@ import {
 } from "@/components/ui/dialog"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Frame } from "@/components/ui/frame"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import { PanelEmptyRow } from "./panel-layout"
 import { Tabs, TabsList, TabsTab } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { useHasStaffPermission } from "./admin-shell"
@@ -114,129 +128,158 @@ export function PaymentVerificationPanel() {
       </Tabs>
 
       <Frame>
-        <div className="rounded-xl border bg-background bg-clip-padding">
-
-      {proofs.isPending ? (
-        <p className="p-6 text-sm text-slate-500">Loading payments…</p>
-      ) : items.length === 0 ? (
-        <p className="p-6 text-sm text-slate-500">
-          No {status.toLowerCase()} payments.
-        </p>
-      ) : (
-        <ul className="divide-y">
-          {items.map((proof) => (
-            <li key={proof.id} className="p-4">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div className="min-w-0">
+        <Table variant="card">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Property — {items.length}</TableHead>
+              <TableHead className="w-56">Submitted by</TableHead>
+              <TableHead className="w-44">Amount</TableHead>
+              <TableHead className="w-40">Method</TableHead>
+              <TableHead className="w-56 text-right">Action</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((proof) => (
+              <TableRow key={proof.id} className="align-top">
+                <TableCell className="max-w-0">
                   <p className="truncate font-medium">{proof.listingTitle}</p>
-                  <p className="mt-0.5 text-sm text-slate-500">
-                    {proof.submittedBy.name} · {proof.submittedBy.email}
-                  </p>
-                  <p className="mt-1 text-sm">
-                    <span className="font-medium">
-                      {formatMinorAmount(proof.amountMinor, proof.currency)}
-                    </span>
-                    <span className="text-slate-500"> via {proof.method}</span>
-                    {proof.reference ? (
-                      <span className="text-slate-500"> · ref {proof.reference}</span>
-                    ) : null}
-                  </p>
                   {proof.rejectionReason ? (
-                    <p className="mt-1 text-sm text-red-600">
+                    <p className="truncate text-xs text-destructive">
                       {proof.rejectionReason}
                     </p>
                   ) : null}
-                </div>
-
-                {proof.status === "SUBMITTED" && canReview ? (
-                  <div className="flex shrink-0 gap-2">
+                  {assigning === proof.listingId ? (
+                    <div className="mt-3 rounded-xl border bg-muted/40 p-2">
+                      {agents.isPending ? (
+                        <p className="p-2 text-sm text-muted-foreground">
+                          Loading agents…
+                        </p>
+                      ) : (agents.data?.items ?? []).length === 0 ? (
+                        <p className="p-2 text-sm text-muted-foreground">
+                          No agent is available to take this listing.
+                        </p>
+                      ) : (
+                        <ul className="flex flex-col gap-1">
+                          {(agents.data?.items ?? []).map((agent) => (
+                            <li key={agent.id}>
+                              <button
+                                type="button"
+                                disabled={agent.atCapacity || assign.isPending}
+                                onClick={() =>
+                                  assign.mutate({
+                                    listingId: proof.listingId,
+                                    agentId: agent.id,
+                                  })
+                                }
+                                className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-background disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <span className="flex min-w-0 items-center gap-2">
+                                  <span className="truncate text-sm font-medium">
+                                    {agent.name}
+                                  </span>
+                                  {agent.verified ? (
+                                    <BadgeCheck className="size-4 shrink-0 text-emerald-700" />
+                                  ) : null}
+                                </span>
+                                <span className="shrink-0 text-xs">
+                                  {agent.atCapacity ? (
+                                    <span className="font-medium text-destructive">
+                                      At limit
+                                    </span>
+                                  ) : agent.nearCapacity ? (
+                                    <span className="inline-flex items-center gap-1 font-medium text-amber-600">
+                                      <AlertTriangle className="size-3.5" />
+                                      Near limit
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground">
+                                      Available
+                                    </span>
+                                  )}
+                                </span>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ) : null}
+                </TableCell>
+                <TableCell className="max-w-0">
+                  <p className="truncate">{proof.submittedBy.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {proof.submittedBy.email}
+                  </p>
+                </TableCell>
+                <TableCell className="tabular-nums">
+                  {formatMinorAmount(proof.amountMinor, proof.currency)}
+                </TableCell>
+                <TableCell>
+                  <p>{proof.method}</p>
+                  {proof.reference ? (
+                    <p className="truncate text-xs text-muted-foreground">
+                      Ref {proof.reference}
+                    </p>
+                  ) : null}
+                </TableCell>
+                <TableCell className="text-right">
+                  {proof.status === "SUBMITTED" && canReview ? (
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        disabled={review.isPending}
+                        onClick={() =>
+                          review.mutate({ id: proof.id, decision: "APPROVE" })
+                        }
+                      >
+                        <Check /> Verify
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive-outline"
+                        disabled={review.isPending}
+                        onClick={() => setRejecting(proof.id)}
+                      >
+                        <X /> Reject
+                      </Button>
+                    </div>
+                  ) : proof.status === "APPROVED" && canAssign ? (
                     <Button
-                      disabled={review.isPending}
+                      size="sm"
+                      variant="outline"
                       onClick={() =>
-                        review.mutate({ id: proof.id, decision: "APPROVE" })
+                        setAssigning(
+                          assigning === proof.listingId ? null : proof.listingId,
+                        )
                       }
                     >
-                      <Check /> Verify
+                      {assigning === proof.listingId ? "Cancel" : "Assign agent"}
                     </Button>
-                    <Button
-                      variant="destructive-outline"
-                      disabled={review.isPending}
-                      onClick={() => setRejecting(proof.id)}
-                    >
-                      <X /> Reject
-                    </Button>
-                  </div>
-                ) : proof.status === "APPROVED" && canAssign ? (
-                  <Button
-                    variant="outline"
-                    className="shrink-0"
-                    onClick={() =>
-                      setAssigning(assigning === proof.listingId ? null : proof.listingId)
-                    }
-                  >
-                    {assigning === proof.listingId ? "Cancel" : "Assign agent"}
-                  </Button>
-                ) : null}
-              </div>
-
-              {assigning === proof.listingId ? (
-                <div className="mt-4 rounded-xl border bg-slate-50 p-3">
-                  {agents.isPending ? (
-                    <p className="text-sm text-slate-500">Loading agents…</p>
                   ) : (
-                    <ul className="flex flex-col gap-1">
-                      {(agents.data?.items ?? []).map((agent) => (
-                        <li key={agent.id}>
-                          <button
-                            type="button"
-                            disabled={agent.atCapacity || assign.isPending}
-                            onClick={() =>
-                              assign.mutate({
-                                listingId: proof.listingId,
-                                agentId: agent.id,
-                              })
-                            }
-                            className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <span className="flex min-w-0 items-center gap-2">
-                              <span className="truncate text-sm font-medium">
-                                {agent.name}
-                              </span>
-                              {agent.verified ? (
-                                <BadgeCheck className="size-4 shrink-0 text-emerald-700" />
-                              ) : null}
-                            </span>
-                            <span className="flex shrink-0 items-center gap-2 text-xs">
-                              {agent.atCapacity ? (
-                                <span className="font-medium text-red-600">
-                                  At limit
-                                </span>
-                              ) : agent.nearCapacity ? (
-                                <span className="inline-flex items-center gap-1 font-medium text-amber-600">
-                                  <AlertTriangle className="size-3.5" />
-                                  Busy
-                                </span>
-                              ) : null}
-                              <span className="text-slate-500">
-                                {agent.activeCases}/{agent.maxActiveCases}
-                              </span>
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                    <span className="text-xs text-muted-foreground">
+                      No action
+                    </span>
                   )}
-                  <p className="mt-2 px-3 text-xs text-slate-500">
-                    Agents are flagged from {AGENT_CASELOAD_WARN_AT} active
-                    properties and cannot be assigned at their limit.
-                  </p>
-                </div>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-        )}
-        </div>
+                </TableCell>
+              </TableRow>
+            ))}
+            <PanelEmptyRow
+              colSpan={5}
+              when={items.length === 0}
+              icon={BadgeDollarSign}
+              title={
+                proofs.isPending
+                  ? "Loading payments…"
+                  : `No ${status.toLowerCase()} payments`
+              }
+              description={
+                status === "SUBMITTED"
+                  ? "Owner-submitted payment proofs appear here for verification."
+                  : "Nothing has reached this state yet."
+              }
+            />
+          </TableBody>
+        </Table>
       </Frame>
 
       <Dialog

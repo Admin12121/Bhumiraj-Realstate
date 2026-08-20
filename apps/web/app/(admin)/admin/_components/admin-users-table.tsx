@@ -2,7 +2,18 @@
 
 import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Search } from "lucide-react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import {
+  EllipsisVertical,
+  Eye,
+  Search,
+  UserCheck,
+  UserCog,
+  UserRound,
+  UsersRound,
+  UserX,
+} from "lucide-react"
 import { toast } from "sonner"
 import {
   banAdminUser,
@@ -13,6 +24,16 @@ import {
 import { queryKeys } from "@/shared/query/query-keys"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Menu,
+  MenuGroup,
+  MenuGroupLabel,
+  MenuItem,
+  MenuLinkItem,
+  MenuPopup,
+  MenuSeparator,
+  MenuTrigger,
+} from "@/components/ui/menu"
 import {
   Dialog,
   DialogClose,
@@ -47,6 +68,7 @@ import {
 } from "@/components/ui/input-group"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { Textarea } from "@/components/ui/textarea"
+import { PanelEmptyRow } from "./panel-layout"
 import { useHasStaffPermission } from "./admin-shell"
 import { useStepUp } from "./step-up-dialog"
 
@@ -72,6 +94,7 @@ export function AdminUsersTable() {
   const { guard } = useStepUp()
   const canManageType = useHasStaffPermission("admin.users.type.manage")
   const canManageStatus = useHasStaffPermission("admin.users.status.manage")
+  const router = useRouter()
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
@@ -205,14 +228,18 @@ export function AdminUsersTable() {
           </TableHeader>
         <TableBody>
           {query.data?.items.map((user) => (
-            <TableRow key={user.id} className="align-top">
+            <TableRow
+              key={user.id}
+              className="cursor-pointer align-top"
+              onClick={() => router.push(`/admin/users/${user.id}`)}
+            >
               <TableCell>
                 <p className="font-semibold">{user.name}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {user.email}
                 </p>
               </TableCell>
-              <TableCell>
+              <TableCell onClick={(event) => event.stopPropagation()}>
                 {canManageType &&
                 (user.accountType === "USER" ||
                   user.accountType === "AGENT") ? (
@@ -272,40 +299,112 @@ export function AdminUsersTable() {
               <TableCell className="text-xs text-muted-foreground">
                 {new Date(user.createdAt).toLocaleDateString()}
               </TableCell>
-              <TableCell className="text-right">
-                {canManageStatus && (
-                  <Button
-                    size="sm"
-                    variant={user.banned ? "outline" : "destructive-outline"}
-                    loading={action.isPending}
-                    onClick={() =>
-                      user.banned
-                        ? action.mutate({ id: user.id, kind: "unban" })
-                        : setSuspending({ id: user.id, email: user.email })
-                    }
-                  >
-                    {user.banned ? "Restore" : "Suspend"}
-                  </Button>
-                )}
+              <TableCell
+                className="text-right"
+                onClick={(event) => event.stopPropagation()}
+              >
+                <div className="flex justify-end">
+                  <Menu>
+                    <MenuTrigger
+                      render={
+                        <Button
+                          aria-label={`Actions for ${user.email}`}
+                          size="icon-sm"
+                          variant="ghost"
+                        />
+                      }
+                    >
+                      <EllipsisVertical />
+                    </MenuTrigger>
+                    <MenuPopup align="end">
+                      <MenuGroup>
+                        <MenuGroupLabel>Account</MenuGroupLabel>
+                        <MenuLinkItem
+                          render={<Link href={`/admin/users/${user.id}`} />}
+                        >
+                          <Eye />
+                          View details
+                        </MenuLinkItem>
+                      </MenuGroup>
+
+                      {canManageType &&
+                      (user.accountType === "USER" ||
+                        user.accountType === "AGENT") ? (
+                        <>
+                          <MenuSeparator />
+                          <MenuGroup>
+                            <MenuGroupLabel>Account type</MenuGroupLabel>
+                            {accountTypes.map((item) => (
+                              <MenuItem
+                                key={item}
+                                closeOnClick
+                                disabled={user.accountType === item}
+                                onClick={() =>
+                                  action.mutate({
+                                    id: user.id,
+                                    kind: "accountType",
+                                    accountType: item,
+                                  })
+                                }
+                              >
+                                {item === "AGENT" ? <UserCog /> : <UserRound />}
+                                {item === "AGENT" ? "Make agent" : "Make customer"}
+                              </MenuItem>
+                            ))}
+                          </MenuGroup>
+                        </>
+                      ) : null}
+
+                      {canManageStatus ? (
+                        <>
+                          <MenuSeparator />
+                          <MenuGroup>
+                            <MenuGroupLabel>Access</MenuGroupLabel>
+                            {user.banned ? (
+                              <MenuItem
+                                closeOnClick
+                                onClick={() =>
+                                  action.mutate({ id: user.id, kind: "unban" })
+                                }
+                              >
+                                <UserCheck />
+                                Restore access
+                              </MenuItem>
+                            ) : (
+                              <MenuItem
+                                closeOnClick
+                                variant="destructive"
+                                onClick={() =>
+                                  setSuspending({
+                                    id: user.id,
+                                    email: user.email,
+                                  })
+                                }
+                              >
+                                <UserX />
+                                Suspend account
+                              </MenuItem>
+                            )}
+                          </MenuGroup>
+                        </>
+                      ) : null}
+                    </MenuPopup>
+                  </Menu>
+                </div>
               </TableCell>
             </TableRow>
           ))}
-            {(query.isLoading ||
-              query.isError ||
-              query.data?.items.length === 0) && (
-              <TableRow>
-                <TableCell
-                  colSpan={7}
-                  className="h-28 text-center text-muted-foreground"
-                >
-                  {query.isLoading
-                    ? "Loading users…"
-                    : query.isError
-                      ? "Users could not be loaded."
-                      : "No users match these filters."}
-                </TableCell>
-              </TableRow>
-            )}
+            <PanelEmptyRow
+              colSpan={7}
+              when={(query.data?.items.length ?? 0) === 0}
+              icon={UsersRound}
+              title={query.isLoading ? "Loading users…" : "No users found"}
+              description={
+                query.isError
+                  ? "Users could not be loaded."
+                  : "Try a different account type, status, or search."
+              }
+            />
           </TableBody>
         </Table>
       </Frame>

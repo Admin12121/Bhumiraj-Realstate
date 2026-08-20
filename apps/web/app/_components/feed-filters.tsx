@@ -370,7 +370,7 @@ export function FeedFilters({
                   >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectPopup alignItemWithTrigger={false}>
+                  <SelectPopup>
                     {provinceItems.map((item) => (
                       <SelectItem key={item.value} value={item.value}>
                         {item.label}
@@ -395,7 +395,7 @@ export function FeedFilters({
                   >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectPopup alignItemWithTrigger={false}>
+                  <SelectPopup>
                     {districtItems.map((item) => (
                       <SelectItem key={item.value} value={item.value}>
                         {item.label}

@@ -22,12 +22,6 @@ import {
   DialogPopup,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Frame } from "@/components/ui/frame";
 import {
@@ -52,6 +46,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { PanelEmptyRow } from "./panel-layout";
 import { useHasStaffPermission } from "./admin-shell";
 
 const statuses = [
@@ -239,27 +234,13 @@ export function AdminListingsTable() {
                 </TableCell>
               </TableRow>
             ))}
-            {items.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={7} className="p-0">
-                  <Empty className="py-14">
-                    <EmptyMedia variant="icon">
-                      <Building2 />
-                    </EmptyMedia>
-                    <EmptyTitle>
-                      {query.isLoading
-                        ? "Loading listings…"
-                        : "No listings match these filters"}
-                    </EmptyTitle>
-                    <EmptyDescription>
-                      {query.isError
-                        ? "Listings could not be loaded."
-                        : "Try a different status or clear the search."}
-                    </EmptyDescription>
-                  </Empty>
-                </TableCell>
-              </TableRow>
-            ) : null}
+            <PanelEmptyRow
+              colSpan={7}
+              when={items.length === 0}
+              icon={Building2}
+              title={query.isLoading ? "Loading…" : "No listings match these filters"}
+              description={query.isError ? "Listings could not be loaded." : "Try a different status or clear the search."}
+            />
           </TableBody>
         </Table>
       </Frame>

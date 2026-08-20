@@ -1,15 +1,6 @@
-import { AccountShell, ConnectedAccounts, SecurityCenter } from "../_components";
+import { redirect } from "next/navigation";
 
+/** Merged into the single settings screen; kept so existing links still work. */
 export default function Page() {
-  return (
-    <AccountShell
-      title="Security"
-      description="Manage two-factor authentication, passkeys, connected accounts and sessions."
-    >
-      <div className="space-y-6">
-        <SecurityCenter />
-        <ConnectedAccounts />
-      </div>
-    </AccountShell>
-  );
+  redirect("/account/settings?tab=security");
 }

@@ -7,16 +7,16 @@ import {
 
 export default function Page() {
   return (
-    <AdminShell
-      title="Staff management"
-      permission="admin.staff.read"
-    >
-      <div className="space-y-6">
-        <StaffMembersPanel />
-        <RequireStaffPermission permission="admin.staff.manage">
-          <StaffGovernancePanel />
-        </RequireStaffPermission>
-      </div>
+    // Full bleed because selecting a member opens a full-height editor; the
+    // list view supplies its own padding.
+    <AdminShell title="Staff management" permission="admin.staff.read" bleed>
+      <StaffMembersPanel
+        listFooter={
+          <RequireStaffPermission permission="admin.staff.manage">
+            <StaffGovernancePanel />
+          </RequireStaffPermission>
+        }
+      />
     </AdminShell>
   )
 }

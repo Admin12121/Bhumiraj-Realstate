@@ -100,7 +100,7 @@ export function WorkspaceUserMenu({
               <MenuLinkItem
                 render={
                   <Link
-                    href={workspace === "admin" ? "/admin/settings" : "/account/profile"}
+                    href={workspace === "admin" ? "/admin/account" : "/account/settings"}
                   />
                 }
               >

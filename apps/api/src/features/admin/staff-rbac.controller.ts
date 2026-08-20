@@ -17,6 +17,7 @@ import {
   createStaffMemberSchema,
   createStaffRoleSchema,
   idSchema,
+  userIdSchema,
   setStaffRolePermissionsSchema,
   setStaffMemberRolesSchema,
   setStaffMembershipStatusSchema,
@@ -166,7 +167,7 @@ export class StaffRbacController {
   assignRole(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
-    @Param('userId', new ZodValidationPipe(idSchema)) userId: string,
+    @Param('userId', new ZodValidationPipe(userIdSchema)) userId: string,
     @Param('roleId', new ZodValidationPipe(idSchema)) roleId: string,
   ) {
     return this.service.assignRole(
@@ -183,7 +184,7 @@ export class StaffRbacController {
   setRoles(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
-    @Param('userId', new ZodValidationPipe(idSchema)) userId: string,
+    @Param('userId', new ZodValidationPipe(userIdSchema)) userId: string,
     @Body(new ZodValidationPipe(setStaffMemberRolesSchema))
     body: z.infer<typeof setStaffMemberRolesSchema>,
   ) {
@@ -201,7 +202,7 @@ export class StaffRbacController {
   removeRole(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
-    @Param('userId', new ZodValidationPipe(idSchema)) userId: string,
+    @Param('userId', new ZodValidationPipe(userIdSchema)) userId: string,
     @Param('roleId', new ZodValidationPipe(idSchema)) roleId: string,
   ) {
     return this.service.removeRole(
@@ -218,7 +219,7 @@ export class StaffRbacController {
   revokeStaff(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
-    @Param('userId', new ZodValidationPipe(idSchema)) userId: string,
+    @Param('userId', new ZodValidationPipe(userIdSchema)) userId: string,
   ) {
     return this.service.revokeStaffMember(
       session.user.id,
@@ -233,7 +234,7 @@ export class StaffRbacController {
   setStaffStatus(
     @Session() session: UserSession,
     @Req() request: StaffAuthorizedRequest,
-    @Param('userId', new ZodValidationPipe(idSchema)) userId: string,
+    @Param('userId', new ZodValidationPipe(userIdSchema)) userId: string,
     @Body(new ZodValidationPipe(setStaffMembershipStatusSchema))
     body: z.infer<typeof setStaffMembershipStatusSchema>,
   ) {

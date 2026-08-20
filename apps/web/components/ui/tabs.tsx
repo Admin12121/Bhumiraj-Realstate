@@ -75,12 +75,17 @@ export function TabsTab({
 
 export function TabsPanel({
   className,
+  keepMounted = false,
   ...props
 }: TabsPrimitive.Panel.Props): React.ReactElement {
   return (
     <TabsPrimitive.Panel
       className={cn("flex-1 outline-none", className)}
       data-slot="tabs-content"
+      // Inactive panels unmount rather than hide: a hidden table still mounts
+      // its queries, and keeping them mounted leaves the outgoing panel on
+      // screen until an exit transition ends.
+      keepMounted={keepMounted}
       {...props}
     />
   );

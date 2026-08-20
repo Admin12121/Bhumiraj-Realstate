@@ -79,7 +79,7 @@ export function PropertySearch({
           >
             <SelectValue />
           </SelectTrigger>
-          <SelectContent alignItemWithTrigger={false}>
+          <SelectContent>
             {LISTING_TYPES.map((item) => (
               <SelectItem key={item.value} value={item.value}>
                 {item.label}
@@ -117,7 +117,7 @@ export function PropertySearch({
           >
             <SelectValue />
           </SelectTrigger>
-          <SelectContent alignItemWithTrigger={false}>
+          <SelectContent>
             {PROPERTY_TYPES.map((item) => (
               <SelectItem key={item.value} value={item.value}>
                 {item.label}

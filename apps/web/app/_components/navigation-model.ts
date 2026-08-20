@@ -11,6 +11,7 @@ import {
   LogIn,
   MessageCircle,
   Search,
+  Settings,
   ShieldCheck,
   UserRound,
   UsersRound,
@@ -45,13 +46,20 @@ export const guestMarketplaceNavigation: NavigationItem[] = [
 ];
 
 export const accountNavigation: NavigationItem[] = [
-  { label: "Profile", icon: UserRound, href: "/account/profile" },
-  { label: "Security", icon: ShieldCheck, href: "/account/security" },
-  { label: "Sessions", icon: KeyRound, href: "/account/sessions" },
   { label: "Saved", icon: Bookmark, href: "/account/saved" },
   { label: "My bids", icon: Gavel, href: "/account/bids" },
   { label: "Messages", icon: MessageCircle, href: "/account/messages" },
   { label: "Alerts", icon: Bell, href: "/account/alerts" },
+];
+
+/**
+ * Profile, security and sessions are one screen with three tabs, exactly as in
+ * the admin console — same component, same route shape. Keeping them as three
+ * sidebar entries meant three routes and three different treatments of the same
+ * settings.
+ */
+export const accountSystemNavigation: NavigationItem[] = [
+  { label: "Settings", icon: Settings, href: "/account/settings" },
 ];
 
 /** Appended to the account nav only when the signed-in user is an agent. */

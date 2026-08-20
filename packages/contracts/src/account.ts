@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { idSchema, isoDateSchema, userIdSchema } from "./common";
+import { isoDateSchema, userIdSchema } from "./common";
 
 export const accountSessionSchema = z.object({
-  id: idSchema,
+  id: userIdSchema,
   createdAt: isoDateSchema,
   expiresAt: isoDateSchema,
   ipAddress: z.string().nullable(),

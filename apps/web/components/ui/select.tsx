@@ -111,7 +111,9 @@ export function SelectPopup({
   sideOffset = 4,
   align = "start",
   alignOffset = 0,
-  alignItemWithTrigger = true,
+  // The project standard: popups drop below the trigger rather than overlaying
+  // it with the selected item. Defaulted here so no call site has to remember.
+  alignItemWithTrigger = false,
   anchor,
   portalProps,
   ...props

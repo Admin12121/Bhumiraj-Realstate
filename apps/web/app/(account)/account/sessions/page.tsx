@@ -1,12 +1,6 @@
-import { AccountShell, SessionsCenter } from "../_components";
+import { redirect } from "next/navigation";
 
-export default function SessionsPage() {
-  return (
-    <AccountShell
-      title="Sessions"
-      description="Review and revoke devices signed in to your account."
-    >
-      <SessionsCenter />
-    </AccountShell>
-  );
+/** Merged into the single settings screen; kept so existing links still work. */
+export default function Page() {
+  redirect("/account/settings?tab=sessions");
 }
