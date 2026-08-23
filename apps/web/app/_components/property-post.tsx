@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react"
 import {
   BadgeCheck,
   Building2,
+  Gavel,
   LandPlot,
   MapPin,
   Phone,
@@ -46,6 +47,8 @@ export type PropertyPostData = {
   category?: string | undefined
   badge?: string | undefined
   listingId?: string | undefined
+  /** Set when the listing is an auction: the post is identical bar its action. */
+  auctionId?: string | undefined
   latitude?: number | undefined
   longitude?: number | undefined
 }
@@ -285,13 +288,23 @@ export function PropertyPost({
               }}
               className="inline-flex size-9 items-center justify-center rounded-md bg-secondary text-secondary-foreground transition-colors hover:bg-secondary/80"
             />
-            <Link
-              href={href}
-              className={cn(buttonVariants({ variant: "default" }))}
-            >
-              <Phone className="size-4" strokeWidth={1.8} />
-              Contact Agent
-            </Link>
+            {post.auctionId ? (
+              <Link
+                href={`/auctions/${post.auctionId}/enroll`}
+                className={cn(buttonVariants({ variant: "default" }))}
+              >
+                <Gavel className="size-4" strokeWidth={1.8} />
+                Enroll
+              </Link>
+            ) : (
+              <Link
+                href={href}
+                className={cn(buttonVariants({ variant: "default" }))}
+              >
+                <Phone className="size-4" strokeWidth={1.8} />
+                Contact Agent
+              </Link>
+            )}
           </CardFrameAction>
           )}
         </div>

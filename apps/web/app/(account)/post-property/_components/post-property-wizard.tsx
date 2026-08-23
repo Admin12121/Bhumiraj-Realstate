@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Check, UploadCloud } from "lucide-react";
 import { useSession } from "@real-estate/auth/client";
@@ -14,7 +14,11 @@ import {
   LOCATION_PRECISIONS,
 } from "@real-estate/contracts";
 import { createListing, submitListing } from "@/features/listings/api/listings-api";
-import { uploadPropertyImage } from "@/features/media/api/media-api";
+import {
+  uploadMedia,
+  uploadPropertyImage,
+  waitForMediaReady,
+} from "@/features/media/api/media-api";
 import { toast } from "sonner";
 import {
   Field,
@@ -32,6 +36,11 @@ import { Button } from "@/components/ui/button";
 import { FileUploader } from "@/components/ui/file-uploader";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { LocationPicker } from "./location-picker";
+import { ListingFeeStep, MAX_PROOF_BYTES } from "./listing-fee-step";
+import {
+  getListingFee,
+  submitPaymentProof,
+} from "@/features/listings/api/listing-payments-api";
 import { errorMessage } from "@/shared/http/error-message";
 import { cn } from "@/lib/utils";
 import {
@@ -47,14 +56,32 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const steps = ["Property", "Location", "Details", "Images", "Post"];
+const SELLER_STEPS = [
+  "Property",
+  "Location",
+  "Details",
+  "Images",
+  "Payment",
+  "Post",
+] as const;
+const AUCTION_STEPS = [
+  "Property",
+  "Location",
+  "Details",
+  "Images",
+  "Auction",
+  "Post",
+] as const;
 
 const option = (value: string) => ({ value, label: value.replace(/_/g, " ") });
 
 // Derived from the contract, never retyped. A hand-written copy of this list is
 // how the form came to offer FLAT, BUSINESS and SHOP — three values the API
 // rejects, and only after every photo had already been uploaded.
-const LISTING_TYPES = listingTypeSchema.options.map(option);
+const ALL_LISTING_TYPES = listingTypeSchema.options.map(option);
+const SELLER_LISTING_TYPES = ALL_LISTING_TYPES.filter(
+  (entry) => entry.value !== "AUCTION",
+);
 const PROPERTY_TYPES = propertyTypeSchema.options.map(option);
 const RENT_PERIODS = rentPeriodSchema.options.map(option);
 const PRECISIONS = LOCATION_PRECISIONS.map(option);
@@ -112,6 +139,12 @@ const AUCTION_FIELDS: readonly AuctionField[] = [
     label: "Maximum extension (minutes)",
     type: "number",
   },
+  {
+    key: "auctionDepositAmount",
+    label: "Bidder deposit (NPR)",
+    type: "number",
+    optional: true,
+  },
 ] satisfies readonly AuctionField[];
 
 function localDateTime(offsetMs: number) {
@@ -152,10 +185,15 @@ const initialForm = {
   auctionExtensionWindow: "120",
   auctionExtensionDuration: "120",
   auctionMaximumExtension: "30",
+  auctionDepositAmount: "",
+  paymentMethod: "",
+  paymentReference: "",
 };
 
 type FormState = typeof initialForm;
-type Errors = Partial<Record<keyof FormState | "images", string>>;
+type Errors = Partial<
+  Record<keyof FormState | "images" | "paymentProof", string>
+>;
 
 /**
  * The rules the API enforces, checked next to the field they belong to.
@@ -167,6 +205,8 @@ function validateStep(
   step: number,
   form: FormState,
   imageCount: number,
+  proofCount: number,
+  feeRequired: boolean,
 ): Errors {
   const errors: Errors = {};
   const isAuction = form.listingType === "AUCTION";
@@ -203,7 +243,20 @@ function validateStep(
     if (!form.areaSqFt || Number(form.areaSqFt) <= 0) {
       errors.areaSqFt = "Enter the area in square feet.";
     }
+  }
+
+  if (step === 3 && imageCount === 0) {
+    errors.images = "Add at least one photo of the property.";
+  }
+
+  if (step === 4) {
     if (isAuction) {
+      if (!form.auctionStartingAmount) {
+        errors.auctionStartingAmount = "Set the amount bidding starts at.";
+      }
+      if (!form.auctionMinimumIncrement) {
+        errors.auctionMinimumIncrement = "Set the minimum bid increment.";
+      }
       if (!form.auctionEndsAt || !form.auctionStartsAt) {
         errors.auctionEndsAt = "Set when the auction starts and ends.";
       } else if (
@@ -211,20 +264,41 @@ function validateStep(
       ) {
         errors.auctionEndsAt = "The auction must end after it starts.";
       }
+    } else if (feeRequired) {
+      if (!form.paymentMethod) {
+        errors.paymentMethod = "Choose how you paid the listing fee.";
+      }
+      if (proofCount === 0) {
+        errors.paymentProof = "Upload a screenshot of the payment.";
+      }
     }
-  }
-
-  if (step === 3 && imageCount === 0) {
-    errors.images = "Add at least one photo of the property.";
   }
 
   return errors;
 }
 
-export function PostPropertyWizard() {
+/**
+ * The same form serves both entry points, because an auction is a property
+ * listing plus terms — duplicating it would leave two forms to keep in step.
+ *
+ * `auction` mode is reached only from the staff dashboard: it fixes the listing
+ * type, shows the auction terms, and skips the seller's listing fee.
+ */
+export function PostPropertyWizard({
+  mode = "customer",
+}: {
+  mode?: "customer" | "auction";
+}) {
+  const isAuctionMode = mode === "auction";
+  const steps = isAuctionMode ? AUCTION_STEPS : SELLER_STEPS;
+  const listingTypes = isAuctionMode
+    ? ALL_LISTING_TYPES
+    : SELLER_LISTING_TYPES;
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState<FormState>(initialForm);
+  const [form, setForm] = useState<FormState>(() =>
+    isAuctionMode ? { ...initialForm, listingType: "AUCTION" } : initialForm,
+  );
   const [errors, setErrors] = useState<Errors>({});
   // How far the form has been validated, so the stepper can offer those steps
   // without letting anyone skip ahead past an incomplete one.
@@ -242,6 +316,27 @@ export function PostPropertyWizard() {
     maxSize: MAX_IMAGE_BYTES,
   });
   const files = uploads.map((item) => item.file);
+
+  const [
+    { files: proofFiles, isDragging: proofDragging, errors: proofErrors },
+    proof,
+  ] = useFileUpload({
+    accept: "image/*",
+    maxFiles: 1,
+    maxSize: MAX_PROOF_BYTES,
+    multiple: false,
+  });
+
+  const listingFee = useQuery({
+    queryKey: ["listing-fee"],
+    queryFn: ({ signal }) => getListingFee(signal),
+    enabled: mode === "customer",
+  });
+  // Nothing to collect when the fee is off or no method is published.
+  const feeRequired =
+    mode === "customer" &&
+    Boolean(listingFee.data?.enabled) &&
+    (listingFee.data?.methods ?? []).some((entry) => entry.enabled);
 
   const isAuction = form.listingType === "AUCTION";
   const isRent = form.listingType === "RENT";
@@ -327,6 +422,9 @@ export function PostPropertyWizard() {
               extensionWindowSeconds: Number(form.auctionExtensionWindow),
               extensionDurationSeconds: Number(form.auctionExtensionDuration),
               maximumExtensionMinutes: Number(form.auctionMaximumExtension),
+              depositAmountMinor: form.auctionDepositAmount
+                ? toMinorUnits(form.auctionDepositAmount)
+                : null,
             }
           : null,
         address: {
@@ -355,13 +453,45 @@ export function PostPropertyWizard() {
       });
 
       const listing = await createListing(payload);
-      await submitListing(listing.id);
+
+      // The receipt is attached in the same run, so a seller can never end up
+      // with a listing that exists but was never paid for. Submitting the proof
+      // is what moves the listing into review, so it replaces the plain submit
+      // rather than following it — the proof endpoint rejects a listing that is
+      // already PENDING_REVIEW.
+      const receipt = proofFiles[0]?.file;
+      if (feeRequired && receipt && listingFee.data) {
+        const proofAssetId = await uploadMedia(receipt, "PAYMENT_PROOF");
+        await waitForMediaReady(proofAssetId);
+        await submitPaymentProof({
+          listingId: listing.id,
+          mediaAssetId: proofAssetId,
+          method: form.paymentMethod,
+          ...(form.paymentReference.trim()
+            ? { reference: form.paymentReference.trim() }
+            : {}),
+          amountMinor: listingFee.data.amountMinor,
+          currency: listingFee.data.currency,
+        });
+      } else {
+        await submitListing(listing.id);
+      }
       return listing;
     },
-    onSuccess: (listing) => {
-      // Payment comes next: the listing is saved but not yet in the review queue.
-      toast.success("Property saved. Complete the listing fee to continue.");
-      router.push(`/post-property/pay/${listing.id}`);
+    onSuccess: () => {
+      if (isAuctionMode) {
+        // Staff run the auction; there is no seller fee to collect.
+        toast.success("Auction created and sent for review.");
+        router.push("/dashboard/auctions");
+        return;
+      }
+      if (feeRequired) {
+        toast.success("Property posted. We will verify your payment shortly.");
+        router.push("/account");
+        return;
+      }
+      toast.success("Property posted and sent for review.");
+      router.push("/account");
     },
     onError: (error: unknown) => toast.error(errorMessage(error)),
   });
@@ -385,7 +515,7 @@ export function PostPropertyWizard() {
       return;
     }
     for (let index = step; index < target; index += 1) {
-      const found = validateStep(index, form, files.length);
+      const found = validateStep(index, form, files.length, proofFiles.length, feeRequired);
       if (Object.keys(found).length > 0) {
         setErrors(found);
         setStep(index);
@@ -444,7 +574,7 @@ export function PostPropertyWizard() {
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          const found = validateStep(step, form, files.length);
+          const found = validateStep(step, form, files.length, proofFiles.length, feeRequired);
           if (Object.keys(found).length > 0) {
             setErrors(found);
             return;
@@ -469,18 +599,19 @@ export function PostPropertyWizard() {
                 </Field>
 
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field>
+                <Field disabled={isAuctionMode}>
                   <FieldLabel htmlFor="listing-type">Listing type</FieldLabel>
                   <Select
-                    items={LISTING_TYPES}
+                    items={listingTypes}
                     value={form.listingType}
+                    disabled={isAuctionMode}
                     onValueChange={(value) => set("listingType", String(value))}
                   >
                     <SelectTrigger id="listing-type">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectPopup>
-                      {LISTING_TYPES.map((item) => (
+                      {listingTypes.map((item) => (
                         <SelectItem key={item.value} value={item.value}>
                           {item.label}
                         </SelectItem>
@@ -704,36 +835,6 @@ export function PostPropertyWizard() {
               </FieldGroup>
             </Fieldset>
 
-            {isAuction && (
-              <>
-                <FieldSeparator />
-                <Fieldset>
-                  <FieldGroup>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      {AUCTION_FIELDS.map((auction) => (
-                        <Field
-                          key={auction.key}
-                          invalid={Boolean(errors[auction.key])}
-                        >
-                          <FieldLabel htmlFor={`auction-${auction.key}`}>
-                            {auction.label}
-                          </FieldLabel>
-                          <Input
-                            id={`auction-${auction.key}`}
-                            type={auction.type}
-                            value={form[auction.key]}
-                            onChange={(event) =>
-                              set(auction.key, event.target.value)
-                            }
-                          />
-                          <FieldError match>{errors[auction.key]}</FieldError>
-                        </Field>
-                      ))}
-                    </div>
-                  </FieldGroup>
-                </Fieldset>
-              </>
-            )}
           </div>
         )}
 
@@ -765,7 +866,48 @@ export function PostPropertyWizard() {
           </Fieldset>
         )}
 
-        {step === 4 && (
+        {step === 4 && isAuctionMode && (
+          <Fieldset>
+            <FieldGroup>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {AUCTION_FIELDS.map((auction) => (
+                  <Field
+                    key={auction.key}
+                    invalid={Boolean(errors[auction.key])}
+                  >
+                    <FieldLabel htmlFor={`auction-${auction.key}`}>
+                      {auction.label}
+                    </FieldLabel>
+                    <Input
+                      id={`auction-${auction.key}`}
+                      type={auction.type}
+                      value={form[auction.key]}
+                      onChange={(event) => set(auction.key, event.target.value)}
+                    />
+                    <FieldError match>{errors[auction.key]}</FieldError>
+                  </Field>
+                ))}
+              </div>
+            </FieldGroup>
+          </Fieldset>
+        )}
+
+        {step === 4 && !isAuctionMode && (
+          <ListingFeeStep
+            method={form.paymentMethod}
+            reference={form.paymentReference}
+            files={proofFiles}
+            isDragging={proofDragging}
+            errors={proofErrors}
+            proofError={errors.paymentProof ?? null}
+            methodError={errors.paymentMethod ?? null}
+            upload={proof}
+            onMethodChange={(value) => set("paymentMethod", value)}
+            onReferenceChange={(value) => set("paymentReference", value)}
+          />
+        )}
+
+        {step === 5 && (
           <div className="space-y-4">
             {/* The real card, not a summary: the seller checks how the listing
                 will actually look on the marketplace before posting it. */}
@@ -799,7 +941,9 @@ export function PostPropertyWizard() {
                 ? `Uploading ${uploaded + 1} of ${files.length}…`
                 : "Publishing…"
               : step === steps.length - 1
-                ? "Post property"
+                ? isAuctionMode
+                  ? "Create auction"
+                  : "Post property"
                 : "Continue"}
           </Button>
         </div>

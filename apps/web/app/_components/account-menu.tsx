@@ -84,7 +84,7 @@ export function AccountMenu({ inverse = false }: { inverse?: boolean }) {
         {/* The handful of places people actually revisit. Staff get the console
             in place of the customer dashboard; everything else is shared. */}
         <MenuGroup>
-          <MenuLinkItem render={<Link href={isStaff ? "/admin" : "/account"} />}>
+          <MenuLinkItem render={<Link href={isStaff ? "/dashboard" : "/account"} />}>
             <LayoutDashboard />
             Dashboard
           </MenuLinkItem>

@@ -3,7 +3,10 @@ import {
   adminOverviewSchema,
   adminAuditResponseSchema,
   adminAuctionsResponseSchema,
+  adminListingChangeSchema,
+  adminListingDetailSchema,
   adminListingsResponseSchema,
+  updateAdminListingSchema,
   adminMessagesResponseSchema,
   adminAccessSchema,
   adminUserDetailSchema,
@@ -263,6 +266,30 @@ export const decideAdminListing = (
     method: "POST",
     body: { decision, reason },
     schema: z.object({ id: z.string(), status: z.string() }),
+  })
+
+export const getAdminListing = (slug: string, signal?: AbortSignal) =>
+  apiRequest(`/admin/listings/${slug}`, {
+    method: "GET",
+    schema: adminListingDetailSchema,
+    signal,
+  })
+
+export const getAdminListingChanges = (slug: string, signal?: AbortSignal) =>
+  apiRequest(`/admin/listings/${slug}/changes`, {
+    method: "GET",
+    schema: z.object({ items: z.array(adminListingChangeSchema) }),
+    signal,
+  })
+
+export const updateAdminListing = (
+  slug: string,
+  body: z.infer<typeof updateAdminListingSchema>,
+) =>
+  apiRequest(`/admin/listings/${slug}`, {
+    method: "PATCH",
+    body,
+    schema: z.object({ id: z.string(), changed: z.boolean() }),
   })
 
 export const getAdminAuctions = (

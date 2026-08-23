@@ -16,7 +16,7 @@ test("super administrator paginates, searches, changes role, suspends and restor
   page,
 }) => {
   await login(page, adminEmail, adminPassword);
-  await page.goto("/admin/users");
+  await page.goto("/dashboard/users");
   await expect(
     page.getByRole("heading", { name: "User management" }),
   ).toBeVisible();
@@ -44,6 +44,6 @@ test("super administrator paginates, searches, changes role, suspends and restor
   await page.getByLabel(`Restore ${bidderEmail}`).click();
   await expect(row.getByText("ACTIVE")).toBeVisible();
 
-  await page.goto("/admin/listings");
+  await page.goto("/dashboard/listings");
   await expect(page.getByRole("table")).toBeVisible();
 });

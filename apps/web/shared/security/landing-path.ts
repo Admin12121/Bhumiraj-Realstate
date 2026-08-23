@@ -17,5 +17,5 @@ export function landingPathFor(
   requested: string,
 ): string {
   if (requested !== "/") return requested;
-  return isStaffRole(role) ? "/admin" : "/";
+  return isStaffRole(role) ? "/dashboard" : "/";
 }

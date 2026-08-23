@@ -121,6 +121,13 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
+  // The console moved to /dashboard; existing bookmarks and links still work.
+  async redirects() {
+    return [
+      { source: "/admin", destination: "/dashboard", permanent: false },
+      { source: "/admin/:path*", destination: "/dashboard/:path*", permanent: false },
+    ];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

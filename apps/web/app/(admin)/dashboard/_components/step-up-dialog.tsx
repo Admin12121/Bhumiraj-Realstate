@@ -175,7 +175,7 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
                 <p className="pt-2 text-xs text-muted-foreground">
                   Nothing set up yet?{" "}
                   <Link
-                    href="/admin/account"
+                    href="/dashboard/account"
                     className="font-semibold text-emerald-700"
                   >
                     Add a passkey or authenticator

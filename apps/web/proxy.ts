@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const protectedPrefixes = ["/account", "/post-property", "/admin"];
+const protectedPrefixes = ["/account", "/post-property", "/dashboard"];
 
 /**
  * Cheap pre-filter only. A cookie proves nothing about the session's validity —

@@ -106,6 +106,7 @@ export class ListingsService {
           emailVerified: true,
           banned: true,
           lifecycleStatus: true,
+          role: true,
         },
       }),
       prisma.mediaAsset.findMany({
@@ -140,6 +141,18 @@ export class ListingsService {
       throw new ForbiddenException({
         code: "EMAIL_NOT_VERIFIED",
         message: "Verify your email before posting a property.",
+      });
+    }
+    // Auctions are run by the platform, not by sellers: they carry deposits,
+    // an approved bidder list and a settlement obligation.
+    if (
+      input.listingType === "AUCTION" &&
+      user.role !== "OWNER" &&
+      user.role !== "STAFF"
+    ) {
+      throw new ForbiddenException({
+        code: "AUCTION_STAFF_ONLY",
+        message: "Auctions are created by Bhumiraj Estates staff.",
       });
     }
     const parsedSettings = platformSettingsSchema.safeParse(platformSetting?.value);
@@ -281,6 +294,9 @@ export class ListingsService {
             status: "DRAFT",
             currency: "NPR",
             startingAmountMinor: BigInt(input.auction.startingAmountMinor),
+            depositAmountMinor: input.auction.depositAmountMinor
+              ? BigInt(input.auction.depositAmountMinor)
+              : null,
             reserveAmountMinor: input.auction.reserveAmountMinor
               ? BigInt(input.auction.reserveAmountMinor)
               : null,

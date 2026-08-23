@@ -151,7 +151,7 @@ export function AccountShell({
     }
     // Staff work out of the console; the customer account overview is not their
     // home. Deeper pages (profile, security) stay reachable.
-    if (staff && pathname === "/account") router.replace("/admin");
+    if (staff && pathname === "/account") router.replace("/dashboard");
   }, [pathname, router, session.data, session.isPending, staff]);
 
   if (staff && pathname === "/account") {

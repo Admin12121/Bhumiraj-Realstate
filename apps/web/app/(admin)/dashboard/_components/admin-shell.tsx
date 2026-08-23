@@ -60,7 +60,7 @@ const sections = [
       {
         label: "Dashboard",
         icon: BarChart3,
-        href: "/admin",
+        href: "/dashboard",
         permission: "admin.overview.read",
       },
     ],
@@ -71,31 +71,31 @@ const sections = [
       {
         label: "Listings",
         icon: Building2,
-        href: "/admin/listings",
+        href: "/dashboard/listings",
         permission: "admin.listings.read",
       },
       {
         label: "Payments",
         icon: BadgeDollarSign,
-        href: "/admin/payments",
+        href: "/dashboard/payments",
         permission: "admin.payments.read",
       },
       {
         label: "Auctions",
         icon: Gavel,
-        href: "/admin/auctions",
+        href: "/dashboard/auctions",
         permission: "admin.auctions.read",
       },
       {
         label: "Support",
         icon: MessageSquare,
-        href: "/admin/support",
+        href: "/dashboard/support",
         permission: "admin.support.read",
       },
       {
         label: "Moderation",
         icon: FileCheck2,
-        href: "/admin/moderation",
+        href: "/dashboard/moderation",
         permission: "admin.moderation.read",
       },
     ],
@@ -106,31 +106,31 @@ const sections = [
       {
         label: "Users",
         icon: Users,
-        href: "/admin/users",
+        href: "/dashboard/users",
         permission: "admin.users.read",
       },
       {
         label: "Staff",
         icon: UserCog,
-        href: "/admin/staff",
+        href: "/dashboard/staff",
         permission: "admin.staff.read",
       },
       {
         label: "Staff roles",
         icon: ShieldCheck,
-        href: "/admin/roles",
+        href: "/dashboard/roles",
         permission: "admin.roles.read",
       },
       {
         label: "Agents",
         icon: ShieldCheck,
-        href: "/admin/agents",
+        href: "/dashboard/agents",
         permission: "admin.agents.read",
       },
       {
         label: "Messages",
         icon: MessageSquare,
-        href: "/admin/messages",
+        href: "/dashboard/messages",
         permission: "admin.messages.read",
       },
     ],
@@ -141,13 +141,13 @@ const sections = [
       {
         label: "Audit log",
         icon: History,
-        href: "/admin/audit",
+        href: "/dashboard/audit",
         permission: "admin.audit.read",
       },
       {
         label: "Settings",
         icon: Settings,
-        href: "/admin/settings",
+        href: "/dashboard/settings",
         permission: "admin.settings.read",
       },
     ],
@@ -155,7 +155,7 @@ const sections = [
 ] as const
 
 function isActiveRoute(pathname: string, href: string): boolean {
-  return href === "/admin"
+  return href === "/dashboard"
     ? pathname === href
     : pathname === href || pathname.startsWith(`${href}/`)
 }
@@ -349,7 +349,7 @@ export function AdminShell({
                   <SidebarMenuButton
                     className="data-[slot=sidebar-menu-button]:!p-1.5"
                     tooltip="Admin console"
-                    render={<Link href="/admin" />}
+                    render={<Link href="/dashboard" />}
                   >
                     <Image
                       src="/Logo.webp"

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link"
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -153,7 +154,12 @@ export function AdminAuctionsTable() {
             {items.map((row) => (
               <TableRow key={row.id}>
                 <TableCell className="font-semibold">
-                  {row.title}
+                  <Link
+                    href={`/dashboard/listings/${row.slug}`}
+                    className="hover:underline"
+                  >
+                    {row.title}
+                  </Link>
                 </TableCell>
                 <TableCell>
                   <Badge size="sm" variant={statusVariant(row.status)}>

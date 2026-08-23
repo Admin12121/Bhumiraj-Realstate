@@ -1,5 +1,17 @@
 "use client";
 
+import Link from "next/link"
+import { Check, EllipsisVertical, Eye, X } from "lucide-react"
+import {
+  Menu,
+  MenuGroup,
+  MenuGroupLabel,
+  MenuItem,
+  MenuLinkItem,
+  MenuPopup,
+  MenuSeparator,
+  MenuTrigger,
+} from "@/components/ui/menu"
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -177,7 +189,12 @@ export function AdminListingsTable() {
             {items.map((row) => (
               <TableRow key={row.id} className="align-top">
                 <TableCell>
-                  <p className="font-semibold">{row.title}</p>
+                  <Link
+                    href={`/dashboard/listings/${row.slug}`}
+                    className="font-semibold hover:underline"
+                  >
+                    {row.title}
+                  </Link>
                   <p className="text-xs text-muted-foreground">{row.slug}</p>
                 </TableCell>
                 <TableCell>
@@ -203,35 +220,64 @@ export function AdminListingsTable() {
                   {new Date(row.createdAt).toLocaleDateString()}
                 </TableCell>
                 <TableCell className="text-right">
-                  {canModerate &&
-                  (row.status === "PENDING_REVIEW" ||
-                    row.status === "REJECTED") ? (
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        disabled={decision.isPending}
-                        onClick={() =>
-                          decision.mutate({ id: row.id, action: "PUBLISH" })
-                        }
-                      >
-                        Publish
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive-outline"
-                        disabled={decision.isPending}
-                        onClick={() =>
-                          setRejecting({ id: row.id, title: row.title })
-                        }
-                      >
-                        Reject
-                      </Button>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      No action
-                    </span>
-                  )}
+                  <Menu>
+                    <MenuTrigger
+                      render={
+                        <Button
+                          aria-label={`Actions for ${row.title}`}
+                          size="icon-sm"
+                          variant="ghost"
+                        />
+                      }
+                    >
+                      <EllipsisVertical />
+                    </MenuTrigger>
+                    <MenuPopup align="end">
+                      <MenuGroup>
+                        <MenuGroupLabel>Listing</MenuGroupLabel>
+                        <MenuLinkItem
+                          render={
+                            <Link href={`/dashboard/listings/${row.slug}`} />
+                          }
+                        >
+                          <Eye />
+                          Open details
+                        </MenuLinkItem>
+                      </MenuGroup>
+                      {canModerate &&
+                      (row.status === "PENDING_REVIEW" ||
+                        row.status === "REJECTED") ? (
+                        <>
+                          <MenuSeparator />
+                          <MenuGroup>
+                            <MenuGroupLabel>Moderation</MenuGroupLabel>
+                            <MenuItem
+                              disabled={decision.isPending}
+                              onClick={() =>
+                                decision.mutate({
+                                  id: row.id,
+                                  action: "PUBLISH",
+                                })
+                              }
+                            >
+                              <Check />
+                              Publish
+                            </MenuItem>
+                            <MenuItem
+                              variant="destructive"
+                              disabled={decision.isPending}
+                              onClick={() =>
+                                setRejecting({ id: row.id, title: row.title })
+                              }
+                            >
+                              <X />
+                              Reject
+                            </MenuItem>
+                          </MenuGroup>
+                        </>
+                      ) : null}
+                    </MenuPopup>
+                  </Menu>
                 </TableCell>
               </TableRow>
             ))}

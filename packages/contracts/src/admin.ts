@@ -344,9 +344,162 @@ export const listingModerationDecisionSchema = z.object({
   reason: z.string().trim().max(1000).optional(),
 });
 
+/** The full record behind /dashboard/listings/<slug>. */
+export const adminListingDetailSchema = z.object({
+  id: idSchema,
+  slug: z.string(),
+  title: z.string(),
+  description: z.string(),
+  status: z.enum([
+    "DRAFT",
+    "PENDING_REVIEW",
+    "PUBLISHED",
+    "REJECTED",
+    "WITHDRAWN",
+    "ARCHIVED",
+  ]),
+  type: z.enum(["SALE", "RENT", "AUCTION"]),
+  propertyType: z.string(),
+  priceMinor: z.string().nullable(),
+  currency: z.string(),
+  rentPeriod: z.string().nullable(),
+  isVerified: z.boolean(),
+  createdAt: isoDateSchema,
+  publishedAt: isoDateSchema.nullable(),
+  owner: z.object({
+    id: userIdSchema,
+    name: z.string(),
+    email: z.string(),
+  }),
+  agent: z
+    .object({ id: userIdSchema, name: z.string() })
+    .nullable(),
+  address: z.object({
+    province: z.string(),
+    district: z.string(),
+    municipality: z.string(),
+    ward: z.string().nullable(),
+    locality: z.string(),
+    street: z.string().nullable(),
+    latitude: z.number().nullable(),
+    longitude: z.number().nullable(),
+  }),
+  specifications: z.object({
+    bedrooms: z.number().int().nullable(),
+    bathrooms: z.number().int().nullable(),
+    kitchens: z.number().int().nullable(),
+    floors: z.number().int().nullable(),
+    parkingSpaces: z.number().int().nullable(),
+    areaSqFt: z.number().nullable(),
+    builtYear: z.number().int().nullable(),
+    furnishing: z.string().nullable(),
+  }),
+  images: z.array(z.object({ id: idSchema, url: z.string() })),
+  auction: z
+    .object({
+      id: idSchema,
+      status: z.string(),
+      startingAmountMinor: z.string(),
+      currentAmountMinor: z.string(),
+      depositAmountMinor: z.string().nullable(),
+      bidCount: z.number().int(),
+      startsAt: isoDateSchema,
+      endsAt: isoDateSchema,
+    })
+    .nullable(),
+  /** The listing fee receipt, reviewed here rather than on a separate screen. */
+  payment: z
+    .object({
+      id: idSchema,
+      status: z.enum(["SUBMITTED", "APPROVED", "REJECTED"]),
+      method: z.string(),
+      reference: z.string().nullable(),
+      amountMinor: z.string(),
+      currency: z.string(),
+      mediaAssetId: idSchema,
+      rejectionReason: z.string().nullable(),
+      submittedAt: isoDateSchema,
+      reviewedAt: isoDateSchema.nullable(),
+      submittedBy: z.object({ id: userIdSchema, name: z.string() }),
+      reviewedBy: z.object({ id: userIdSchema, name: z.string() }).nullable(),
+    })
+    .nullable(),
+});
+
+/**
+ * What staff may change from the console. Status is deliberately absent: it
+ * moves through the moderation decision endpoint, which writes history.
+ */
+export const updateAdminListingSchema = z.object({
+  title: z.string().trim().min(10).max(160).optional(),
+  description: z.string().trim().min(50).max(8000).optional(),
+  priceMinor: z.string().regex(/^\d+$/).nullable().optional(),
+  rentPeriod: z.enum(["DAY", "WEEK", "MONTH", "YEAR"]).nullable().optional(),
+  isVerified: z.boolean().optional(),
+  propertyType: z
+    .enum([
+      "HOUSE",
+      "APARTMENT",
+      "ROOM",
+      "LAND",
+      "COMMERCIAL",
+      "OFFICE",
+      "WAREHOUSE",
+    ])
+    .optional(),
+  auction: z
+    .object({
+      startingAmountMinor: z.string().regex(/^\d+$/).optional(),
+      reserveAmountMinor: z.string().regex(/^\d+$/).nullable().optional(),
+      minimumIncrementMinor: z.string().regex(/^\d+$/).optional(),
+      depositAmountMinor: z.string().regex(/^\d+$/).nullable().optional(),
+      startsAt: isoDateSchema.optional(),
+      endsAt: isoDateSchema.optional(),
+    })
+    .optional(),
+  address: z
+    .object({
+      municipality: z.string().trim().min(2).max(100).optional(),
+      ward: z.string().trim().max(20).nullable().optional(),
+      locality: z.string().trim().min(2).max(120).optional(),
+      street: z.string().trim().max(160).nullable().optional(),
+    })
+    .optional(),
+  specifications: z
+    .object({
+      bedrooms: z.number().int().min(0).max(50).nullable().optional(),
+      bathrooms: z.number().int().min(0).max(50).nullable().optional(),
+      kitchens: z.number().int().min(0).max(20).nullable().optional(),
+      floors: z.number().int().min(0).max(100).nullable().optional(),
+      parkingSpaces: z.number().int().min(0).max(100).nullable().optional(),
+      areaSqFt: z.number().positive().optional(),
+      builtYear: z.number().int().min(1800).max(2100).nullable().optional(),
+      furnishing: z
+        .enum(["UNFURNISHED", "SEMI_FURNISHED", "FURNISHED"])
+        .nullable()
+        .optional(),
+    })
+    .optional(),
+});
+
+/** One recorded change to a listing: who, when, and what moved. */
+export const adminListingChangeSchema = z.object({
+  id: idSchema,
+  action: z.string(),
+  actor: z.object({ id: userIdSchema, name: z.string() }).nullable(),
+  before: z.record(z.string(), z.unknown()).nullable(),
+  after: z.record(z.string(), z.unknown()).nullable(),
+  reason: z.string().nullable(),
+  createdAt: isoDateSchema,
+});
+
+export type AdminListingDetail = z.infer<typeof adminListingDetailSchema>;
+
 export const adminAuctionSchema = z.object({
   id: idSchema,
   listingId: idSchema,
+  /** The listing slug, so an auction row links to the record behind it. */
+  slug: z.string(),
   title: z.string(),
   status: z.string(),
   currency: z.string().length(3),

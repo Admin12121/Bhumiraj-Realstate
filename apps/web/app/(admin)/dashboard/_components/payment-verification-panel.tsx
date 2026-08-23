@@ -19,7 +19,6 @@ import {
   getPaymentProofs,
   reviewPaymentProof,
 } from "@/features/listings/api/listing-payments-api"
-import { getMediaDownloadUrl } from "@/features/media/api/media-api"
 import { formatMinorAmount } from "@/shared/utilities/money"
 import { Button } from "@/components/ui/button"
 import {
@@ -33,11 +32,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Field, FieldLabel } from "@/components/ui/field"
+import Link from "next/link"
 import {
   Menu,
   MenuGroup,
   MenuGroupLabel,
   MenuItem,
+  MenuLinkItem,
   MenuPopup,
   MenuSeparator,
   MenuTrigger,
@@ -72,25 +73,6 @@ export function PaymentVerificationPanel() {
   // A rejection reason is required, so the decision waits on the dialog.
   const [rejecting, setRejecting] = useState<string | null>(null)
   const [rejectionReason, setRejectionReason] = useState("")
-  // The receipt itself. Private media, so the URL is signed and short-lived.
-  const [proofUrl, setProofUrl] = useState<string | null>(null)
-  const [loadingProof, setLoadingProof] = useState(false)
-
-  async function openProof(assetId: string) {
-    setLoadingProof(true)
-    try {
-      const { url } = await getMediaDownloadUrl(assetId)
-      setProofUrl(url)
-    } catch (cause) {
-      toast.error(
-        cause instanceof Error
-          ? cause.message
-          : "The payment proof could not be opened.",
-      )
-    } finally {
-      setLoadingProof(false)
-    }
-  }
 
   const proofs = useQuery({
     queryKey: ["admin", "payment-proofs", status],
@@ -175,7 +157,12 @@ export function PaymentVerificationPanel() {
             {items.map((proof) => (
               <TableRow key={proof.id} className="align-top">
                 <TableCell className="max-w-0">
-                  <p className="truncate font-medium">{proof.listingTitle}</p>
+                  <Link
+                    href={`/dashboard/listings/${proof.listingSlug}`}
+                    className="truncate font-medium hover:underline"
+                  >
+                    {proof.listingTitle}
+                  </Link>
                   {proof.rejectionReason ? (
                     <p className="truncate text-xs text-destructive">
                       {proof.rejectionReason}
@@ -271,13 +258,16 @@ export function PaymentVerificationPanel() {
                     <MenuPopup align="end">
                       <MenuGroup>
                         <MenuGroupLabel>Payment</MenuGroupLabel>
-                        <MenuItem
-                          disabled={loadingProof}
-                          onClick={() => void openProof(proof.mediaAssetId)}
+                        <MenuLinkItem
+                          render={
+                            <Link
+                              href={`/dashboard/listings/${proof.listingSlug}`}
+                            />
+                          }
                         >
                           <Receipt />
-                          View proof
-                        </MenuItem>
+                          Open listing to review
+                        </MenuLinkItem>
                       </MenuGroup>
                       {proof.status === "SUBMITTED" && canReview ? (
                         <>
@@ -403,35 +393,6 @@ export function PaymentVerificationPanel() {
         </DialogPopup>
       </Dialog>
 
-      <Dialog
-        open={proofUrl !== null}
-        onOpenChange={(next) => {
-          if (!next) setProofUrl(null)
-        }}
-      >
-        <DialogPopup className="sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Payment proof</DialogTitle>
-            <DialogDescription>
-              Check the amount and reference against the record before
-              verifying.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogPanel>
-            {proofUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={proofUrl}
-                alt="Payment receipt"
-                className="max-h-[70vh] w-full rounded-lg border bg-muted/40 object-contain"
-              />
-            ) : null}
-          </DialogPanel>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline">Close</Button>} />
-          </DialogFooter>
-        </DialogPopup>
-      </Dialog>
     </div>
   )
 }

@@ -33,6 +33,7 @@ function toPost(listing: FeedListing): PropertyPostData {
     },
     publishedAt: listing.publishedAt ?? listing.createdAt,
     reference: listing.id.slice(0, 8).toUpperCase(),
+    ...(listing.auction ? { auctionId: listing.auction.id } : {}),
     ...(listing.price
       ? {
           price: formatMinorAmount(

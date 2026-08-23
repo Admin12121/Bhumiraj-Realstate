@@ -205,7 +205,7 @@ export function AdminOverview() {
           label="Work queue"
           value={n(pipeline)}
           meta="Items waiting on a person right now."
-          href="/admin/payments"
+          href="/dashboard/payments"
           visual={
             <Sparkline series={daily.slice(-20).map((day) => day.events)} />
           }
@@ -237,7 +237,7 @@ export function AdminOverview() {
           label="Agent coverage"
           value={n(counts.activeListings)}
           meta="Published listings, and how many have an agent."
-          href="/admin/listings"
+          href="/dashboard/listings"
           visual={<Gauge ratio={agentCoverage} caption="represented" />}
           footer={
             <span>
@@ -251,7 +251,7 @@ export function AdminOverview() {
           label="Verified accounts"
           value={n(counts.totalUsers)}
           meta="Accounts on the platform, and how many are verified."
-          href="/admin/users"
+          href="/dashboard/users"
           visual={<Gauge ratio={verifiedShare} caption="verified" />}
           footer={
             <span>
@@ -384,7 +384,7 @@ export function AdminOverview() {
               Recent activity
             </h2>
             <Link
-              href="/admin/audit"
+              href="/dashboard/audit"
               className="text-xs text-muted-foreground hover:text-foreground"
             >
               View audit log
@@ -434,7 +434,7 @@ export function AdminOverview() {
               Oldest pending listings
             </h2>
             <Link
-              href="/admin/listings"
+              href="/dashboard/listings"
               className="text-xs text-muted-foreground hover:text-foreground"
             >
               Open queue

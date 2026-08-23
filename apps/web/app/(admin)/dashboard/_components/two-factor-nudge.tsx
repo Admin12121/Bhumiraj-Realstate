@@ -35,7 +35,7 @@ export function TwoFactorNudge() {
         Add a passkey or authenticator app so you are not interrupted when you
         change roles, staff or auctions. You can keep working without it.
       </p>
-      <Button size="sm" render={<Link href="/admin/account">Set it up</Link>} />
+      <Button size="sm" render={<Link href="/dashboard/account">Set it up</Link>} />
       <Button
         size="icon"
         variant="ghost"

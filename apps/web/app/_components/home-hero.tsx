@@ -53,6 +53,7 @@ function toPost(listing: {
   }
   price: { amountMinor: string; currency: string } | null
   specifications: { areaSqFt: number | null }
+  auction: { id: string } | null
 }): PropertyPostData {
   return {
     slug: listing.slug,
@@ -69,6 +70,7 @@ function toPost(listing: {
     },
     publishedAt: listing.publishedAt ?? listing.createdAt,
     reference: listing.id.slice(0, 8).toUpperCase(),
+    ...(listing.auction ? { auctionId: listing.auction.id } : {}),
     price: listing.price
       ? formatMinorAmount(listing.price.amountMinor, listing.price.currency)
       : undefined,

@@ -439,7 +439,7 @@ export function AccountSettingsTabs({
                               onClick={() =>
                                 authClient.linkSocial({
                                   provider: "google",
-                                  callbackURL: "/admin/account",
+                                  callbackURL: "/dashboard/account",
                                 })
                               }
                             >

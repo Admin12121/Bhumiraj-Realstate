@@ -22,7 +22,7 @@ export default function robots(): MetadataRoute.Robots {
         allow: ["/"],
         disallow: [
           "/account",
-          "/admin",
+          "/dashboard",
           "/api/",
           "/sign-in",
           "/sign-up",

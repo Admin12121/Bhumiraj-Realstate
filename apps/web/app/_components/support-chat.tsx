@@ -184,7 +184,7 @@ export function SupportChat() {
 
   // Staff already have the inbox, and the auth pages should stay uncluttered.
   const hidden =
-    pathname.startsWith("/admin") ||
+    pathname.startsWith("/dashboard") ||
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||
     pathname.startsWith("/two-factor") ||

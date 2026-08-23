@@ -58,6 +58,12 @@ export const auctionCreationSchema = z
     extensionWindowSeconds: z.number().int().min(30).max(900).default(120),
     extensionDurationSeconds: z.number().int().min(30).max(900).default(120),
     maximumExtensionMinutes: z.number().int().min(0).max(180).default(30),
+    /**
+     * What a bidder pays to enrol. Unlike the listing fee, which is one
+     * platform-wide amount, this is set per auction: a Rs 50 lakh property and
+     * a Rs 5 crore one do not warrant the same deposit.
+     */
+    depositAmountMinor: positiveMinorAmountSchema.nullable().optional(),
   })
   .superRefine((value, context) => {
     const startsAt = new Date(value.startsAt);

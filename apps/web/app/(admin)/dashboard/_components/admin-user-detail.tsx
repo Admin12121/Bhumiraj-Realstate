@@ -65,7 +65,7 @@ export function AdminUserDetail({ userId }: { userId: string }) {
         <Button
           variant="outline"
           className="w-fit"
-          render={<Link href="/admin/users" />}
+          render={<Link href="/dashboard/users" />}
         >
           <ChevronLeft />
           Back to users
@@ -85,7 +85,7 @@ export function AdminUserDetail({ userId }: { userId: string }) {
             size="icon-sm"
             variant="ghost"
             aria-label="Back to users"
-            render={<Link href="/admin/users" />}
+            render={<Link href="/dashboard/users" />}
           >
             <ChevronLeft />
           </Button>

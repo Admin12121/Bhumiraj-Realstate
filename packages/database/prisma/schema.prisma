@@ -265,6 +265,7 @@ enum AuditAction {
   LISTING_PUBLISHED
   LISTING_REJECTED
   LISTING_WITHDRAWN
+  LISTING_UPDATED
   LISTING_PAYMENT_SUBMITTED
   LISTING_PAYMENT_APPROVED
   LISTING_PAYMENT_REJECTED
@@ -278,6 +279,8 @@ enum AuditAction {
   AUCTION_RESUMED
   AUCTION_ENDED
   AUCTION_CANCELLED
+  AUCTION_ENROLMENT_APPROVED
+  AUCTION_ENROLMENT_REJECTED
   BID_ACCEPTED
   ADMIN_IMPERSONATION_STARTED
   ADMIN_IMPERSONATION_ENDED
@@ -341,6 +344,7 @@ model User {
   conversationParticipants      ConversationParticipant[]
   messages                      Message[]
   auctionRegistrations          AuctionRegistration[]
+  auctionDepositReviews         AuctionDeposit[]          @relation("AuctionDepositReviewer")
   bids                          Bid[]
   notifications                 Notification[]
   reports                       UserReport[]              @relation("Reporter")
@@ -911,6 +915,7 @@ model MediaAsset {
   propertyDocument   PropertyDocument?
   messageAttachments MessageAttachment[]
   supportMessages    SupportMessage[]    @relation("SupportMessageAttachment")
+  auctionDeposits    AuctionDeposit[]    @relation("AuctionDepositProof")
 
   @@index([ownerId, status, createdAt])
   @@index([status, createdAt])
@@ -1108,6 +1113,8 @@ model Auction {
   currentAmountMinor       BigInt
   currentBidId             String?                @unique
   minimumIncrementMinor    BigInt
+  /// Enrolment deposit for this auction; falls back to the platform default.
+  depositAmountMinor       BigInt?
   startsAt                 DateTime               @db.Timestamptz(3)
   originalEndsAt           DateTime               @db.Timestamptz(3)
   endsAt                   DateTime               @db.Timestamptz(3)
@@ -1233,8 +1240,20 @@ model AuctionDeposit {
   amountMinor     BigInt
   currency        String              @db.Char(3)
   status          DepositStatus
+  /// Manual settlement: the bidder pays out of band and uploads the receipt.
+  mediaAssetId    String?
+  method          String?
+  reference       String?
+  submittedAt     DateTime?           @db.Timestamptz(3)
+  reviewedAt      DateTime?           @db.Timestamptz(3)
+  reviewedById    String?
+  rejectionReason String?
   registration    AuctionRegistration @relation(fields: [registrationId], references: [id], onDelete: Restrict)
   paymentIntent   PaymentIntent?      @relation(fields: [paymentIntentId], references: [id], onDelete: SetNull)
+  mediaAsset      MediaAsset?         @relation("AuctionDepositProof", fields: [mediaAssetId], references: [id], onDelete: SetNull)
+  reviewedBy      User?               @relation("AuctionDepositReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status, submittedAt])
 }
 
 model PaymentIntent {

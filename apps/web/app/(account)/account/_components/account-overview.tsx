@@ -186,7 +186,7 @@ export function AccountOverview() {
           <div className="grid gap-4 sm:grid-cols-2">
             <TileLink
               tile={{
-                href: "/admin",
+                href: "/dashboard",
                 label: "Admin",
                 hint: "Listings, payments, agents and staff",
                 icon: ShieldCheck,

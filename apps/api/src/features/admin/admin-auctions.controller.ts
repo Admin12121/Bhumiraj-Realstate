@@ -50,7 +50,7 @@ export class AdminAuctionsController {
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
         orderBy: { createdAt: query.direction },
-        include: { listing: { select: { title: true } } },
+        include: { listing: { select: { title: true, slug: true } } },
       }),
       prisma.auction.count({ where }),
     ]);
@@ -58,6 +58,7 @@ export class AdminAuctionsController {
       items: rows.map((row) => ({
         id: row.id,
         listingId: row.listingId,
+        slug: row.listing.slug,
         title: row.listing.title,
         status: row.status,
         currency: row.currency,
