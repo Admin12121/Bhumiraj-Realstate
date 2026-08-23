@@ -2,12 +2,12 @@
 
 import Link from "next/link"
 import {
+  Bell,
   Bookmark,
-  CircleUserRound,
   Handshake,
+  LayoutDashboard,
   LogOut,
-  MessageCircle,
-  ShieldCheck,
+  UserRound,
 } from "lucide-react"
 import { signOut, useSession } from "@real-estate/auth/client"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -81,30 +81,25 @@ export function AccountMenu({ inverse = false }: { inverse?: boolean }) {
           </div>
         </MenuGroup>
 
-        {/* Staff get the console; everyone else the handful of places they
-            actually revisit. The long list was a sitemap, not a menu. */}
+        {/* The handful of places people actually revisit. Staff get the console
+            in place of the customer dashboard; everything else is shared. */}
         <MenuGroup>
-          {isStaff ? (
-            <MenuLinkItem render={<Link href="/admin" />}>
-              <ShieldCheck />
-              Admin console
-            </MenuLinkItem>
-          ) : (
-            <>
-              <MenuLinkItem render={<Link href="/account" />}>
-                <CircleUserRound />
-                Account
-              </MenuLinkItem>
-              <MenuLinkItem render={<Link href="/account/saved" />}>
-                <Bookmark />
-                Saved
-              </MenuLinkItem>
-              <MenuLinkItem render={<Link href="/account/messages" />}>
-                <MessageCircle />
-                Messages
-              </MenuLinkItem>
-            </>
-          )}
+          <MenuLinkItem render={<Link href={isStaff ? "/admin" : "/account"} />}>
+            <LayoutDashboard />
+            Dashboard
+          </MenuLinkItem>
+          <MenuLinkItem render={<Link href="/account/settings" />}>
+            <UserRound />
+            Profile
+          </MenuLinkItem>
+          <MenuLinkItem render={<Link href="/account/saved" />}>
+            <Bookmark />
+            Saved
+          </MenuLinkItem>
+          <MenuLinkItem render={<Link href="/account/alerts" />}>
+            <Bell />
+            Notifications
+          </MenuLinkItem>
           {isAgent ? (
             <MenuLinkItem render={<Link href="/account/offers" />}>
               <Handshake />

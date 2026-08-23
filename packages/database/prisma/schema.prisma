@@ -71,6 +71,7 @@ enum VerificationStatus {
 enum PropertyType {
   HOUSE
   APARTMENT
+  ROOM
   LAND
   COMMERCIAL
   OFFICE

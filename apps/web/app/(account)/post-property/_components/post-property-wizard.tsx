@@ -4,7 +4,15 @@ import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { Check, UploadCloud } from "lucide-react";
-import { createListingSchema } from "@real-estate/contracts";
+import { useSession } from "@real-estate/auth/client";
+import {
+  createListingSchema,
+  listingTypeSchema,
+  propertyTypeSchema,
+  rentPeriodSchema,
+  FURNISHING_LEVELS,
+  LOCATION_PRECISIONS,
+} from "@real-estate/contracts";
 import { createListing, submitListing } from "@/features/listings/api/listings-api";
 import { uploadPropertyImage } from "@/features/media/api/media-api";
 import { toast } from "sonner";
@@ -27,6 +35,11 @@ import { LocationPicker } from "./location-picker";
 import { errorMessage } from "@/shared/http/error-message";
 import { cn } from "@/lib/utils";
 import {
+  PropertyPost,
+  type PropertyPostData,
+} from "@/app/_components/property-post";
+import { formatMinorAmount } from "@/shared/utilities/money";
+import {
   Select,
   SelectItem,
   SelectPopup,
@@ -34,21 +47,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const steps = ["Property", "Location", "Details", "Images", "Review"];
+const steps = ["Property", "Location", "Details", "Images", "Post"];
 
 const option = (value: string) => ({ value, label: value.replace(/_/g, " ") });
-const LISTING_TYPES = ["SALE", "RENT", "AUCTION"].map(option);
-const PROPERTY_TYPES = [
-  "HOUSE",
-  "FLAT",
-  "LAND",
-  "BUSINESS",
-  "OFFICE",
-  "SHOP",
-].map(option);
-const RENT_PERIODS = ["MONTH", "YEAR"].map(option);
-const PRECISIONS = ["APPROXIMATE", "EXACT"].map(option);
-const FURNISHINGS = ["UNFURNISHED", "SEMI_FURNISHED", "FURNISHED"].map(option);
+
+// Derived from the contract, never retyped. A hand-written copy of this list is
+// how the form came to offer FLAT, BUSINESS and SHOP — three values the API
+// rejects, and only after every photo had already been uploaded.
+const LISTING_TYPES = listingTypeSchema.options.map(option);
+const PROPERTY_TYPES = propertyTypeSchema.options.map(option);
+const RENT_PERIODS = rentPeriodSchema.options.map(option);
+const PRECISIONS = LOCATION_PRECISIONS.map(option);
+const FURNISHINGS = FURNISHING_LEVELS.map(option);
 
 type SpecField = {
   key: keyof FormState;
@@ -219,6 +229,7 @@ export function PostPropertyWizard() {
   // How far the form has been validated, so the stepper can offer those steps
   // without letting anyone skip ahead past an incomplete one.
   const [reached, setReached] = useState(0);
+  const [uploaded, setUploaded] = useState(0);
 
   const MAX_IMAGES = 20;
   const MAX_IMAGE_BYTES = 25 * 1024 * 1024;
@@ -234,19 +245,61 @@ export function PostPropertyWizard() {
 
   const isAuction = form.listingType === "AUCTION";
   const isRent = form.listingType === "RENT";
-  const previewPrice = useMemo(() => {
-    const value = isAuction ? form.auctionStartingAmount : form.price;
-    return value ? new Intl.NumberFormat("en-NP").format(Number(value)) : "Not set";
-  }, [form.auctionStartingAmount, form.price, isAuction]);
+  const session = useSession();
+
+  /** The form state shaped as the post the marketplace feed will render. */
+  const previewPost: PropertyPostData = useMemo(() => {
+    const amount = isAuction ? form.auctionStartingAmount : form.price;
+    const user = session.data?.user;
+    return {
+      slug: "preview",
+      title: form.title || "Untitled property",
+      description: form.description,
+      // Every photo, in the order they were added: the first is the cover and
+      // the rest are what the carousel pages through.
+      images: uploads.map((item) => item.preview),
+      agent: {
+        name: user?.name ?? "Bhumiraj Estates",
+        image: user?.image ?? null,
+        verified: false,
+      },
+      publishedAt: new Date().toISOString(),
+      ...(amount
+        ? { price: formatMinorAmount(toMinorUnits(amount), "NPR") }
+        : {}),
+      location: `${form.locality} | ${form.district}`,
+      propertyType: form.propertyType,
+      ...(form.areaSqFt
+        ? { area: `${Number(form.areaSqFt).toLocaleString()} sq ft` }
+        : {}),
+      category: isRent ? "For rent" : "For sale",
+      ...(form.latitude ? { latitude: Number(form.latitude) } : {}),
+      ...(form.longitude ? { longitude: Number(form.longitude) } : {}),
+    };
+  }, [form, isAuction, isRent, session.data?.user, uploads]);
 
   const mutation = useMutation({
     mutationFn: async () => {
       if (!files.length) throw new Error("Add at least one property image.");
 
-      const mediaAssetIds: string[] = [];
-      for (const file of files) {
-        mediaAssetIds.push(await uploadPropertyImage(file));
-      }
+      // Uploading one at a time meant waiting for each scan and re-encode in
+      // turn, so five photos took minutes. A small pool keeps order while
+      // overlapping the waiting, without flooding the scanner.
+      setUploaded(0);
+      const mediaAssetIds: string[] = new Array(files.length);
+      let next = 0;
+      const worker = async () => {
+        while (true) {
+          const index = next;
+          next += 1;
+          if (index >= files.length) return;
+          mediaAssetIds[index] = await uploadPropertyImage(files[index]!);
+          setUploaded((current) => current + 1);
+        }
+      };
+      await Promise.all(
+        Array.from({ length: Math.min(4, files.length) }, worker),
+      );
 
       const payload = createListingSchema.parse({
         title: form.title,
@@ -714,21 +767,12 @@ export function PostPropertyWizard() {
 
         {step === 4 && (
           <div className="space-y-4">
-            <div className="rounded-xl border p-5">
-              <h2 className="font-semibold text-xl">
-                {form.title || "Untitled property"}
-              </h2>
-              <p className="mt-2 text-muted-foreground text-sm">
-                {form.propertyType} · {form.listingType} · {form.locality},{" "}
-                {form.district}
-              </p>
-              <p className="mt-3 font-semibold tabular-nums">
-                NPR {previewPrice}
-              </p>
-              <p className="mt-4 text-sm leading-6">{form.description}</p>
-              <p className="mt-4 font-medium text-sm">
-                {files.length} image(s) ready to upload
-              </p>
+            {/* The real card, not a summary: the seller checks how the listing
+                will actually look on the marketplace before posting it. */}
+            {/* The real feed post, with the byline dropped: the seller is
+                checking their listing, not who is posting it. */}
+            <div className="mx-auto w-full max-w-2xl">
+              <PropertyPost preview showAgent={false} post={previewPost} />
             </div>
             <Alert>
               <AlertDescription>
@@ -751,9 +795,11 @@ export function PostPropertyWizard() {
           <Button type="submit" loading={mutation.isPending}>
             {step === steps.length - 1 ? <UploadCloud /> : null}
             {mutation.isPending
-              ? "Uploading and submitting…"
+              ? uploaded < files.length
+                ? `Uploading ${uploaded + 1} of ${files.length}…`
+                : "Publishing…"
               : step === steps.length - 1
-                ? "Submit property"
+                ? "Post property"
                 : "Continue"}
           </Button>
         </div>

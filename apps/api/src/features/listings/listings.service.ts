@@ -401,6 +401,10 @@ export class ListingsService {
       const listing = await tx.listing.update({
         where: { id },
         data: { status: "PENDING_REVIEW", version: { increment: 1 } },
+        // Only what the caller needs. Returning the whole row leaked a BigInt
+        // price, which Express cannot serialise — the request 500'd after the
+        // listing had already been submitted.
+        select: { id: true, slug: true, status: true },
       });
       await tx.listingStatusHistory.create({
         data: {

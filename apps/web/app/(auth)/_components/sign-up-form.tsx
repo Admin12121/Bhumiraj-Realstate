@@ -55,10 +55,12 @@ export function SignUpForm() {
       notify.error(message)
       return
     }
-    notify.success("Account created.", {
-      description: "Check your email to verify it before signing in.",
+    // Signed in already: the verification email is waiting whenever they want
+    // it, and nothing on the marketplace is blocked until they list or bid.
+    notify.success("Welcome to Bhumiraj Estates.", {
+      description: "We sent a verification link to your email for later.",
     })
-    router.push("/sign-in")
+    router.push("/")
   }
 
   return (

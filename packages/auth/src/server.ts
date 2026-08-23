@@ -33,6 +33,30 @@ export function createAuth(dependencies: AuthDependencies = {}) {
     (async () => {
       throw new Error("Authentication email delivery is not configured.");
     });
+  /**
+   * Security notices go to the address on the account whether or not it has
+   * been verified — that is the point of them. While it is unverified we
+   * cannot assume the address belongs to the account holder, so the mail says
+   * so and offers a way out, the way Google does.
+   */
+  const securityEmail = async (input: {
+    to: string;
+    emailVerified: boolean;
+    subject: string;
+    text: string;
+  }) => {
+    const notice = input.emailVerified
+      ? ""
+      : `
+
+If this was not you, someone may have entered your address by mistake. You can ignore this email — the account cannot post a property or bid until the address is verified. To stop these messages, contact ${env.MAIL_FROM}.`;
+    await sendEmail({
+      to: input.to,
+      subject: input.subject,
+      text: `${input.text}${notice}`,
+    });
+  };
+
   const hostname = new URL(appUrl).hostname;
   const socialProviders = {
     ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
@@ -56,7 +80,11 @@ export function createAuth(dependencies: AuthDependencies = {}) {
     database: prismaAdapter(prisma, { provider: "postgresql" }),
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: true,
+      // Verification is asked for at the actions that need it — listing a
+      // property, bidding — not at the door. Blocking sign-in meant a new
+      // customer could not even browse until they had opened their inbox.
+      requireEmailVerification: false,
+      autoSignIn: true,
       minPasswordLength: 10,
       maxPasswordLength: 128,
       resetPasswordTokenExpiresIn: 60 * 60,
@@ -70,6 +98,16 @@ export function createAuth(dependencies: AuthDependencies = {}) {
         ...additionalFields,
         id,
       }),
+      onPasswordReset: async ({ user }) => {
+        await securityEmail({
+          to: user.email,
+          emailVerified: Boolean(user.emailVerified),
+          subject: "Your Bhumiraj Estates password was changed",
+          text: `Hello ${user.name || "there"},
+
+The password for ${user.email} was just changed. If you made this change, nothing more is needed.`,
+        }).catch(() => undefined);
+      },
       sendResetPassword: async ({ user, url }) =>
         sendEmail({
           to: user.email,
@@ -138,6 +176,14 @@ export function createAuth(dependencies: AuthDependencies = {}) {
               type: "created",
               userId: user.id,
             });
+            await securityEmail({
+              to: user.email,
+              emailVerified: Boolean(user.emailVerified),
+              subject: "Your Bhumiraj Estates account is ready",
+              text: `Hello ${user.name || "there"},
+
+An account was created for ${user.email} at Bhumiraj Estates. You can browse and save properties straight away. Verifying your email is only needed to post a property or place a bid, and you can do it any time from Settings → Security.`,
+            }).catch(() => undefined);
           },
         },
       },

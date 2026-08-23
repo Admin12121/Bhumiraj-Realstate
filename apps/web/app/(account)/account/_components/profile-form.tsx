@@ -1,162 +1,316 @@
 "use client";
 
-import { useRef } from "react";
-import type { FormEvent } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Camera, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
-import { getMyProfile, updateMyProfile } from "@/features/account/api/account-api";
-import { queryKeys } from "@/shared/query/query-keys";
 import {
-  uploadMedia,
-  waitForMediaReady,
-} from "@/features/media/api/media-api";
+  getMyProfile,
+  updateMyProfile,
+} from "@/features/account/api/account-api";
+import { queryKeys } from "@/shared/query/query-keys";
+import { uploadMedia, waitForMediaReady } from "@/features/media/api/media-api";
 import { errorMessage } from "@/shared/http/error-message";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldSeparator,
+} from "@/components/ui/field";
+import { Fieldset } from "@/components/ui/fieldset";
+import { Frame, FramePanel } from "@/components/ui/frame";
+import { FileUploader } from "@/components/ui/file-uploader";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import { useFileUpload } from "@/hooks/use-file-upload";
+
+const IMAGE_TYPES = "image/jpeg,image/png,image/webp,image/avif";
+const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
+
+type FormState = {
+  name: string;
+  username: string;
+  phone: string;
+  bio: string;
+};
+type Errors = Partial<Record<keyof FormState, string>>;
+
+/** The rules the API enforces, checked next to the field they belong to. */
+function validate(form: FormState): Errors {
+  const errors: Errors = {};
+  if (form.name.trim().length < 2) {
+    errors.name = "Enter your full name.";
+  } else if (form.name.trim().length > 100) {
+    errors.name = "Your name must be 100 characters or fewer.";
+  }
+  const username = form.username.trim();
+  if (username && !/^[a-z0-9_]{3,30}$/.test(username)) {
+    errors.username =
+      "Use 3–30 characters: lowercase letters, numbers and underscores only.";
+  }
+  if (form.phone.trim().length > 30) {
+    errors.phone = "That phone number is too long.";
+  }
+  if (form.bio.trim().length > 500) {
+    errors.bio = "Your bio must be 500 characters or fewer.";
+  }
+  return errors;
+}
 
 export function ProfileForm() {
   const queryClient = useQueryClient();
-  const avatarRef = useRef<HTMLInputElement>(null);
-  const coverRef = useRef<HTMLInputElement>(null);
+  const [form, setForm] = useState<FormState | null>(null);
+  const [errors, setErrors] = useState<Errors>({});
+
+  const [
+    { files: avatarFiles, isDragging: avatarDragging, errors: avatarErrors },
+    avatar,
+  ] = useFileUpload({
+    accept: IMAGE_TYPES,
+    maxFiles: 1,
+    maxSize: MAX_IMAGE_BYTES,
+    multiple: false,
+  });
+  const [
+    { files: coverFiles, isDragging: coverDragging, errors: coverErrors },
+    cover,
+  ] = useFileUpload({
+    accept: IMAGE_TYPES,
+    maxFiles: 1,
+    maxSize: MAX_IMAGE_BYTES,
+    multiple: false,
+  });
+
   const profile = useQuery({
     queryKey: queryKeys.profile("me"),
     queryFn: getMyProfile,
   });
+
+  // Derived, not synced through an effect: the draft takes over on first edit.
+  const values: FormState | null = form ??
+    (profile.data
+      ? {
+          name: profile.data.name,
+          username: profile.data.username ?? "",
+          phone: profile.data.phone ?? "",
+          bio: profile.data.bio ?? "",
+        }
+      : null);
+
   const mutation = useMutation({
-    mutationFn: async (form: HTMLFormElement) => {
-      const fields = new FormData(form);
-      const avatar = avatarRef.current?.files?.[0];
-      const cover = coverRef.current?.files?.[0];
+    mutationFn: async (current: FormState) => {
+      const avatarFile = avatarFiles[0]?.file;
+      const coverFile = coverFiles[0]?.file;
+      // Both at once: waiting for one scan and re-encode before starting the
+      // other doubled the wait for no reason.
       const [imageAssetId, coverAssetId] = await Promise.all([
-        avatar
-          ? uploadMedia(avatar, "PROFILE_IMAGE").then((id) =>
-              waitForMediaReady(id),
-            )
+        avatarFile
+          ? uploadMedia(avatarFile, "PROFILE_IMAGE").then(waitForMediaReady)
           : Promise.resolve(undefined),
-        cover
-          ? uploadMedia(cover, "COVER_IMAGE").then((id) =>
-              waitForMediaReady(id),
-            )
+        coverFile
+          ? uploadMedia(coverFile, "COVER_IMAGE").then(waitForMediaReady)
           : Promise.resolve(undefined),
       ]);
+
       return updateMyProfile({
-        name: String(fields.get("name")),
-        username: String(fields.get("username")) || undefined,
-        bio: String(fields.get("bio")) || null,
-        phone: String(fields.get("phone")) || null,
-        imageAssetId,
-        coverAssetId,
+        name: current.name.trim(),
+        ...(current.username.trim()
+          ? { username: current.username.trim() }
+          : {}),
+        bio: current.bio.trim() || null,
+        phone: current.phone.trim() || null,
+        ...(imageAssetId ? { imageAssetId } : {}),
+        ...(coverAssetId ? { coverAssetId } : {}),
       });
     },
     onSuccess: () => {
-      toast.success("Profile updated");
-      if (avatarRef.current) avatarRef.current.value = "";
-      if (coverRef.current) coverRef.current.value = "";
+      toast.success("Profile updated.");
+      avatar.clearFiles();
+      cover.clearFiles();
+      setForm(null);
       void queryClient.invalidateQueries({ queryKey: queryKeys.profile("me") });
     },
     onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    mutation.mutate(event.currentTarget);
+  if (profile.isPending) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-32 w-full rounded-xl" />
+        <Skeleton className="h-11 w-full rounded-xl" />
+        <Skeleton className="h-11 w-full rounded-xl" />
+        <Skeleton className="h-32 w-full rounded-xl" />
+      </div>
+    );
   }
 
-  if (profile.isLoading) {
-    return <div className="surface rounded-2xl p-8">Loading profile…</div>;
+  if (profile.isError || !values) {
+    return (
+      <Alert variant="error">
+        <AlertTitle>Profile unavailable</AlertTitle>
+        <AlertDescription>
+          Your profile could not be loaded. Try again shortly.
+        </AlertDescription>
+      </Alert>
+    );
   }
-  if (!profile.data) {
-    return <div className="surface rounded-2xl p-8">Unable to load your profile.</div>;
-  }
+
+  const set = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+    setForm((current) => ({ ...(current ?? values), [key]: value }));
+    // Clearing as they type stops a message sitting under a field they fixed.
+    setErrors((current) => {
+      if (!(key in current)) return current;
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+  };
+
 
   return (
     <form
-      onSubmit={submit}
-      className="surface grid gap-5 rounded-2xl p-6 sm:grid-cols-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        const found = validate(values);
+        if (Object.keys(found).length > 0) {
+          setErrors(found);
+          return;
+        }
+        mutation.mutate(values);
+      }}
     >
-      <div className="sm:col-span-2">
-        <h2 className="font-semibold">Profile media</h2>
-        <p className="mt-1 text-xs text-slate-500">
-          Images are uploaded directly to object storage and published after secure processing.
-        </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed p-4 text-sm font-semibold text-slate-700 hover:border-emerald-600">
-            <Camera className="size-5 text-emerald-700" />
-            <span>New profile photo</span>
-            <input
-              ref={avatarRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif"
-              className="sr-only"
-            />
-          </label>
-          <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed p-4 text-sm font-semibold text-slate-700 hover:border-emerald-600">
-            <Camera className="size-5 text-emerald-700" />
-            <span>New cover photo</span>
-            <input
-              ref={coverRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/avif"
-              className="sr-only"
-            />
-          </label>
-        </div>
-      </div>
+      {/* Framed like the Security, Sessions and Passkeys tabs beside it. */}
+      <Frame>
+        <FramePanel className="space-y-6">
+          <Fieldset>
+            <FieldGroup>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FileUploader
+                  title="New profile photo"
+                  files={avatarFiles}
+                  isDragging={avatarDragging}
+                  errors={avatarErrors}
+                  inputProps={avatar.getInputProps()}
+                  maxFiles={1}
+                  maxSize={MAX_IMAGE_BYTES}
+                  onOpen={avatar.openFileDialog}
+                  onRemove={avatar.removeFile}
+                  onClear={avatar.clearFiles}
+                  onDragEnter={avatar.handleDragEnter}
+                  onDragLeave={avatar.handleDragLeave}
+                  onDragOver={avatar.handleDragOver}
+                  onDrop={avatar.handleDrop}
+                />
+                <FileUploader
+                  title="New cover photo"
+                  files={coverFiles}
+                  isDragging={coverDragging}
+                  errors={coverErrors}
+                  inputProps={cover.getInputProps()}
+                  maxFiles={1}
+                  maxSize={MAX_IMAGE_BYTES}
+                  onOpen={cover.openFileDialog}
+                  onRemove={cover.removeFile}
+                  onClear={cover.clearFiles}
+                  onDragEnter={cover.handleDragEnter}
+                  onDragLeave={cover.handleDragLeave}
+                  onDragOver={cover.handleDragOver}
+                  onDrop={cover.handleDrop}
+                />
+              </div>
+            </FieldGroup>
+          </Fieldset>
 
-      <label className="text-sm font-medium">
-        Full name
-        <input
-          name="name"
-          required
-          minLength={2}
-          maxLength={100}
-          defaultValue={profile.data.name}
-          className="mt-2 h-11 w-full rounded-xl border px-3"
-        />
-      </label>
-      <label className="text-sm font-medium">
-        Username
-        <input
-          name="username"
-          pattern="[a-z0-9_]{3,30}"
-          defaultValue={profile.data.username ?? ""}
-          className="mt-2 h-11 w-full rounded-xl border px-3"
-        />
-      </label>
-      <label className="text-sm font-medium">
-        Phone
-        <input
-          name="phone"
-          defaultValue={profile.data.phone ?? ""}
-          className="mt-2 h-11 w-full rounded-xl border px-3"
-        />
-      </label>
-      <label className="text-sm font-medium">
-        Email
-        <input
-          disabled
-          value={profile.data.email ?? ""}
-          className="mt-2 h-11 w-full rounded-xl border bg-slate-50 px-3 text-slate-500"
-        />
-      </label>
-      <label className="text-sm font-medium sm:col-span-2">
-        Bio
-        <textarea
-          name="bio"
-          maxLength={500}
-          defaultValue={profile.data.bio ?? ""}
-          rows={5}
-          className="mt-2 w-full rounded-xl border p-3"
-        />
-      </label>
-      <div className="sm:col-span-2">
-        <button
-          disabled={mutation.isPending}
-          className="brand-button flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-60"
-        >
-          {mutation.isPending && <LoaderCircle className="size-4 animate-spin" />}
-          {mutation.isPending ? "Saving…" : "Save changes"}
-        </button>
-      </div>
+          <FieldSeparator />
+
+          <Fieldset>
+            <FieldGroup>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Field invalid={Boolean(errors.name)}>
+                  <FieldLabel htmlFor="profile-name">Full name</FieldLabel>
+                  <Input
+                    id="profile-name"
+                    value={values.name}
+                    onChange={(event) => set("name", event.target.value)}
+                    maxLength={100}
+                    autoComplete="name"
+                  />
+                  <FieldError match>{errors.name}</FieldError>
+                </Field>
+
+                <Field invalid={Boolean(errors.username)}>
+                  <FieldLabel htmlFor="profile-username">Username</FieldLabel>
+                  <Input
+                    id="profile-username"
+                    value={values.username}
+                    onChange={(event) => set("username", event.target.value)}
+                    maxLength={30}
+                    placeholder="your_handle"
+                    autoComplete="username"
+                  />
+                  <FieldDescription>
+                    Lowercase letters, numbers and underscores.
+                  </FieldDescription>
+                  <FieldError match>{errors.username}</FieldError>
+                </Field>
+
+                <Field invalid={Boolean(errors.phone)}>
+                  <FieldLabel htmlFor="profile-phone">Phone</FieldLabel>
+                  <Input
+                    id="profile-phone"
+                    type="tel"
+                    value={values.phone}
+                    onChange={(event) => set("phone", event.target.value)}
+                    maxLength={30}
+                    placeholder="98XXXXXXXX"
+                    autoComplete="tel"
+                  />
+                  <FieldError match>{errors.phone}</FieldError>
+                </Field>
+
+                <Field disabled>
+                  <FieldLabel htmlFor="profile-email">Email</FieldLabel>
+                  <Input
+                    id="profile-email"
+                    value={profile.data?.email ?? ""}
+                    disabled
+                    readOnly
+                  />
+                  <FieldDescription>
+                    Change your email from the Security tab.
+                  </FieldDescription>
+                </Field>
+              </div>
+
+              <Field invalid={Boolean(errors.bio)}>
+                <FieldLabel htmlFor="profile-bio">Bio</FieldLabel>
+                <Textarea
+                  id="profile-bio"
+                  value={values.bio}
+                  onChange={(event) => set("bio", event.target.value)}
+                  maxLength={500}
+                  rows={5}
+                  placeholder="A short introduction shown on your public profile."
+                />
+                <FieldDescription>
+                  {values.bio.trim().length}/500 characters.
+                </FieldDescription>
+                <FieldError match>{errors.bio}</FieldError>
+              </Field>
+            </FieldGroup>
+          </Fieldset>
+
+          <div className="flex items-center justify-end border-t pt-6">
+            <Button type="submit" loading={mutation.isPending}>
+              {mutation.isPending ? "Saving…" : "Save changes"}
+            </Button>
+          </div>
+        </FramePanel>
+      </Frame>
     </form>
   );
 }

@@ -87,6 +87,25 @@ export function AccountSettingsTabs({
     queryKey: queryKeys.account.sessions,
     queryFn: getSessions,
   });
+  // Verification is optional until they list a property or bid, so this is the
+  // place they come back to when one of those asks for it.
+  const resendVerification = useMutation({
+    mutationFn: async () => {
+      const email = account.data?.email;
+      if (!email) throw new Error("Your email address is not available.");
+      const result = await authClient.sendVerificationEmail({
+        email,
+        callbackURL: "/account/settings",
+      });
+      if (result?.error) {
+        throw new Error(result.error.message || "Could not send the email.");
+      }
+      return result;
+    },
+    onSuccess: () => toast.success("Verification email sent."),
+    onError: (error: unknown) => toast.error(errorMessage(error)),
+  });
+
   const passkeys = useQuery({
     queryKey: queryKeys.account.passkeys,
     queryFn: async () => {
@@ -250,6 +269,42 @@ export function AccountSettingsTabs({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  <TableRow>
+                    <TableCell>
+                      <div className="font-medium">Email</div>
+                      <div className="text-xs text-muted-foreground">
+                        Needed to post a property or place a bid
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          account.data?.emailVerified ? "success" : "secondary"
+                        }
+                      >
+                        {account.data?.emailVerified
+                          ? "Verified"
+                          : "Not verified"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {account.data?.emailVerified ? (
+                        <span className="text-muted-foreground text-sm">
+                          No action
+                        </span>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          loading={resendVerification.isPending}
+                          onClick={() => resendVerification.mutate()}
+                        >
+                          Send link
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+
                   <TableRow>
                     <TableCell>
                       <div className="font-medium">Password</div>

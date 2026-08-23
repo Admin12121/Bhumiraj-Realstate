@@ -59,7 +59,10 @@ export class MediaService implements OnModuleDestroy {
   });
 
   async create(userId: string, input: z.infer<typeof createUploadSchema>) {
-    await assertActiveAccount(userId, { requireVerifiedEmail: true });
+    // Not gated on verification: a new customer setting a profile photo has no
+    // reason to open their inbox first. The actions that matter — creating a
+    // listing, bidding — check verification themselves.
+    await assertActiveAccount(userId);
     const isPrivate = PRIVATE_PURPOSES.has(input.purpose);
     // Originals always land in the private quarantine bucket. Public CDN
     // objects are created only by the trusted media worker after validation.

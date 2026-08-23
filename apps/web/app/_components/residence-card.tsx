@@ -7,6 +7,30 @@ import { cn } from "@/lib/utils"
 import { SaveButton } from "./save-button"
 
 /** The reference's swipeable card media: slides, arrows and a progress pill. */
+/** The slide strip: a link normally, a plain box while previewing. */
+function Slides({
+  preview,
+  href,
+  className,
+  alt,
+  children,
+}: {
+  preview: boolean
+  href: string
+  className: string
+  alt: string
+  children: ReactNode
+}) {
+  if (preview) {
+    return <div className={className}>{children}</div>
+  }
+  return (
+    <Link href={href} className={className} aria-label={alt}>
+      {children}
+    </Link>
+  )
+}
+
 export function PropertyCardCarousel({
   href,
   images,
@@ -17,6 +41,7 @@ export function PropertyCardCarousel({
   imageClassName,
   topLeft,
   topRight,
+  preview = false,
 }: {
   href: string
   images: string[]
@@ -28,6 +53,8 @@ export function PropertyCardCarousel({
   imageClassName?: string
   topLeft?: ReactNode
   topRight?: ReactNode
+  /** Renders without navigation, for a listing that does not exist yet. */
+  preview?: boolean
 }) {
   const [slide, setSlide] = useState(0)
   const touchStartX = useRef<number | null>(null)
@@ -71,10 +98,11 @@ export function PropertyCardCarousel({
       }}
       data-slot="property-card-carousel"
     >
-      <Link
+      <Slides
+        preview={preview}
         href={href}
         className="absolute inset-0 z-0 block overflow-hidden"
-        aria-label={alt}
+        alt={alt}
       >
         {slides.length === 0 ? (
           <span className="flex h-full w-full flex-col items-center justify-center gap-1.5 bg-[#f1f1ef] text-[#8a8a8a]">
@@ -106,7 +134,7 @@ export function PropertyCardCarousel({
             />
           ))}
         </div>
-      </Link>
+      </Slides>
 
       {topLeft && <div className="absolute top-0 left-0 z-20">{topLeft}</div>}
       {topRight && <div className="absolute top-0 right-0 z-20">{topRight}</div>}

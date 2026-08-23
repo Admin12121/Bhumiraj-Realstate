@@ -24,12 +24,29 @@ export const listingTypeSchema = z.enum(["SALE", "RENT", "AUCTION"]);
 export const propertyTypeSchema = z.enum([
   "HOUSE",
   "APARTMENT",
+  // A single room let out inside a larger property — the common rental unit
+  // in Kathmandu, and distinct from a whole apartment.
+  "ROOM",
   "LAND",
   "COMMERCIAL",
   "OFFICE",
   "WAREHOUSE",
 ]);
 export const rentPeriodSchema = z.enum(["DAY", "WEEK", "MONTH", "YEAR"]);
+
+/** Exported so forms build their options from the contract, never a copy. */
+export const LOCATION_PRECISIONS = [
+  "EXACT",
+  "APPROXIMATE",
+  "LOCALITY",
+] as const;
+export const FURNISHING_LEVELS = [
+  "UNFURNISHED",
+  "SEMI_FURNISHED",
+  "FURNISHED",
+] as const;
+export const locationPrecisionSchema = z.enum(LOCATION_PRECISIONS);
+export const furnishingSchema = z.enum(FURNISHING_LEVELS);
 
 export const auctionCreationSchema = z
   .object({
@@ -175,9 +192,7 @@ const listingBaseSchema = z.object({
     street: z.string().trim().max(160).optional(),
     latitude: z.number().min(-90).max(90).optional(),
     longitude: z.number().min(-180).max(180).optional(),
-    publicLocationPrecision: z
-      .enum(["EXACT", "APPROXIMATE", "LOCALITY"])
-      .default("APPROXIMATE"),
+    publicLocationPrecision: locationPrecisionSchema.default("APPROXIMATE"),
   }),
   specifications: z.object({
     bedrooms: z.number().int().min(0).max(50).optional(),
@@ -187,9 +202,7 @@ const listingBaseSchema = z.object({
     floors: z.number().int().min(0).max(100).optional(),
     areaSqFt: z.number().positive(),
     builtYear: z.number().int().min(1800).max(2100).optional(),
-    furnishing: z
-      .enum(["UNFURNISHED", "SEMI_FURNISHED", "FURNISHED"])
-      .optional(),
+    furnishing: furnishingSchema.optional(),
   }),
   amenityIds: z.array(idSchema).max(100).default([]),
   mediaAssetIds: z.array(idSchema).min(1).max(50),

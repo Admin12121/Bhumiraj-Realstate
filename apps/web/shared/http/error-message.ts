@@ -78,9 +78,20 @@ export function issueMessage(issue: {
       return `${subject} is required.`;
     case "invalid_format":
       return `${subject} is not in a valid format.`;
-    default:
-      // Custom issues carry messages the API authors wrote for people.
+    case "invalid_value":
+    case "invalid_enum_value":
+    case "invalid_union":
+      // Zod spells these out with the full list of accepted values, which is
+      // internal detail and useless to the person looking at a dropdown.
+      return `${subject} is not one of the available options.`;
+    default: {
+      // Custom issues carry messages written for people; anything else is
+      // Zod's own developer-facing text and must not be shown.
+      if (issue.code !== "custom") {
+        return `${subject} is not valid.`;
+      }
       return label ? `${label}: ${issue.message}` : issue.message;
+    }
   }
 }
 
@@ -107,11 +118,14 @@ export function errorMessage(error: unknown): string {
     return first ? issueMessage(first as never) : GENERIC;
   }
   if (error instanceof HttpError) {
+    // Verification is optional until an action needs it, so say where to fix it.
+    if (error.code === "EMAIL_NOT_VERIFIED") {
+      return `${error.message} You can send yourself a new link from Settings → Security.`;
+    }
     // The API envelope's `message` is written for end users; `details` is not
-    // and is deliberately dropped here.
+    // and is deliberately dropped here. Only statuses whose messages come from
+    // the framework rather than from us fall back to generic text.
     if (error.status === 401) return "Please sign in and try again.";
-    if (error.status === 403) return "You do not have access to do that.";
-    if (error.status === 404) return "That item could not be found.";
     if (error.status === 429) return "Too many attempts. Please wait a moment.";
     if (error.status >= 500) return "The service is unavailable right now.";
     return error.message || GENERIC;

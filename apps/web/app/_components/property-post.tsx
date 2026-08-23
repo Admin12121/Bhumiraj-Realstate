@@ -184,10 +184,16 @@ function AgentLink({
 export function PropertyPost({
   post,
   showAgent = true,
+  preview = false,
 }: {
   post: PropertyPostData
   /** Off on an agent's own profile, where every post has the same byline. */
   showAgent?: boolean
+  /**
+   * Shows the post exactly as it will publish, with every action and link
+   * inert — the listing behind them does not exist yet.
+   */
+  preview?: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
   const [clamped, setClamped] = useState(false)
@@ -261,6 +267,7 @@ export function PropertyPost({
             </div>
           </div>
   
+{preview ? null : (
           <CardFrameAction className="flex gap-1">
             <SaveButton
               listingId={post.listingId}
@@ -286,15 +293,22 @@ export function PropertyPost({
               Contact Agent
             </Link>
           </CardFrameAction>
+          )}
         </div>
 
         <div className="mt-2 flex items-baseline justify-between gap-4">
-          <Link
-            href={href}
-            className="truncate text-[16px] leading-snug font-semibold text-[#1d1919] hover:underline"
-          >
-            {post.title}
-          </Link>
+          {preview ? (
+            <span className="truncate text-[16px] leading-snug font-semibold text-[#1d1919]">
+              {post.title}
+            </span>
+          ) : (
+            <Link
+              href={href}
+              className="truncate text-[16px] leading-snug font-semibold text-[#1d1919] hover:underline"
+            >
+              {post.title}
+            </Link>
+          )}
           {posted ? (
             <span className="shrink-0 text-[12px] text-[#8a8a8a]">{posted}</span>
           ) : null}
@@ -319,6 +333,7 @@ export function PropertyPost({
 
       <FramePanel className="overflow-hidden p-0">
         <PropertyCardCarousel
+          preview={preview}
           href={href}
           images={post.images}
           alt={post.title}
