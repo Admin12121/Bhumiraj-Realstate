@@ -1,7 +1,7 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState, type ReactNode } from "react"
+import { useState } from "react"
 import {
   Dialog,
   DialogFooter,
@@ -12,49 +12,16 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import {
-  Building2,
-  Check,
   Heart,
-  Home,
   Minus,
   Plus,
-  Search,
   SlidersHorizontal,
 } from "lucide-react"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
+import Link from "next/link"
 import { cn } from "@/lib/utils"
+import { PropertySearch } from "@/app/_components/property-search"
 import type { SearchCriteria } from "./search-results"
 
-const DISTRICTS = [
-  "All residences",
-  "Kathmandu",
-  "Lalitpur",
-  "Bhaktapur",
-  "Pokhara",
-  "Chitwan",
-]
-
-const LISTING_TYPES = [
-  { value: "SALE", label: "Buy" },
-  { value: "RENT", label: "Rent" },
-]
-
-const PROPERTY_TYPES = [
-  { value: "ANY", label: "Any property" },
-  { value: "HOUSE", label: "House" },
-  { value: "APARTMENT", label: "Apartment" },
-  { value: "LAND", label: "Land" },
-  { value: "COMMERCIAL", label: "Commercial" },
-  { value: "OFFICE", label: "Office" },
-  { value: "WAREHOUSE", label: "Warehouse" },
-]
-
-const SEGMENT =
-  "flex h-11 min-w-0 items-center gap-1.5 rounded-full px-4 text-[14px] font-medium text-[#555] outline-none transition hover:bg-black/[.035] focus-visible:ring-1 focus-visible:ring-black/30"
 
 // Reference histogram shape, retained so the distribution reads the same.
 const HISTOGRAM = [
@@ -215,28 +182,6 @@ function CountInput({
   )
 }
 
-function SegmentLabel({
-  children,
-  icon,
-}: {
-  children: ReactNode
-  icon?: ReactNode
-}) {
-  return (
-    <>
-      {icon}
-      <span className="max-w-[132px] truncate">{children}</span>
-    </>
-  )
-}
-
-function Divider() {
-  return <span className="h-5 w-px shrink-0 bg-black/[.10]" />
-}
-
-const POPOVER =
-  "w-[344px] rounded-[24px] border-black/[.08] p-0 shadow-[0_16px_50px_rgba(0,0,0,.16)]"
-
 /** The reference's pill control bar, with Bhumiraj's segments. */
 export function SearchHeaderControls({
   criteria,
@@ -244,11 +189,10 @@ export function SearchHeaderControls({
   criteria: SearchCriteria
 }) {
   const router = useRouter()
-  const [district, setDistrict] = useState(criteria.district ?? "")
-  const [listingType, setListingType] = useState(criteria.type ?? "SALE")
-  const [propertyType, setPropertyType] = useState(
-    criteria.propertyType ?? "ANY",
-  )
+  // The search bar owns these now; the page only seeds them from the URL.
+  const district = criteria.district ?? ""
+  const listingType = criteria.type ?? "SALE"
+  const propertyType = criteria.propertyType ?? "ANY"
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [savedOpen, setSavedOpen] = useState(false)
   const [bedrooms, setBedrooms] = useState(0)
@@ -257,11 +201,6 @@ export function SearchHeaderControls({
   const priceTouched = priceMin > 0 || priceMax < PRICE_MAX
   const filterCount = (bedrooms > 0 ? 1 : 0) + (priceTouched ? 1 : 0)
 
-  const typeLabel =
-    LISTING_TYPES.find((item) => item.value === listingType)?.label ?? "Buy"
-  const propertyLabel =
-    PROPERTY_TYPES.find((item) => item.value === propertyType)?.label ??
-    "Any property"
 
   function commit(next?: Partial<SearchCriteria>) {
     const merged = {
@@ -285,168 +224,39 @@ export function SearchHeaderControls({
 
   return (
     <div className="flex w-full min-w-0 flex-nowrap items-center gap-2 overflow-visible">
-      <div
-        className="relative isolate flex h-12 min-w-[430px] flex-1 items-center gap-1 rounded-full border border-black/[.12] bg-white p-px shadow-[0_2px_12px_rgba(0,0,0,.08)] transition-[box-shadow,background-color] duration-200 hover:shadow-[0_3px_16px_rgba(0,0,0,.10)]"
-        data-slot="search-bar-desktop"
-      >
-        <Popover>
-          <PopoverTrigger
-            render={
-              <button
-                type="button"
-                className={cn(SEGMENT, "min-w-[112px] flex-1 justify-start pr-3 pl-4 text-[#666]")}
-              />
-            }
-          >
-            <SegmentLabel
-              icon={
-                <Search className="size-5 shrink-0 text-[#666]" strokeWidth={1.7} />
-              }
-            >
-              {district || "Where"}
-            </SegmentLabel>
-          </PopoverTrigger>
-          <PopoverContent align="start" sideOffset={10} className={POPOVER}>
-            <div className="border-b border-black/[.08] p-3">
-              <div className="flex h-12 items-center rounded-xl bg-[#f5f5f4] px-4">
-                <Search className="mr-2 size-4 text-[#6d6d6d]" />
-                <input
-                  value={district}
-                  onChange={(event) => setDistrict(event.target.value)}
-                  placeholder="Search locations..."
-                  aria-label="Search locations"
-                  className="min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-[#989898]"
-                />
-              </div>
-            </div>
-            <div className="p-3">
-              <p className="px-2 pb-2 text-[12px] text-[#8a8a8a]">
-                Suggested regions
-              </p>
-              {DISTRICTS.map((item) => (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => {
-                    setDistrict(item === "All residences" ? "" : item)
-                    commit({ district: item })
-                  }}
-                  className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-[14px] hover:bg-black/[.04]"
-                >
-                  {item}
-                  {district === item && <Check className="size-4" />}
-                </button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
+      {/* The same bar as the home hero, so search does not present a second
+          set of controls for the same job. */}
+      <PropertySearch
+        className="min-w-0 flex-1"
+        defaults={{ type: listingType, district, propertyType }}
+      />
 
-        <Divider />
-
-        <Popover>
-          <PopoverTrigger
-            render={
-              <button
-                type="button"
-                className={cn(SEGMENT, "min-w-[108px] shrink-0 justify-center px-3 text-[#272727]")}
-              />
-            }
-          >
-            <SegmentLabel>{typeLabel}</SegmentLabel>
-          </PopoverTrigger>
-          <PopoverContent align="center" sideOffset={10} className={POPOVER}>
-            <div className="p-3">
-              {LISTING_TYPES.map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  onClick={() => {
-                    setListingType(item.value)
-                    commit({ type: item.value })
-                  }}
-                  className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-[14px] hover:bg-black/[.04]"
-                >
-                  <span className="flex items-center gap-2">
-                    <Home className="size-4 text-[#666]" />
-                    {item.label}
-                  </span>
-                  {listingType === item.value && <Check className="size-4" />}
-                </button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        <Divider />
-
-        <div className="group/action relative z-10 ml-auto flex h-11 min-w-0 items-center gap-1 rounded-full">
-          <Popover>
-            <PopoverTrigger
-              render={
-                <button
-                  type="button"
-                  className={cn(SEGMENT, "w-[130px] shrink-0 justify-center px-3 text-[#666]")}
-                />
-              }
-            >
-              <SegmentLabel>{propertyLabel}</SegmentLabel>
-            </PopoverTrigger>
-            <PopoverContent align="end" sideOffset={10} className={POPOVER}>
-              <div className="p-3">
-                {PROPERTY_TYPES.map((item) => (
-                  <button
-                    key={item.value}
-                    type="button"
-                    onClick={() => {
-                      setPropertyType(item.value)
-                      commit({ propertyType: item.value })
-                    }}
-                    className="flex w-full items-center justify-between rounded-xl px-3 py-3 text-left text-[14px] hover:bg-black/[.04]"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Building2 className="size-4 text-[#666]" />
-                      {item.label}
-                    </span>
-                    {propertyType === item.value && <Check className="size-4" />}
-                  </button>
-                ))}
-              </div>
-            </PopoverContent>
-          </Popover>
-
-          <button
-            type="button"
-            onClick={() => commit()}
-            className="mr-px grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#171717] text-white transition hover:bg-black"
-            aria-label="Search"
-          >
-            <Search className="size-4" strokeWidth={2} />
-          </button>
-        </div>
-      </div>
-
-      <button
-        type="button"
+      <Button
+        aria-label={filterCount > 0 ? `Filters (${filterCount})` : "Filters"}
+        className="relative shrink-0"
         onClick={() => setFiltersOpen(true)}
-        className="relative flex h-12 shrink-0 items-center gap-2 rounded-full border border-black/[.11] bg-white px-4 text-[14px] font-medium text-[#252525] transition hover:bg-[#f7f7f6]"
+        size="icon-lg"
+        variant="outline"
       >
-        <SlidersHorizontal className="size-4" strokeWidth={1.7} />
-        Filters
+        <SlidersHorizontal />
         {filterCount > 0 && (
-          <span className="grid min-w-5 place-items-center rounded-full bg-[#171717] px-1.5 py-0.5 text-[10px] leading-4 text-white">
+          <span className="absolute -top-1 -right-1 grid min-w-5 place-items-center rounded-full bg-[#171717] px-1.5 py-0.5 text-[10px] leading-4 text-white">
             {filterCount}
           </span>
         )}
-      </button>
+      </Button>
 
-      <button
-        type="button"
-        onClick={() => setSavedOpen(true)}
-        className="flex h-12 shrink-0 items-center gap-2 rounded-full border border-black/[.11] bg-white px-4 text-[14px] font-medium text-[#252525] transition hover:bg-[#f7f7f6]"
+      {/* Saved properties live on their own page; a dialog here duplicated it
+          and had nothing to show a signed-out visitor. */}
+      <Button
+        aria-label="Saved properties"
+        className="shrink-0"
+        render={<Link href="/account/saved" />}
+        size="icon-lg"
+        variant="outline"
       >
-        <Heart className="size-4" strokeWidth={1.7} />
-        Saved
-      </button>
+        <Heart />
+      </Button>
 
       <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
         <DialogPopup className="sm:max-w-md">

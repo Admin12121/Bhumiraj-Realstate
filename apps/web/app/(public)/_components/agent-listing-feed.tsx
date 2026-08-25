@@ -30,7 +30,10 @@ function toPost(listing: FeedListing): PropertyPostData {
           : [],
     agent: {
       ...(listing.agent
-        ? { id: listing.agent.username ?? listing.agent.id }
+        ? {
+            id: listing.agent.username ?? listing.agent.id,
+            userId: listing.agent.id,
+          }
         : {}),
       name: listing.agent?.name ?? "Bhumiraj Estates",
       image: listing.agent?.image ?? null,
@@ -38,6 +41,7 @@ function toPost(listing: FeedListing): PropertyPostData {
     },
     publishedAt: listing.publishedAt ?? listing.createdAt,
     reference: listing.id.slice(0, 8).toUpperCase(),
+    listingType: listing.listingType,
     ...(listing.auction ? { auctionId: listing.auction.id } : {}),
     ...(listing.price
       ? {
@@ -59,17 +63,17 @@ function toPost(listing: FeedListing): PropertyPostData {
 }
 
 /**
- * The agent's properties as a feed of posts. Paging comes from the listing feed
- * filtered by agent, so the page stays bounded however many they represent.
+ * A column of property posts with infinite scroll. Any feed filter works, so
+ * an agent's properties and a viewer's saved ones render identically.
  */
-export function AgentListingFeed({
-  agentUserId,
+export function ListingPostFeed({
+  filters,
   emptyMessage,
 }: {
-  agentUserId: string
+  filters: Parameters<typeof useListingFeed>[0]
   emptyMessage: string
 }) {
-  const feed = useListingFeed({ agentId: agentUserId })
+  const feed = useListingFeed(filters)
   const sentinelRef = useRef<HTMLDivElement>(null)
 
   const { fetchNextPage, hasNextPage, isFetchingNextPage } = feed
@@ -120,7 +124,7 @@ export function AgentListingFeed({
   return (
     <div className="flex flex-col gap-6">
       {posts.map((post) => (
-        <PropertyPost key={post.slug} post={post} showAgent={false} />
+        <PropertyPost key={post.slug} post={post} />
       ))}
 
       {isFetchingNextPage ? <PropertyPostSkeleton /> : null}
@@ -132,5 +136,21 @@ export function AgentListingFeed({
         </p>
       ) : null}
     </div>
+  )
+}
+
+/** An agent's published properties. */
+export function AgentListingFeed({
+  agentUserId,
+  emptyMessage,
+}: {
+  agentUserId: string
+  emptyMessage: string
+}) {
+  return (
+    <ListingPostFeed
+      emptyMessage={emptyMessage}
+      filters={{ agentId: agentUserId }}
+    />
   )
 }

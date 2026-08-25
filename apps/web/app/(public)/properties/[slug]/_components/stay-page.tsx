@@ -351,11 +351,12 @@ export function StayPage({ listing }: { listing: ListingDetail }) {
     price,
     priceLabel,
     agent: {
-      ...(agent ? { id: agent.id } : {}),
+      ...(agent ? { id: agent.id, userId: agent.id } : {}),
       name: agent?.name ?? "Bhumiraj Estates",
       role: agent ? "Appointed agent" : "Awaiting an agent",
       verified: agent?.verified ?? false,
     },
+    listingId: listing.id,
   }
 
   return (

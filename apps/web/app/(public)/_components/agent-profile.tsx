@@ -8,7 +8,6 @@ import {
   BadgeCheck,
   Building2,
   CalendarDays,
-  MapPin,
   MessageCircle,
   Star,
 } from "lucide-react"
@@ -54,7 +53,7 @@ function Stat({ value, label }: { value: string | number; label: string }) {
 /** Matches the loaded layout so the page does not jump when data lands. */
 function ProfileSkeleton() {
   return (
-    <main className="w-full bg-white pt-[72px]">
+    <main className="flex w-full min-h-[calc(100dvh-72px)] flex-col bg-white pt-[72px]">
       <div className="h-[180px] w-full bg-[#f1f1ef] sm:h-[220px]" />
       <div className="mx-auto w-full max-w-[1100px] px-6 lg:px-8">
         <div className="-mt-14 flex flex-col gap-4 sm:-mt-16 sm:flex-row sm:items-end">
@@ -83,7 +82,7 @@ function ProfileSkeleton() {
   )
 }
 
-const TABS = ["Properties", "About", "Reviews"] as const
+const TABS = ["Properties", "Reviews"] as const
 
 /** Public agent page, laid out like a social profile: banner, identity, feed. */
 export function AgentProfile({ handle }: { handle: string }) {
@@ -146,7 +145,7 @@ export function AgentProfile({ handle }: { handle: string }) {
   })
 
   return (
-    <main className="w-full bg-white pt-[72px]">
+    <main className="flex w-full min-h-[calc(100dvh-72px)] flex-col bg-white pt-[72px]">
       {/* Banner: a plain brand wash rather than a stock photo standing in for
           something the agent never uploaded. */}
       <div className="h-[180px] w-full bg-gradient-to-br from-[#0b5d34] via-[#137547] to-[#1f8a54] sm:h-[220px]" />
@@ -262,37 +261,6 @@ export function AgentProfile({ handle }: { handle: string }) {
                 agentUserId={agent.userId}
                 emptyMessage={`${agent.name} has no published properties yet.`}
               />
-            </div>
-          ) : null}
-
-          {tab === "About" ? (
-            <div className="mx-auto max-w-[680px] space-y-5">
-              {agent.about ? (
-                <p className="text-[15px] leading-7 text-[#3f3f3f]">
-                  {agent.about}
-                </p>
-              ) : (
-                <p className="rounded-2xl bg-[#f7f7f6] px-6 py-10 text-center text-sm text-[#636363]">
-                  {agent.name} has not written a bio yet.
-                </p>
-              )}
-              <dl className="grid gap-4 rounded-2xl bg-[#f7f7f6] p-5 sm:grid-cols-2">
-                <div>
-                  <dt className="text-[13px] text-[#737373]">Status</dt>
-                  <dd className="mt-0.5 text-[15px] font-medium text-[#202020]">
-                    {agent.status === "ACTIVE" ? "Active" : agent.status}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-[13px] text-[#737373]">Availability</dt>
-                  <dd className="mt-0.5 flex items-center gap-1.5 text-[15px] font-medium text-[#202020]">
-                    <MapPin className="size-4 text-[#737373]" />
-                    {agent.availabilityStatus === "AVAILABLE"
-                      ? "Taking new properties"
-                      : "Not taking new properties"}
-                  </dd>
-                </div>
-              </dl>
             </div>
           ) : null}
 

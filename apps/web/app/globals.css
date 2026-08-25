@@ -439,3 +439,15 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 [data-slot="hero-grid-block"][data-state="active"] {
   opacity: 1;
 }
+
+/* Cycling placeholder in the location search. */
+@keyframes placeholder-rise {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -25,6 +25,13 @@ export class ListingsRepository {
     const conditions: object[] = [{ status: "PUBLISHED" }];
 
     if (query.type) conditions.push({ type: query.type });
+    // Saved properties are the same feed filtered to the viewer's favourites,
+    // so the card, its gallery and its agent all come from one place.
+    if (query.savedOnly) {
+      conditions.push(
+        userId ? { favorites: { some: { userId } } } : { id: "__none__" },
+      );
+    }
     // `agentId` is the agent's user id. Matching on the accepted assignment
     // rather than `createdById` means a profile shows what that agent
     // represents, not what they happened to submit.

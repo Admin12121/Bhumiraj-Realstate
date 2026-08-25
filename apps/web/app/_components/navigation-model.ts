@@ -51,6 +51,7 @@ export const accountNavigation: NavigationItem[] = [
   { label: "Saved", icon: Bookmark, href: "/account/saved" },
   { label: "Auctions", icon: Gavel, href: "/account/auctions" },
   { label: "Messages", icon: MessageCircle, href: "/account/messages" },
+  { label: "Notifications", icon: Bell, href: "/account/notifications" },
 ];
 
 /**

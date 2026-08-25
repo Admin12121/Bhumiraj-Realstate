@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell } from "lucide-react";
 
+import { useRealtimeEvents } from "@/hooks/use-realtime-events";
+
 import {
   getNotifications,
   markAllNotificationsRead,
@@ -31,8 +33,14 @@ export function NotificationBell({ inverse = false }: { inverse?: boolean }) {
   const notifications = useQuery({
     queryKey: ["notifications", "recent"],
     queryFn: () => getNotifications(false, 12),
+    // The socket below is the live path; the poll is only a fallback for a
+    // dropped connection.
     refetchInterval: 60_000,
     staleTime: 30_000,
+  });
+
+  useRealtimeEvents(() => {
+    void client.invalidateQueries({ queryKey: ["notifications"] });
   });
 
   const items = notifications.data?.items ?? [];
@@ -136,8 +144,8 @@ export function NotificationBell({ inverse = false }: { inverse?: boolean }) {
 
         <MenuSeparator />
 
-        <MenuItem render={<Link href="/account/alerts" />}>
-          View all alerts
+        <MenuItem render={<Link href="/account/notifications" />}>
+          View all notifications
         </MenuItem>
       </MenuPopup>
     </Menu>

@@ -7,6 +7,17 @@ import {
 import { z } from "zod";
 import { apiRequest } from "@/shared/http/api";
 
+export const createConversation = (input: {
+  participantId: string
+  listingId?: string
+  message: string
+}) =>
+  apiRequest("/messages/conversations", {
+    method: "POST",
+    body: input,
+    schema: z.object({ id: z.string() }),
+  });
+
 export const getConversations = (
   cursor?: string,
   signal?: AbortSignal,

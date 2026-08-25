@@ -11,7 +11,6 @@ import {
   Gavel,
   LandPlot,
   MapPin,
-  Phone,
   Ruler,
   Tag,
 } from "lucide-react"
@@ -21,6 +20,7 @@ import {
   CardFrameTitle,
 } from "@/components/ui/card"
 import { PropertyCardCarousel } from "./property-card-carousel"
+import { ContactAgentButton } from "./contact-agent-button"
 import { SaveButton } from "./save-button"
 import { ShareMenu } from "./share-menu"
 import { Frame, FrameDescription, FrameFooter, FrameHeader, FramePanel } from "@/components/ui/frame"
@@ -33,13 +33,18 @@ export type PropertyPostData = {
   description: string
   images: string[]
   agent: {
+    /** Username when there is one, else the user id: this addresses the profile. */
     id?: string | undefined
+    /** Always the user id, which is what starting a conversation needs. */
+    userId?: string | undefined
     name: string
     image?: string | null
     verified?: boolean
   }
   publishedAt?: string | null
   reference?: string | undefined
+  /** SALE, RENT or AUCTION: what the card is actually offering. */
+  listingType?: "SALE" | "RENT" | "AUCTION" | undefined
   price?: string | undefined
   location: string
   propertyType?: string | undefined
@@ -222,9 +227,15 @@ export function PropertyPost({
   }, [expanded, post.description])
 
   const details = [
-    post.reference
-      ? { icon: Tag, label: "Property ID", value: post.reference }
-      : null,
+    {
+      icon: Tag,
+      label: "Listing",
+      value: post.auctionId
+        ? "Auction"
+        : post.listingType === "RENT"
+          ? "Rent"
+          : "Buy",
+    },
     post.price ? { icon: Tag, label: "Price", value: post.price } : null,
     { icon: MapPin, label: "Location", value: post.location },
     post.propertyType
@@ -297,15 +308,14 @@ export function PropertyPost({
                 <Gavel className="size-4" strokeWidth={1.8} />
                 Enroll
               </Link>
-            ) : (
-              <Link
-                href={href}
-                className={cn(buttonVariants({ variant: "default" }))}
-              >
-                <Phone className="size-4" strokeWidth={1.8} />
-                Contact Agent
-              </Link>
-            )}
+            ) : post.agent.userId ? (
+              <ContactAgentButton
+                agentName={post.agent.name}
+                agentUserId={post.agent.userId}
+                {...(post.listingId ? { listingId: post.listingId } : {})}
+                listingTitle={post.title}
+              />
+            ) : null}
           </CardFrameAction>
           )}
         </div>

@@ -62,6 +62,12 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
         title: listing.title,
         city: `${listing.location.locality}, ${listing.location.district}`,
         image: listing.coverImageUrl ?? "",
+            images:
+              listing.imageUrls.length > 0
+                ? listing.imageUrls
+                : listing.coverImageUrl
+                  ? [listing.coverImageUrl]
+                  : [],
         bedrooms: listing.specifications.bedrooms ?? undefined,
         bathrooms: listing.specifications.bathrooms ?? undefined,
         area: listing.specifications.areaSqFt
@@ -87,6 +93,12 @@ export function SearchResults({ criteria }: { criteria: SearchCriteria }) {
             title: listing.title,
             city: `${listing.location.locality}, ${listing.location.district}`,
             image: listing.coverImageUrl ?? "",
+            images:
+              listing.imageUrls.length > 0
+                ? listing.imageUrls
+                : listing.coverImageUrl
+                  ? [listing.coverImageUrl]
+                  : [],
             price: listing.price
               ? formatMinorAmount(
                   listing.price.amountMinor,

@@ -141,13 +141,26 @@ export class MessagingService {
     if (input.listingId) {
       const listing = await prisma.listing.findFirst({
         where: { id: input.listingId, status: "PUBLISHED" },
-        select: { id: true, createdById: true },
+        select: {
+          id: true,
+          createdById: true,
+          assignments: {
+            where: { status: "ACCEPTED" },
+            select: { agent: { select: { userId: true } } },
+          },
+        },
       });
       if (!listing) throw new NotFoundException();
-      if (listing.createdById !== input.participantId) {
+      // The appointed agent is who a buyer is shown and told to contact, so
+      // they count alongside the owner as a valid party on the listing.
+      const allowed = new Set([
+        listing.createdById,
+        ...listing.assignments.map((row) => row.agent.userId),
+      ]);
+      if (!allowed.has(input.participantId)) {
         throw new BadRequestException({
           code: "INVALID_LISTING_PARTICIPANT",
-          message: "The selected participant does not own this listing.",
+          message: "That person is not connected to this listing.",
         });
       }
     }

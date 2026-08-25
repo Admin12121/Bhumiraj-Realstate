@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { BadgeCheck, CalendarDays, ChevronRight, Phone } from "lucide-react"
 import { agentHref } from "@/shared/utilities/agent-handle"
+import { ContactAgentButton } from "@/app/_components/contact-agent-button"
 
 export type ContactAgentDetails = {
   slug: string
@@ -12,10 +13,14 @@ export type ContactAgentDetails = {
   priceLabel?: string
   agent: {
     id?: string | undefined
+    /** The user id, which is what starting a conversation needs. */
+    userId?: string | undefined
     name: string
     role?: string
     verified?: boolean
   }
+  /** Present once published; lets the enquiry carry the listing. */
+  listingId?: string | undefined
 }
 
 /**
@@ -88,17 +93,23 @@ export function StayBookingCard({
           )}
 
           <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#00733d] px-5 text-[16px] font-[550] text-white transition-all hover:bg-[#005a2e] ${
-                highlight === "contact"
-                  ? "ring-2 ring-[#00733d] ring-offset-2"
-                  : ""
-              }`}
-            >
-              <Phone className="size-4" strokeWidth={1.9} />
-              Contact agent
-            </button>
+            {details.agent.userId ? (
+              <ContactAgentButton
+                agentName={details.agent.name}
+                agentUserId={details.agent.userId}
+                {...(details.listingId ? { listingId: details.listingId } : {})}
+                listingTitle={details.title}
+                size="lg"
+                className={`inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#00733d] px-5 text-[16px] font-[550] text-white transition-all hover:bg-[#005a2e] ${
+                  highlight === "contact"
+                    ? "ring-2 ring-[#00733d] ring-offset-2"
+                    : ""
+                }`}
+              >
+                <Phone className="size-4" strokeWidth={1.9} />
+                Contact agent
+              </ContactAgentButton>
+            ) : null}
             <button
               type="button"
               onClick={onBookViewing}

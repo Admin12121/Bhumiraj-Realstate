@@ -166,6 +166,8 @@ export const listingFeedQuerySchema = cursorQuerySchema.extend({
   maxPriceMinor: bigintQuerySchema.optional(),
   bedrooms: z.coerce.number().int().min(0).max(20).optional(),
   q: z.string().trim().max(100).optional(),
+  /** Only what the signed-in viewer saved. */
+  savedOnly: z.coerce.boolean().optional(),
   sort: z.enum(["newest", "price-asc", "price-desc", "popular"]).default("newest"),
 }).superRefine((value, context) => {
   if (

@@ -55,6 +55,35 @@ If this was not you, someone may have entered your address by mistake. You can i
     });
   };
 
+  /**
+   * A security event the account holder should see in the app as well as in
+   * their inbox. The outbox row is what pushes it to the open tab.
+   */
+  const securityNotice = async (input: {
+    userId: string;
+    type: string;
+    title: string;
+    body: string;
+  }) => {
+    const notification = await prisma.notification.create({
+      data: {
+        userId: input.userId,
+        type: input.type,
+        title: input.title,
+        body: input.body,
+      },
+      select: { id: true },
+    });
+    await prisma.outboxEvent.create({
+      data: {
+        aggregateType: "Notification",
+        aggregateId: notification.id,
+        eventType: "notification.created",
+        payload: { userId: input.userId, notificationId: notification.id },
+      },
+    });
+  };
+
   const hostname = new URL(appUrl).hostname;
   const socialProviders = {
     ...(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET
@@ -104,6 +133,12 @@ If this was not you, someone may have entered your address by mistake. You can i
           text: `Hello ${user.name || "there"},
 
 The password for ${user.email} was just changed. If you made this change, nothing more is needed.`,
+        }).catch(() => undefined);
+        await securityNotice({
+          userId: user.id,
+          type: "security.password.changed",
+          title: "Your password was changed",
+          body: "If this was not you, reset your password and review your sessions.",
         }).catch(() => undefined);
       },
       sendResetPassword: async ({ user, url }) =>
@@ -221,6 +256,12 @@ The password for ${user.email} was just changed. If you made this change, nothin
 
 An account was created for ${user.email} at Bhumiraj Estates. You can browse and save properties straight away. Verifying your email is only needed to post a property or place a bid, and you can do it any time from Settings → Security.`,
             }).catch(() => undefined);
+            await securityNotice({
+              userId: user.id,
+              type: "security.account.created",
+              title: "Welcome to Bhumiraj Estates",
+              body: "Verify your email when you are ready to post a property or bid.",
+            }).catch(() => undefined);
           },
         },
       },
@@ -254,6 +295,21 @@ An account was created for ${user.email} at Bhumiraj Estates. You can browse and
           where: { id: newSession.session.id },
           data: { authMethod },
         });
+
+        // A sign-in the account holder did not make is the signal that matters,
+        // so every new session is announced in the app.
+        const method =
+          authMethod === "credential+2fa"
+            ? "a password and two-factor code"
+            : authMethod === "social"
+              ? "a linked Google account"
+              : "a password";
+        await securityNotice({
+          userId: newSession.user.id,
+          type: "security.session.created",
+          title: "New sign-in to your account",
+          body: `Someone signed in with ${method}. If this was not you, change your password and sign out other devices.`,
+        }).catch(() => undefined);
       }),
     },
     rateLimit: { enabled: true, window: 60, max: 100 },

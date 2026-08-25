@@ -35,7 +35,7 @@ function toPost(listing: {
   coverImageUrl: string | null
   imageUrls: string[]
   propertyType: string
-  listingType: string
+  listingType: "SALE" | "RENT" | "AUCTION"
   isVerified: boolean
   publishedAt: string | null
   createdAt: string
@@ -69,7 +69,10 @@ function toPost(listing: {
           : [],
     agent: {
       ...(listing.agent
-        ? { id: listing.agent.username ?? listing.agent.id }
+        ? {
+            id: listing.agent.username ?? listing.agent.id,
+            userId: listing.agent.id,
+          }
         : {}),
       name: listing.agent?.name ?? "Bhumiraj Estates",
       image: listing.agent?.image ?? null,
@@ -77,6 +80,7 @@ function toPost(listing: {
     },
     publishedAt: listing.publishedAt ?? listing.createdAt,
     reference: listing.id.slice(0, 8).toUpperCase(),
+    listingType: listing.listingType,
     // Without this the card looks like a sample residence and refuses to save.
     listingId: listing.id,
     saved: listing.isSaved,
