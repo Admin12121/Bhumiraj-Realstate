@@ -46,12 +46,12 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-import { useStepUp } from "./step-up-dialog"
+import { useStepUp } from "../../_components/step-up-dialog"
 import {
   PanelEmptyRow,
   PanelRecords,
   PanelSection,
-} from "./panel-layout"
+} from "../../_components/panel-layout"
 import { errorMessage } from "@/shared/http/error-message";
 
 export function StaffGovernancePanel() {

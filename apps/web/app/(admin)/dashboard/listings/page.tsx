@@ -1,4 +1,5 @@
-import { AdminListingsTable, AdminShell } from "../_components";
+import { AdminShell } from "../_components";
+import { AdminListingsTable } from "./_components";
 
 export default function Page() {
   return (

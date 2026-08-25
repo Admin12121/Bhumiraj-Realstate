@@ -1,4 +1,5 @@
-import { AdminAccountTabs, AdminShell } from "../_components";
+import { AdminShell } from "../_components";
+import { AdminAccountTabs } from "./_components";
 
 export default function Page() {
   return (

@@ -11,11 +11,9 @@ import {
 import { TableCell, TableRow } from "@/components/ui/table";
 
 /**
- * The one empty state every table in the app uses.
- *
- * Tables had each grown their own — a bare sentence here, a centred paragraph
- * there — so the product read as several products. Rendering nothing when there
- * are rows keeps call sites to a single line at the end of the body.
+ * The one empty state every table in the app uses. Tables had each grown their
+ * own — a bare sentence here, a centred paragraph there — so the product read
+ * as several products.
  */
 export function TableEmptyRow({
   colSpan,

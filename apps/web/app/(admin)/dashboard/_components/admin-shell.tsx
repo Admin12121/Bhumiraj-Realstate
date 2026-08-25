@@ -19,6 +19,7 @@ import {
   Gavel,
   History,
   MessageSquare,
+  MessagesSquare,
   Settings,
   ShieldCheck,
   UserCog,
@@ -54,7 +55,7 @@ import type { NavigationItem } from "@/app/_components/navigation-model"
 
 const sections = [
   {
-    label: "Overview",
+    label: "Platform",
     items: [
       {
         label: "Dashboard",
@@ -62,13 +63,37 @@ const sections = [
         href: "/dashboard",
         permission: "admin.overview.read",
       },
+      {
+        label: "Users",
+        icon: Users,
+        href: "/dashboard/users",
+        permission: "admin.users.read",
+      },
+      {
+        label: "Application staff",
+        icon: UserCog,
+        href: "/dashboard/staff",
+        permission: "admin.staff.read",
+      },
+      {
+        label: "Agents",
+        icon: ShieldCheck,
+        href: "/dashboard/agents",
+        permission: "admin.agents.read",
+      },
+      {
+        label: "Staff roles",
+        icon: ShieldCheck,
+        href: "/dashboard/roles",
+        permission: "admin.roles.read",
+      },
     ],
   },
   {
-    label: "Marketplace",
+    label: "Business",
     items: [
       {
-        label: "Listings",
+        label: "Property",
         icon: Building2,
         href: "/dashboard/listings",
         permission: "admin.listings.read",
@@ -79,50 +104,28 @@ const sections = [
         href: "/dashboard/auctions",
         permission: "admin.auctions.read",
       },
+    ],
+  },
+  {
+    label: "Support",
+    items: [
+      // The live chat from the website: staff and owners answer visitors here.
       {
-        label: "Support",
+        label: "Messages",
         icon: MessageSquare,
         href: "/dashboard/support",
         permission: "admin.support.read",
       },
       {
-        label: "Moderation",
+        label: "Report",
         icon: FileCheck2,
         href: "/dashboard/moderation",
         permission: "admin.moderation.read",
       },
-    ],
-  },
-  {
-    label: "People",
-    items: [
+      // Buyer and agent conversations, which staff only observe.
       {
-        label: "Users",
-        icon: Users,
-        href: "/dashboard/users",
-        permission: "admin.users.read",
-      },
-      {
-        label: "Staff",
-        icon: UserCog,
-        href: "/dashboard/staff",
-        permission: "admin.staff.read",
-      },
-      {
-        label: "Staff roles",
-        icon: ShieldCheck,
-        href: "/dashboard/roles",
-        permission: "admin.roles.read",
-      },
-      {
-        label: "Agents",
-        icon: ShieldCheck,
-        href: "/dashboard/agents",
-        permission: "admin.agents.read",
-      },
-      {
-        label: "Messages",
-        icon: MessageSquare,
+        label: "Conversations",
+        icon: MessagesSquare,
         href: "/dashboard/messages",
         permission: "admin.messages.read",
       },
@@ -191,8 +194,7 @@ function isActiveRoute(pathname: string, href: string): boolean {
 
 const StaffPermissionsContext = createContext<ReadonlySet<string>>(new Set())
 
-/** Permission keys granted to the signed-in staff member. */
-export function useStaffPermissions(): ReadonlySet<string> {
+function useStaffPermissions(): ReadonlySet<string> {
   return useContext(StaffPermissionsContext)
 }
 
@@ -302,12 +304,7 @@ export function AdminShell({
   children,
 }: {
   title: string
-  /** Permission required to view this page; omit for pages open to any staff. */
   permission?: string
-  /**
-   * Drops the page padding so a full-height editor can own the area under the
-   * header, the way the roles editor does.
-   */
   bleed?: boolean
   children: ReactNode
 }) {
@@ -335,8 +332,6 @@ export function AdminShell({
   }
 
   const permissions = new Set(access.data.permissions)
-  // The page still renders inside the shell so a staff member who lands on a
-  // page they cannot see keeps the navigation they can.
   const denied = Boolean(permission && !permissions.has(permission))
   const mobileItems: NavigationItem[] = sections.flatMap((section) =>
     section.items

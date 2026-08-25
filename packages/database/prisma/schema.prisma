@@ -356,6 +356,9 @@ model User {
   paymentIntents                PaymentIntent[]
   authoredAgentReviews          AgentReview[]             @relation("AgentReviewAuthor")
   listingReports                ListingReport[]           @relation("ListingReporter")
+  assignedListingReports        ListingReport[]           @relation("ListingReportAssignee")
+  assignedUserReports           UserReport[]              @relation("UserReportAssignee")
+  reportMessages                ReportMessage[]           @relation("ReportMessageAuthor")
   priceChanges                  ListingPriceHistory[]     @relation("ListingPriceChanger")
   listingStatusChanges          ListingStatusHistory[]    @relation("ListingStatusActor")
   auctionSettlementsAsBuyer     AuctionSettlement[]       @relation("SettlementBuyer")
@@ -1350,32 +1353,65 @@ model UserReport {
   id             String           @id @default(uuid())
   reporterId     String
   reportedUserId String
+  /// Set when a staff member replies; that reply is what claims the ticket.
+  assignedToId   String?
   reason         String
   details        String?
   status         ModerationStatus @default(OPEN)
   createdAt      DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime         @updatedAt @db.Timestamptz(3)
   reporter       User             @relation("Reporter", fields: [reporterId], references: [id], onDelete: Restrict)
   reportedUser   User             @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: Restrict)
+  assignedTo     User?            @relation("UserReportAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages       ReportMessage[]
 
   @@index([status, createdAt])
   @@index([reportedUserId, status])
   @@index([reporterId, createdAt])
+  @@index([assignedToId, status, createdAt])
+}
+
+/// A reply on a report, so a ticket reads as a conversation between the person
+/// who raised it and the staff working it. Exactly one report column is set.
+model ReportMessage {
+  id              String   @id @default(uuid())
+  listingReportId String?
+  userReportId    String?
+  authorId        String
+  /// Distinguishes a reporter's message from staff without re-deriving it from
+  /// the author's current role, which can change after the fact.
+  fromStaff       Boolean  @default(false)
+  body            String   @db.VarChar(4000)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+
+  listingReport ListingReport? @relation(fields: [listingReportId], references: [id], onDelete: Cascade)
+  userReport    UserReport?    @relation(fields: [userReportId], references: [id], onDelete: Cascade)
+  author        User           @relation("ReportMessageAuthor", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([listingReportId, createdAt])
+  @@index([userReportId, createdAt])
 }
 
 model ListingReport {
-  id         String           @id @default(uuid())
-  listingId  String
-  reporterId String
-  reason     String
-  details    String?
-  status     ModerationStatus @default(OPEN)
-  createdAt  DateTime         @default(now()) @db.Timestamptz(3)
-  listing    Listing          @relation(fields: [listingId], references: [id], onDelete: Restrict)
-  reporter   User             @relation("ListingReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  id           String           @id @default(uuid())
+  listingId    String
+  reporterId   String
+  /// Set when a staff member replies; that reply is what claims the ticket.
+  assignedToId String?
+  reason       String
+  details      String?
+  status       ModerationStatus @default(OPEN)
+  createdAt    DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime         @updatedAt @db.Timestamptz(3)
+  listing      Listing          @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  reporter     User             @relation("ListingReporter", fields: [reporterId], references: [id], onDelete: Restrict)
+  assignedTo   User?            @relation("ListingReportAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages     ReportMessage[]
 
   @@index([status, createdAt])
   @@index([listingId, status])
   @@index([reporterId, createdAt])
+  @@index([assignedToId, status, createdAt])
 }
 
 model IdempotencyKey {

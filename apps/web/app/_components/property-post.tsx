@@ -20,7 +20,7 @@ import {
   CardFrameDescription,
   CardFrameTitle,
 } from "@/components/ui/card"
-import { PropertyCardCarousel } from "./residence-card"
+import { PropertyCardCarousel } from "./property-card-carousel"
 import { SaveButton } from "./save-button"
 import { ShareMenu } from "./share-menu"
 import { Frame, FrameDescription, FrameFooter, FrameHeader, FramePanel } from "@/components/ui/frame"
@@ -113,9 +113,7 @@ function DetailField({
  */
 /**
  * Mirrors the post's real structure — avatar row, media, spec grid — so the
- * layout does not jump when the data lands. The bars carry their own tone
- * rather than using `Skeleton`, whose muted fill is the same colour as the
- * frame it sits on and so reads as an empty box.
+ * layout does not jump when the data lands.
  */
 function Bar({
   className,

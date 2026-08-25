@@ -21,10 +21,9 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * Unread notifications, reachable from every workspace.
- *
- * Alerts were only visible by navigating to a page, so anything that happened
- * while you were working went unseen until you went looking for it.
+ * Unread notifications, reachable from every workspace. Alerts were only
+ * visible by navigating to a page, so anything that happened while you were
+ * working went unseen until you went looking for it.
  */
 export function NotificationBell({ inverse = false }: { inverse?: boolean }) {
   const client = useQueryClient();

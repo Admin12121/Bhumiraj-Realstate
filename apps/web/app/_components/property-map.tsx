@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Home } from "lucide-react"
 import type { GeoJSONSource, MapMouseEvent } from "maplibre-gl"
 import { cn } from "@/lib/utils"
-import { PropertyCardCarousel } from "./residence-card"
+import { PropertyCardCarousel } from "./property-card-carousel"
 import {
   Map,
   MapControls,

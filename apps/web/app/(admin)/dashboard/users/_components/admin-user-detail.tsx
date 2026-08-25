@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PanelEmptyRow } from "./panel-layout";
+import { PanelEmptyRow } from "../../_components/panel-layout";
 
 function initials(value: string) {
   return (

@@ -9,7 +9,6 @@ import { HttpError } from "@real-estate/http"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogPanel,
@@ -24,7 +23,7 @@ const STEP_UP_CODES = new Set([
   "STAFF_FRESH_SESSION_REQUIRED",
 ])
 
-export function isStepUpError(error: unknown): boolean {
+function isStepUpError(error: unknown): boolean {
   return error instanceof HttpError && STEP_UP_CODES.has(error.code)
 }
 

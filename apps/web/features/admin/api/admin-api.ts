@@ -19,6 +19,7 @@ import {
   platformSettingsSchema,
   platformInvitationsResponseSchema,
 } from "@real-estate/contracts"
+import { ticketDetailSchema } from "@real-estate/contracts"
 import { z } from "zod"
 import { apiRequest } from "@/shared/http/api"
 
@@ -318,12 +319,64 @@ export const getModerationQueue = (
   page: number,
   kind: "LISTING_REPORT" | "USER_REPORT",
   status = "OPEN",
-  search = ""
+  search = "",
+  mine = false
 ) =>
   apiRequest(
-    `/admin/moderation?${queryString({ page, pageSize: 25, kind, status, search })}`,
+    `/admin/moderation?${queryString({ page, pageSize: 25, kind, status, search, ...(mine ? { mine: "true" } : {}) })}`,
     { method: "GET", schema: moderationQueueResponseSchema }
   )
+
+const ticketStaffSchema = z.object({
+  items: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      email: z.string(),
+      image: z.string().nullable(),
+    })
+  ),
+})
+
+export const getTicket = (
+  kind: "LISTING_REPORT" | "USER_REPORT",
+  id: string,
+  signal?: AbortSignal
+) =>
+  apiRequest(`/admin/tickets/${kind}/${id}`, {
+    method: "GET",
+    schema: ticketDetailSchema,
+    signal,
+  })
+
+export const replyToTicket = (
+  kind: "LISTING_REPORT" | "USER_REPORT",
+  id: string,
+  body: string
+) =>
+  apiRequest(`/admin/tickets/${kind}/${id}/messages`, {
+    method: "POST",
+    body: { body },
+    schema: z.object({ id: z.string(), createdAt: z.string() }),
+  })
+
+export const transferTicket = (
+  kind: "LISTING_REPORT" | "USER_REPORT",
+  id: string,
+  assigneeId: string
+) =>
+  apiRequest(`/admin/tickets/${kind}/${id}/transfer`, {
+    method: "POST",
+    body: { assigneeId },
+    schema: z.object({ id: z.string(), assignedToId: z.string() }),
+  })
+
+export const getTicketStaff = (search: string, signal?: AbortSignal) =>
+  apiRequest(`/admin/tickets/staff?${queryString({ search })}`, {
+    method: "GET",
+    schema: ticketStaffSchema,
+    signal,
+  })
 
 export const decideModerationReport = (
   kind: "LISTING_REPORT" | "USER_REPORT",

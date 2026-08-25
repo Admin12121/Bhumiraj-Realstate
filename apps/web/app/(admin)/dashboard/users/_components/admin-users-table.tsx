@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -68,9 +69,9 @@ import {
 } from "@/components/ui/input-group"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { Textarea } from "@/components/ui/textarea"
-import { PanelEmptyRow } from "./panel-layout"
-import { useHasStaffPermission } from "./admin-shell"
-import { useStepUp } from "./step-up-dialog"
+import { PanelEmptyRow } from "../../_components/panel-layout"
+import { useHasStaffPermission } from "../../_components/admin-shell"
+import { useStepUp } from "../../_components/step-up-dialog"
 import { errorMessage } from "@/shared/http/error-message";
 
 const accountTypes = ["USER", "AGENT"] as const
@@ -99,7 +100,7 @@ export function AdminUsersTable() {
   const queryClient = useQueryClient()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
-  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
   const [accountType, setAccountType] =
     useState<(typeof accountTypeFilters)[number]>("ALL")
   const [status, setStatus] = useState<(typeof statuses)[number]>("ALL")
@@ -108,11 +109,6 @@ export function AdminUsersTable() {
     email: string
   } | null>(null)
   const [suspensionReason, setSuspensionReason] = useState("")
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300)
-    return () => clearTimeout(timer)
-  }, [search])
 
   const filters = { search: debouncedSearch, accountType, status }
   const query = useQuery({

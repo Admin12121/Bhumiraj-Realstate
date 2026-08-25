@@ -27,12 +27,8 @@ type TablePaginationProps = {
 };
 
 /**
- * The run of pages around the current one.
- *
- * The first and last are added separately by the caller, with an ellipsis where
- * there is a gap — so a long list reads `1 2 3 … 32 33 34` rather than walking
- * a window from one end to the other. The two ends are the pages people reach
- * for: the beginning, and how far it goes.
+ * The run of pages around the current one. The two ends are the pages people
+ * reach for: the beginning, and how far it goes.
  */
 function getVisiblePages(currentPage: number, totalPages: number): number[] {
   const pages: number[] = [];

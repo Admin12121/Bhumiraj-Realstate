@@ -25,9 +25,7 @@ function row(label: string, value: string | null | undefined): string | null {
 
 /**
  * A plain-text rendering of one listing for assistants and crawlers that would
- * otherwise have to infer the facts from markup. Every line comes from the same
- * API response the page uses, so the two can never disagree, and anything the
- * owner left blank is omitted rather than guessed.
+ * otherwise have to infer the facts from markup.
  */
 export function listingToMarkdown(
   listing: ListingDetail,

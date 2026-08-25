@@ -67,8 +67,7 @@ function summariseUserAgent(agent: string | null): string {
 /**
  * A staff member's own account, laid out the way the reference console does it:
  * one table per subject with a Status and an Action column, rather than a stack
- * of cards. A visit is usually to check whether 2FA is on, not to fill a form,
- * so state reads at a glance and controls open only when chosen.
+ * of cards.
  */
 export function AccountSettingsTabs({
   initialTab = "profile",
@@ -201,12 +200,7 @@ export function AccountSettingsTabs({
     onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
-  /**
-   * Enabling returns the TOTP URI and the backup codes. The previous version
-   * discarded both and reported success, so 2FA could be switched on for an
-   * account that had never scanned anything — locking the owner out of every
-   * step-up action.
-   */
+  /** Enabling returns the TOTP URI and the backup codes. */
   const twoFactor = useMutation({
     mutationFn: async ({ enable }: { enable: boolean }) => {
       if (!enable) {

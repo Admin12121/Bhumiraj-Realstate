@@ -1,9 +1,5 @@
-import {
-  AdminShell,
-  RequireStaffPermission,
-  StaffGovernancePanel,
-  StaffMembersPanel,
-} from "../_components"
+import { AdminShell, RequireStaffPermission } from "../_components";
+import { StaffGovernancePanel, StaffMembersPanel } from "./_components";
 
 export default function Page() {
   return (

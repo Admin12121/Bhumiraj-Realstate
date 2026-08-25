@@ -5,11 +5,12 @@ import {
   SupportController,
 } from "./support.controller";
 import { SupportService } from "./support.service";
+import { SupportPresenceService } from "./support-presence.service";
 
 @Module({
   imports: [AccessControlModule],
   controllers: [SupportController, AdminSupportController],
-  providers: [SupportService],
-  exports: [SupportService],
+  providers: [SupportService, SupportPresenceService],
+  exports: [SupportService, SupportPresenceService],
 })
 export class SupportModule {}

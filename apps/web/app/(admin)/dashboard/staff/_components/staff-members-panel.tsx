@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import type { z } from "zod"
 import type { staffMemberSchema } from "@real-estate/contracts"
 import {
@@ -25,8 +26,8 @@ import {
   setStaffMemberStatus,
   setStaffMemberRoles,
 } from "@/features/admin/api/admin-api"
-import { useHasStaffPermission } from "./admin-shell"
-import { useStepUp } from "./step-up-dialog"
+import { useHasStaffPermission } from "../../_components/admin-shell"
+import { useStepUp } from "../../_components/step-up-dialog"
 import {
   AlertDialog,
   AlertDialogClose,
@@ -81,7 +82,7 @@ import {
   PanelSection,
   PanelToolbar,
   PanelToolbarSpacer,
-} from "./panel-layout"
+} from "../../_components/panel-layout"
 import { errorMessage } from "@/shared/http/error-message";
 
 type StaffMember = z.infer<typeof staffMemberSchema>
@@ -96,7 +97,7 @@ export function StaffMembersPanel({
   const client = useQueryClient()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
-  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
   const [editing, setEditing] = useState<StaffMember | null>(null)
   const [revoking, setRevoking] = useState<StaffMember | null>(null)
   const [suspending, setSuspending] = useState<StaffMember | null>(null)
@@ -111,10 +112,6 @@ export function StaffMembersPanel({
     "overview",
   )
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300)
-    return () => clearTimeout(timer)
-  }, [search])
   useEffect(() => {
     const timer = setTimeout(
       () => setDebouncedCandidateSearch(candidateSearch.trim()),

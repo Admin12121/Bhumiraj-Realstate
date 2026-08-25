@@ -8,13 +8,15 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { Search } from "lucide-react";
+import { FileSearch, Search } from "lucide-react";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { TablePagination } from "@/components/ui/table-pagination";
 
-/**
- * The shape every admin panel takes: heading, then a toolbar, then the records
- * inside a frame, then the pager — each its own element rather than one banded
- * card. Panels were each inventing this, which is why no two looked alike.
- */
 export function PanelSection({
   children,
   className,
@@ -29,28 +31,6 @@ export function PanelSection({
   );
 }
 
-export function PanelHeading({
-  title,
-  description,
-  actions,
-}: {
-  title: string;
-  description?: string;
-  /** Primary actions for this panel, aligned to the end of the row. */
-  actions?: ReactNode;
-}) {
-  return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
-      <div className="min-w-0">
-        <h2 className="font-semibold">{title}</h2>
-        {description ? (
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-        ) : null}
-      </div>
-      {actions ? <div className="flex items-center gap-2">{actions}</div> : null}
-    </div>
-  );
-}
 
 /**
  * The filter row. The reference lays it out on a grid with the search pinned to
@@ -98,20 +78,76 @@ export function PanelRecords({ children }: { children: ReactNode }) {
   return <Frame>{children}</Frame>;
 }
 
-/** For record lists that are not tabular; keeps them on the same frame. */
-export function PanelPanel({ children }: { children: ReactNode }) {
-  return (
-    <Frame>
-      <div className="overflow-hidden rounded-xl border bg-background bg-clip-padding">
-        {children}
-      </div>
-    </Frame>
-  );
-}
 
 /** A spacer so a toolbar's selects sit at the end of the row. */
 export function PanelToolbarSpacer() {
   return <div aria-hidden className="hidden lg:block" />;
 }
+
+export function PanelSurface({
+  children,
+  toolbar,
+  page,
+  pageCount,
+  total,
+  pageSize,
+  onPage,
+}: {
+  children: ReactNode;
+  toolbar?: ReactNode;
+  page: number;
+  pageCount: number;
+  total?: number | undefined;
+  pageSize?: number | undefined;
+  onPage: (page: number) => void;
+}) {
+  return (
+    <div className="grid gap-4">
+      {toolbar ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {toolbar}
+        </div>
+      ) : null}
+      <Frame>
+        <div className="rounded-xl border bg-background bg-clip-padding">
+          {children}
+        </div>
+      </Frame>
+      <TablePagination
+        currentPage={page}
+        totalPages={pageCount}
+        totalItems={total}
+        pageSize={pageSize}
+        onPageChange={onPage}
+      />
+    </div>
+  );
+}
+
+export function PanelEmpty({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: typeof FileSearch;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Empty className="py-14">
+      <EmptyMedia variant="icon">
+        <Icon />
+      </EmptyMedia>
+      <EmptyTitle>{title}</EmptyTitle>
+      <EmptyDescription>{description}</EmptyDescription>
+    </Empty>
+  );
+}
+
+/**
+ * Severity is derived from the action name, not stored. Anything that removes
+ * access, moves ownership or bans an account is the set you scan for first;
+ * state changes are the middle; creation and acceptance are routine.
+ */
 
 export { TableEmptyRow as PanelEmptyRow } from "@/components/ui/table-empty-row";

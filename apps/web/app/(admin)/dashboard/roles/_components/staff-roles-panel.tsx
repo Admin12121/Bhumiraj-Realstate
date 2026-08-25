@@ -27,9 +27,9 @@ import {
   setStaffRolePermissions,
   updateStaffRole,
 } from "@/features/admin/api/admin-api"
-import { PanelEmptyRow, PanelSection } from "./panel-layout"
-import { useHasStaffPermission } from "./admin-shell"
-import { useStepUp } from "./step-up-dialog"
+import { PanelEmptyRow, PanelSection } from "../../_components/panel-layout"
+import { useHasStaffPermission } from "../../_components/admin-shell"
+import { useStepUp } from "../../_components/step-up-dialog"
 import {
   AlertDialog,
   AlertDialogClose,

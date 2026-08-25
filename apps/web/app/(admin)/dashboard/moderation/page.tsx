@@ -1,9 +1,13 @@
-import { AdminShell, ModerationPanel } from "../_components";
+import type { Metadata } from "next";
+import { AdminShell } from "../_components";
+import { TicketsPanel } from "./_components";
+
+export const metadata: Metadata = { title: "Tickets" };
 
 export default function Page() {
   return (
-    <AdminShell title="Moderation" permission="admin.moderation.read">
-      <ModerationPanel />
+    <AdminShell bleed title="Tickets" permission="admin.moderation.read">
+      <TicketsPanel />
     </AdminShell>
   );
 }

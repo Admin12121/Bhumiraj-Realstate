@@ -192,9 +192,7 @@ type MapProps = {
   /**
    * Use a transparent, tile-less basemap instead of the default Carto street
    * basemap — a blank canvas. Used alone it renders nothing; add your own
-   * layers on top (`<MapGeoJSON>`, `<MapArc>`, markers, etc.). Ideal for data
-   * visualizations (choropleths, arcs, dot maps).
-   * Ignored when an explicit `styles` prop is provided.
+   * layers on top (`<MapGeoJSON>`, `<MapArc>`, markers, etc.).
    */
   blank?: boolean;
   /** Map projection type. Use `{ type: "globe" }` for 3D globe view. */
@@ -1293,10 +1291,8 @@ type MapGeoJSONProps<
    */
   fillPaint?: MapFillPaint | false;
   /**
-   * Paint for the outline layer. Merged on top of a hairline default
-   * (`line-color` = a near-surface neutral, `line-width` = 0.5) for thin
-   * separators. Override `line-color` if your container differs, or pass
-   * `false` to omit the layer.
+   * Paint for the outline layer. Merged on top of a hairline default (`line-
+   * color` = a near-surface neutral, `line-width` = 0.5) for thin separators.
    */
   linePaint?: MapLinePaint | false;
   /**
@@ -1324,10 +1320,9 @@ const GEOJSON_DEFAULT_COLORS = {
 } satisfies Record<Theme, { fill: string; line: string }>;
 
 /**
- * Renders arbitrary GeoJSON as fill + outline layers on the map. Composes like
- * `MapRoute` / `MapArc` — drop it inside `<Map>` (typically with `blank`) for
- * choropleths and region/data maps. For full control over expressions and
- * multiple layers, manage layers directly via `useMap()` instead.
+ * Renders arbitrary GeoJSON as fill + outline layers on the map. For full
+ * control over expressions and multiple layers, manage layers directly via
+ * `useMap()` instead.
  */
 function MapGeoJSON<
   P extends GeoJSON.GeoJsonProperties = GeoJSON.GeoJsonProperties,
@@ -1576,9 +1571,7 @@ type MapArcProps<T extends MapArcDatum = MapArcDatum> = {
   /**
    * How far each arc bows away from a straight line. `0` renders straight
    * lines; higher values bend further. Negative values bend to the opposite
-   * side. Arcs are computed as a quadratic Bézier in lng/lat space; the
-   * destination longitude is unwrapped relative to the origin so that arcs
-   * cross the antimeridian via the shorter great-circle direction. (default: 0.2)
+   * side. (default: 0.2)
    */
   curvature?: number;
   /** Number of samples used to render each curve. Higher = smoother. (default: 64) */
@@ -1586,8 +1579,6 @@ type MapArcProps<T extends MapArcDatum = MapArcDatum> = {
   /**
    * MapLibre paint properties for the arc layer. Merged on top of sensible
    * defaults (`line-color: #4285F4`, `line-width: 2`, `line-opacity: 0.85`).
-   * Any value can be a MapLibre expression for per-feature styling, every
-   * field on each arc datum (besides `from`/`to`) is exposed via `["get", ...]`.
    */
   paint?: MapArcLinePaint;
   /** MapLibre layout properties for the arc layer. Defaults to rounded joins/caps. */

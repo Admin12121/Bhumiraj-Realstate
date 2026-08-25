@@ -96,12 +96,9 @@ function inRing(
 }
 
 /**
- * Whether a pin actually falls inside the district that was chosen.
- *
- * Returns null when the boundary data cannot be loaded, so a network problem
- * never blocks someone from posting — the check only ever reports a mismatch it
- * is sure about. Holes in a polygon are honoured, so a pin inside an enclave
- * does not count as inside the district.
+ * Whether a pin actually falls inside the district that was chosen. Holes in a
+ * polygon are honoured, so a pin inside an enclave does not count as inside the
+ * district.
  */
 export async function isPointInDistrict(
   district: string,
@@ -129,11 +126,8 @@ export async function isPointInDistrict(
 
 /**
  * Which district a point falls in, as the canonical name used by the app.
- *
- * The boundary file spells four districts differently, so the reverse lookup
- * matches against the app's own list rather than returning the raw GeoJSON
- * name. Returns null when the data cannot be loaded or the point is outside
- * Nepal, and the caller simply leaves the field alone.
+ * Returns null when the data cannot be loaded or the point is outside Nepal,
+ * and the caller simply leaves the field alone.
  */
 export async function districtAtPoint(
   longitude: number,

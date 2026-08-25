@@ -35,8 +35,8 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { useHasStaffPermission } from "./admin-shell";
-import { useStepUp } from "./step-up-dialog";
+import { useHasStaffPermission } from "../../_components/admin-shell";
+import { useStepUp } from "../../_components/step-up-dialog";
 import { errorMessage } from "@/shared/http/error-message";
 
 const KINDS = [
@@ -67,11 +67,9 @@ function blankMethod(index: number): PaymentMethod {
 }
 
 /**
- * What a seller is charged, and the ways they can pay it.
- *
- * The customer payment screen renders whatever is configured here — a QR image,
- * bank details, a wallet — so an empty list is why sellers were told no payment
- * method exists.
+ * What a seller is charged, and the ways they can pay it. The customer payment
+ * screen renders whatever is configured here — a QR image, bank details, a
+ * wallet — so an empty list is why sellers were told no payment method exists.
  */
 export function ListingFeePanel() {
   const client = useQueryClient();

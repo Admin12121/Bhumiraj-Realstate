@@ -35,9 +35,7 @@ export function createAuth(dependencies: AuthDependencies = {}) {
     });
   /**
    * Security notices go to the address on the account whether or not it has
-   * been verified — that is the point of them. While it is unverified we
-   * cannot assume the address belongs to the account holder, so the mail says
-   * so and offers a way out, the way Google does.
+   * been verified — that is the point of them.
    */
   const securityEmail = async (input: {
     to: string;

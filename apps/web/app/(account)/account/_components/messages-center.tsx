@@ -18,6 +18,7 @@ import {
   useMessages,
 } from "@/features/messaging/queries/use-messaging";
 import { Badge } from "@/components/ui/badge";
+import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -296,9 +297,12 @@ export function MessagesCenter() {
                         <MessageGroup>
                           <Message align={message.mine ? "end" : "start"}>
                             <MessageContent>
-                              <span className="max-w-[82%] rounded-2xl bg-muted px-4 py-3 text-sm leading-6 whitespace-pre-wrap in-data-[align=end]:bg-primary in-data-[align=end]:text-primary-foreground">
-                                {message.body}
-                              </span>
+                              <Bubble
+                                align={message.mine ? "end" : "start"}
+                                variant={message.mine ? "default" : "muted"}
+                              >
+                                <BubbleContent>{message.body}</BubbleContent>
+                              </Bubble>
                             </MessageContent>
                           </Message>
                           <MessageFooter

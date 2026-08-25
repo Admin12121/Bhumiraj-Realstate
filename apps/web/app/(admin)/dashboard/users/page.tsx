@@ -1,4 +1,5 @@
-import { AdminShell, AdminUsersTable } from "../_components";
+import { AdminShell } from "../_components";
+import { AdminUsersTable } from "./_components";
 
 export default function Page() {
   return (

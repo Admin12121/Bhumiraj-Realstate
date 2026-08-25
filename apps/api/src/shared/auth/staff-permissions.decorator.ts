@@ -9,11 +9,8 @@ export const StaffPermissions = (...permissions: string[]) =>
 
 /**
  * Requires a session proving more than one factor: a user-verified passkey, or
- * a password sign-in completed with two-factor authentication.
- *
- * Reaching the administration surface deliberately does not require this.
- * Reserve it for actions that change authority or move live auction state,
- * so ordinary staff work stays usable while consequential actions do not.
+ * a password sign-in completed with two-factor authentication. Reaching the
+ * administration surface deliberately does not require this.
  */
 export const StrongAuth = () => SetMetadata(STAFF_STRONG_AUTH_KEY, true);
 

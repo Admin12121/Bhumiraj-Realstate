@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link"
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { toast } from "sonner";
 import { Gavel } from "lucide-react";
 
@@ -47,9 +48,9 @@ import {
   PanelSearch,
   PanelToolbar,
   PanelToolbarSpacer,
-} from "./panel-layout";
-import { useHasStaffPermission } from "./admin-shell";
-import { useStepUp } from "./step-up-dialog";
+} from "../../_components/panel-layout";
+import { useHasStaffPermission } from "../../_components/admin-shell";
+import { useStepUp } from "../../_components/step-up-dialog";
 import { errorMessage } from "@/shared/http/error-message";
 
 const auctionStatuses = [
@@ -90,18 +91,13 @@ export function AdminAuctionsTable({
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<(typeof auctionStatuses)[number]>("ALL");
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
   // Cancelling needs a reason, so it waits on the dialog instead of a prompt.
   const [cancelling, setCancelling] = useState<{
     id: string;
     title: string;
   } | null>(null);
   const [reason, setReason] = useState("");
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
-    return () => clearTimeout(timer);
-  }, [search]);
 
   const query = useQuery({
     queryKey: ["admin", "auctions", page, status, debouncedSearch],

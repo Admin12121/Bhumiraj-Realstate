@@ -12,8 +12,9 @@ import {
   MenuSeparator,
   MenuTrigger,
 } from "@/components/ui/menu"
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { toast } from "sonner";
 import { Building2, Search } from "lucide-react";
 
@@ -59,8 +60,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { PanelEmptyRow } from "./panel-layout";
-import { useHasStaffPermission } from "./admin-shell";
+import { PanelEmptyRow } from "../../_components/panel-layout";
+import { useHasStaffPermission } from "../../_components/admin-shell";
 import { errorMessage } from "@/shared/http/error-message";
 
 // Derived from the schema so a new status cannot go missing from the filter,
@@ -87,17 +88,12 @@ export function AdminListingsTable() {
     "ALL",
   );
   const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
   // Rejecting needs a reason, so the decision waits on the dialog.
   const [rejecting, setRejecting] = useState<{ id: string; title: string } | null>(
     null,
   );
   const [reason, setReason] = useState("");
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
-    return () => clearTimeout(timer);
-  }, [search]);
 
   const query = useQuery({
     queryKey: ["admin", "listings", page, status, debouncedSearch],

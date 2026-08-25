@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { toast } from "sonner";
 import {
   Check,
   Clock,
+  Globe,
   MessagesSquare,
+  Search,
   Send,
   UserRound,
 } from "lucide-react";
@@ -14,6 +17,8 @@ import {
   closeSupportThread,
   getSupportThreadDetail,
   getSupportThreads,
+  joinSupportThread,
+  leaveSupportThread,
   replyToSupportThread,
 } from "@/features/support/api/support-api";
 import { Badge } from "@/components/ui/badge";
@@ -44,25 +49,32 @@ import {
   NestedSidebarItem,
 } from "@/components/ui/nested-sidebar";
 import {
-  Select,
-  SelectItem,
-  SelectPopup,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Avatar,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarGroupCount,
+  AvatarImage,
+} from "@/components/ui/avatar";
+import { Bubble, BubbleContent } from "@/components/ui/bubble";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Marker, MarkerContent } from "@/components/ui/marker";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
-import { useHasStaffPermission } from "./admin-shell";
+import { useHasStaffPermission } from "../../_components/admin-shell";
+import { useSession } from "@real-estate/auth/client";
 import { errorMessage } from "@/shared/http/error-message";
 
-const STATUSES = ["OPEN", "ASSIGNED", "CLOSED"] as const;
-type Status = (typeof STATUSES)[number];
-
-const STATUS_LABEL: Record<Status, string> = {
-  OPEN: "Open",
-  ASSIGNED: "Assigned",
-  CLOSED: "Closed",
-};
+/**
+ * Global holds the chats nobody has answered yet; General holds the ones this
+ * staff member owns. Replying is what moves a chat between them, so there is no
+ * separate "claim" step to forget.
+ */
+type Scope = "GLOBAL" | "GENERAL";
 
 function expiryLabel(expiresAt: string | null): string | null {
   if (!expiresAt) return null;
@@ -75,16 +87,48 @@ function expiryLabel(expiresAt: string | null): string | null {
 export function SupportInbox() {
   const canReply = useHasStaffPermission("admin.support.reply");
   const queryClient = useQueryClient();
-  const [status, setStatus] = useState<Status>("OPEN");
+  const session = useSession();
+  // An owner oversees every assigned chat, not only their own.
+  const seesAllAssigned = useHasStaffPermission("admin.support.assign");
+  const [scope, setScope] = useState<Scope>("GLOBAL");
   const [selected, setSelected] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
 
   const threads = useQuery({
-    queryKey: ["admin", "support", status],
-    queryFn: ({ signal }) => getSupportThreads({ status, limit: 25 }, signal),
+    queryKey: ["admin", "support", scope, debouncedSearch, seesAllAssigned],
+    queryFn: ({ signal }) =>
+      getSupportThreads(
+        {
+          status: scope === "GLOBAL" ? "OPEN" : "ASSIGNED",
+          // In General an owner sees the whole assigned queue; everyone else
+          // sees only what is theirs.
+          ...(scope === "GENERAL" && !seesAllAssigned ? { mine: true } : {}),
+          ...(debouncedSearch ? { search: debouncedSearch } : {}),
+          limit: 25,
+        },
+        signal,
+      ),
     refetchInterval: 15_000,
     placeholderData: (previous) => previous,
   });
+
+  // Presence only matters for an unclaimed chat, where two staff could collide.
+  const presence = useQuery({
+    queryKey: ["admin", "support", "presence", selected],
+    queryFn: ({ signal }) => joinSupportThread(selected!, signal),
+    enabled: selected !== null && scope === "GLOBAL",
+    refetchInterval: 10_000,
+  });
+
+  useEffect(() => {
+    if (!selected) return;
+    // Stop counting as present the moment the thread leaves the screen.
+    return () => {
+      void leaveSupportThread(selected).catch(() => undefined);
+    };
+  }, [selected]);
 
   const detail = useQuery({
     queryKey: ["admin", "support", "thread", selected],
@@ -113,6 +157,11 @@ export function SupportInbox() {
   });
 
   const items = threads.data?.items ?? [];
+  const viewers = presence.data?.viewers ?? [];
+  const holder = viewers.find((viewer) => viewer.holder) ?? null;
+  // Whoever opened an unclaimed chat first gets to answer it; the rest read on.
+  const holdsReply =
+    scope !== "GLOBAL" || !holder || holder.id === session.data?.user.id;
   const active = items.find((item) => item.id === selected) ?? null;
   const messages = detail.data?.messages ?? [];
 
@@ -121,24 +170,47 @@ export function SupportInbox() {
       fullHeight
       width="20rem"
       actions={
-        <Select
-          value={status}
-          onValueChange={(value) => {
-            setStatus(value as Status);
-            setSelected(null);
-          }}
-        >
-          <SelectTrigger aria-label="Filter conversations" className="h-7 w-32">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectPopup>
-            {STATUSES.map((option) => (
-              <SelectItem key={option} value={option}>
-                {STATUS_LABEL[option]}
-              </SelectItem>
-            ))}
-          </SelectPopup>
-        </Select>
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <InputGroup className="h-7 min-w-0 flex-1">
+            <InputGroupInput
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search chats"
+              aria-label="Search chats"
+              type="search"
+            />
+            <InputGroupAddon>
+              <Search />
+            </InputGroupAddon>
+          </InputGroup>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Button
+                  aria-label={
+                    scope === "GLOBAL"
+                      ? "Showing unassigned chats. Switch to yours"
+                      : "Showing assigned chats. Switch to unassigned"
+                  }
+                  aria-pressed={scope === "GENERAL"}
+                  onClick={() => {
+                    setScope((current) =>
+                      current === "GLOBAL" ? "GENERAL" : "GLOBAL",
+                    );
+                    setSelected(null);
+                  }}
+                  size="icon-sm"
+                  variant={scope === "GENERAL" ? "default" : "outline"}
+                />
+              }
+            >
+              {scope === "GLOBAL" ? <Globe /> : <UserRound />}
+            </TooltipTrigger>
+            <TooltipContent>
+              {scope === "GLOBAL" ? "Unassigned" : "Assigned"}
+            </TooltipContent>
+          </Tooltip>
+        </div>
       }
       items={(open) => {
         if (threads.isPending) {
@@ -153,7 +225,9 @@ export function SupportInbox() {
         if (items.length === 0) {
           return open ? (
             <p className="px-3 py-6 text-center text-muted-foreground text-sm">
-              No {STATUS_LABEL[status].toLowerCase()} conversations.
+              {scope === "GLOBAL"
+                ? "No unassigned chats."
+                : "No chats assigned to you."}
             </p>
           ) : null;
         }
@@ -207,15 +281,47 @@ export function SupportInbox() {
               </>
             ) : null}
           </div>
-          {active && canReply && active.status !== "CLOSED" ? (
+          {active && scope === "GLOBAL" ? (
+            // Who else is reading this unclaimed chat. Seeing a colleague here
+            // is the cue to leave it to them rather than both replying.
+            viewers.length > 0 ? (
+              <AvatarGroup>
+                {viewers.slice(0, 3).map((viewer) => (
+                  <Tooltip key={viewer.id}>
+                    <TooltipTrigger
+                      render={
+                        <Avatar className="size-7">
+                          {viewer.image ? (
+                            <AvatarImage src={viewer.image} alt="" />
+                          ) : null}
+                          <AvatarFallback>
+                            {viewer.name.slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      }
+                    />
+                    <TooltipContent>
+                      {viewer.name}
+                      {viewer.holder ? " · replying" : ""}
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+                {viewers.length > 3 ? (
+                  <AvatarGroupCount className="size-7">
+                    +{viewers.length - 3}
+                  </AvatarGroupCount>
+                ) : null}
+              </AvatarGroup>
+            ) : null
+          ) : active && canReply ? (
             <Button
-              size="sm"
-              variant="outline"
+              aria-label="Close conversation"
               loading={close.isPending}
               onClick={() => close.mutate()}
+              size="icon-sm"
+              variant="outline"
             >
               <Check />
-              Close
             </Button>
           ) : null}
         </div>
@@ -251,9 +357,12 @@ export function SupportInbox() {
                       <MessageGroup>
                         <Message align={staff ? "end" : "start"}>
                           <MessageContent>
-                            <span className="max-w-[80%] rounded-2xl bg-muted px-3.5 py-2.5 text-sm leading-6 in-data-[align=end]:bg-primary in-data-[align=end]:text-primary-foreground">
-                              {message.body}
-                            </span>
+                            <Bubble
+                              align={staff ? "end" : "start"}
+                              variant={staff ? "default" : "muted"}
+                            >
+                              <BubbleContent>{message.body}</BubbleContent>
+                            </Bubble>
                           </MessageContent>
                         </Message>
                         <MessageFooter
@@ -270,7 +379,16 @@ export function SupportInbox() {
             <MessageScrollerButton />
           </MessageScroller>
 
-          {canReply ? (
+          {canReply && !holdsReply ? (
+            <div className="shrink-0 border-t p-3">
+              <Marker role="status">
+                <MarkerContent>
+                  <span className="font-medium">{holder?.name}</span> opened this
+                  chat first and is replying. Leave it to them, or pick another.
+                </MarkerContent>
+              </Marker>
+            </div>
+          ) : canReply ? (
             <form
               className="flex shrink-0 items-end gap-2 border-t p-3"
               onSubmit={(event) => {

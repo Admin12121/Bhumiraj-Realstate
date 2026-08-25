@@ -27,10 +27,8 @@ const QR_VARIANT_PREFERENCE = ["full", "large", "card", "thumb"] as const;
 
 /**
  * Enrolling in an auction: the bidder pays a deposit out of band and uploads
- * the receipt, and staff decide who joins the bidder list.
- *
- * Approval is deliberately manual. An auction commits the winner to a purchase,
- * so the platform vets each bidder rather than trusting an automated signal.
+ * the receipt, and staff decide who joins the bidder list. Approval is
+ * deliberately manual.
  */
 @Injectable()
 export class AuctionEnrolmentService {
@@ -336,10 +334,9 @@ export class AuctionEnrolmentService {
   }
 
   /**
-   * The only way onto an auction's bidder list.
-   *
-   * Approving marks the deposit CAPTURED because the money has already been
-   * received out of band — that pair is what `placeBid` checks.
+   * The only way onto an auction's bidder list. Approving marks the deposit
+   * CAPTURED because the money has already been received out of band — that
+   * pair is what `placeBid` checks.
    */
   async review(
     registrationId: string,

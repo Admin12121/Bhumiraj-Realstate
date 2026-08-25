@@ -14,9 +14,6 @@ export type NotificationInput = {
  * Records a notification and the outbox event that carries it out of the
  * transaction. The worker's outbox publisher pushes it to the realtime channel
  * and enqueues the email, so a caller only has to describe the message.
- *
- * Must be called with the same `tx` as the change it announces: an event that
- * escapes a rolled-back transaction announces something that never happened.
  */
 export async function notify(tx: Tx, input: NotificationInput): Promise<void> {
   const notification = await tx.notification.create({

@@ -150,11 +150,7 @@ export class SupportService {
   }
 
   /** Visitor-side send. Each message slides the anonymous expiry window. */
-  /**
-   * An attachment must already be a READY image owned by the sender. READY is
-   * the important part: the media worker only sets it after the ClamAV scan and
-   * re-encode succeed, so an unscanned or infected upload can never be attached.
-   */
+  /** An attachment must already be a READY image owned by the sender. */
   private async resolveAttachment(
     assetId: string,
     userId?: string,
@@ -258,6 +254,7 @@ export class SupportService {
   async listThreads(query: {
     status?: string | undefined;
     mine?: boolean | undefined;
+    search?: string | undefined;
     cursor?: string | undefined;
     limit: number;
   }, staffId: string) {
@@ -269,6 +266,28 @@ export class SupportService {
       where: {
         ...(query.status ? { status: query.status as "OPEN" } : {}),
         ...(query.mine ? { assignedToId: staffId } : {}),
+        ...(query.search
+          ? {
+              OR: [
+                { subject: { contains: query.search, mode: "insensitive" } },
+                {
+                  user: {
+                    is: {
+                      OR: [
+                        { name: { contains: query.search, mode: "insensitive" } },
+                        {
+                          email: {
+                            contains: query.search,
+                            mode: "insensitive",
+                          },
+                        },
+                      ],
+                    },
+                  },
+                },
+              ],
+            }
+          : {}),
         ...(cursor
           ? {
               OR: [
@@ -381,6 +400,15 @@ export class SupportService {
       });
       if (!thread) throw new NotFoundException();
 
+      // The claim is re-checked here rather than trusted from the client: two
+      // staff can open the same unassigned thread, and only the holder replies.
+      if (thread.assignedToId && thread.assignedToId !== staffId) {
+        throw new ConflictException({
+          code: "SUPPORT_THREAD_TAKEN",
+          message: "Another staff member is already handling this chat.",
+        });
+      }
+
       const message = await tx.supportMessage.create({
         data: {
           threadId,
@@ -445,11 +473,13 @@ export class SupportService {
     return { id: threadId, assigneeId };
   }
 
+  /**
+   * Closing erases the conversation. A support chat is a transient exchange,
+   * often with someone who never signed in, so nothing is kept once it is
+   * resolved; the audit entry records that it happened.
+   */
   async close(threadId: string, actorId: string) {
-    await prisma.supportThread.update({
-      where: { id: threadId },
-      data: { status: "CLOSED" },
-    });
+    await prisma.supportThread.delete({ where: { id: threadId } });
     await prisma.auditLog.create({
       data: {
         actorId,

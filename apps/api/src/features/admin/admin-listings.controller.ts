@@ -162,7 +162,6 @@ export class AdminListingsController {
        * A seller's property goes live under an agent, so approving it hands it
        * to the assignment queue rather than publishing it directly — otherwise
        * the listing appears with no agent behind it and no way to reach one.
-       * Auctions are run by the platform itself and need no agent.
        */
       const status =
         body.decision !== "PUBLISH"

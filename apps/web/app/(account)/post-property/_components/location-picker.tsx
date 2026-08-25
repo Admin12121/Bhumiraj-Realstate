@@ -77,10 +77,6 @@ function Recentre({ centre, zoom }: { centre: [number, number]; zoom: number }) 
 /**
  * Province and district are picked from the real administrative list, and the
  * exact point is placed on a map.
- *
- * Typing a province name and entering raw latitude/longitude asked the seller
- * for two things they have no way to know; the coordinates now come from
- * pointing at where the property is.
  */
 export function LocationPicker({
   province,

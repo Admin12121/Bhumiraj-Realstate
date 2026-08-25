@@ -350,11 +350,8 @@ export class AdminUsersService {
   }
 
   /**
-   * One account, assembled for the console's detail page.
-   *
-   * Agents are gathered from two directions because "who has this customer
-   * dealt with" has two answers: people they messaged, and the agent actually
-   * representing a listing of theirs. Either alone reads as a gap.
+   * One account, assembled for the console's detail page. Either alone reads as
+   * a gap.
    */
   async detail(id: string) {
     const user = await prisma.user.findUnique({

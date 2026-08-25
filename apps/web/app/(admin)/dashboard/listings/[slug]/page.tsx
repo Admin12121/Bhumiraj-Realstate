@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { AdminShell } from "../../_components";
-import { AdminListingDetailView } from "../../_components/admin-listing-detail";
+import { AdminListingDetailView } from "../_components/admin-listing-detail";
 
 export const metadata: Metadata = { title: "Listing" };
 

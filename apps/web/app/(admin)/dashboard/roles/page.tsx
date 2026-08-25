@@ -1,4 +1,5 @@
-import { AdminShell, StaffRolesPanel } from "../_components";
+import { AdminShell } from "../_components";
+import { StaffRolesPanel } from "./_components";
 
 export default function Page() {
   return (

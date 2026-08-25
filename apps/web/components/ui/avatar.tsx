@@ -11,7 +11,7 @@ export function Avatar({
   return (
     <AvatarPrimitive.Root
       className={cn(
-        "inline-flex size-8 shrink-0 select-none items-center justify-center overflow-hidden rounded-full bg-background align-middle font-medium text-xs",
+        "relative inline-flex size-8 shrink-0 select-none items-center justify-center rounded-full bg-background align-middle font-medium text-xs has-data-[slot=avatar-badge]:overflow-visible [&:not(:has([data-slot=avatar-badge]))]:overflow-hidden",
         className,
       )}
       data-slot="avatar"
@@ -44,6 +44,60 @@ export function AvatarFallback({
         className,
       )}
       data-slot="avatar-fallback"
+      {...props}
+    />
+  );
+}
+
+/** A small status dot on the avatar's corner, e.g. an online indicator. */
+export function AvatarBadge({
+  className,
+  ...props
+}: React.ComponentProps<"span">): React.ReactElement {
+  return (
+    <span
+      className={cn(
+        "absolute right-0 bottom-0 size-2.5 rounded-full ring-2 ring-background",
+        className,
+      )}
+      data-slot="avatar-badge"
+      {...props}
+    />
+  );
+}
+
+/**
+ * Overlapping avatars. Used to show, at a glance, which staff currently have a
+ * conversation open.
+ */
+export function AvatarGroup({
+  className,
+  ...props
+}: React.ComponentProps<"div">): React.ReactElement {
+  return (
+    <div
+      className={cn(
+        "flex items-center -space-x-2 *:data-[slot=avatar]:ring-2 *:data-[slot=avatar]:ring-background",
+        className,
+      )}
+      data-slot="avatar-group"
+      {...props}
+    />
+  );
+}
+
+/** The "+3" chip closing an AvatarGroup that had to be truncated. */
+export function AvatarGroupCount({
+  className,
+  ...props
+}: React.ComponentProps<"span">): React.ReactElement {
+  return (
+    <span
+      className={cn(
+        "z-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground text-xs ring-2 ring-background",
+        className,
+      )}
+      data-slot="avatar-group-count"
       {...props}
     />
   );

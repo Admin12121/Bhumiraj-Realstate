@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -30,6 +31,7 @@ import { StaffPermissionsGuard } from "../../shared/auth/staff-permissions.guard
 import { ZodValidationPipe } from "../../shared/http/zod-validation.pipe";
 import { ADMIN_PERMISSIONS } from "../admin/admin.permissions";
 import { SupportService } from "./support.service";
+import { SupportPresenceService } from "./support-presence.service";
 
 const VISITOR_COOKIE = "bhumiraj_support";
 /** Comfortably longer than the message TTL, so a returning visitor is not
@@ -114,7 +116,10 @@ export class SupportController {
 @Controller("api/v1/admin/support")
 @UseGuards(StaffPermissionsGuard)
 export class AdminSupportController {
-  constructor(private readonly service: SupportService) {}
+  constructor(
+    private readonly service: SupportService,
+    private readonly presenceService: SupportPresenceService,
+  ) {}
 
   @Get("threads")
   @StaffPermissions(ADMIN_PERMISSIONS.SUPPORT_READ)
@@ -161,5 +166,30 @@ export class AdminSupportController {
     @Session() session: UserSession,
   ) {
     return this.service.close(id, session.user.id);
+  }
+
+  /**
+   * Announces that this staff member has the thread open and returns everyone
+   * else who does. Polled while the thread is on screen, so two staff can see
+   * each other before they both start typing.
+   */
+  @Post("threads/:id/presence")
+  @StaffPermissions(ADMIN_PERMISSIONS.SUPPORT_READ)
+  async presence(
+    @Param("id", new ZodValidationPipe(idSchema)) id: string,
+    @Session() session: UserSession,
+  ) {
+    await this.presenceService.join(id, session.user.id);
+    return { viewers: await this.presenceService.viewers(id) };
+  }
+
+  @Delete("threads/:id/presence")
+  @StaffPermissions(ADMIN_PERMISSIONS.SUPPORT_READ)
+  async leave(
+    @Param("id", new ZodValidationPipe(idSchema)) id: string,
+    @Session() session: UserSession,
+  ) {
+    await this.presenceService.leave(id, session.user.id);
+    return { left: true };
   }
 }

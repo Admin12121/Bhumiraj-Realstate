@@ -4,13 +4,8 @@ import { useEffect, useRef } from "react"
 
 /**
  * Port of the CodeSandbox `components/media/hover-grid.html` effect, used there
- * on the hub page's imagery.
- *
- * The cursor lights the single nearest block, then a short random chain of its
- * neighbours, each a beat later. Blocks live 300ms and fade over 200ms, so what
- * you see is a small organic cluster flickering along with the pointer rather
- * than a lit radius. A quarter of the blocks re-roll their symbol while active,
- * and a third carry no symbol at all.
+ * on the hub page's imagery. The cursor lights the single nearest block, then a
+ * short random chain of its neighbours, each a beat later.
  */
 const SYMBOLS = ["O", "X", "*", ">", "$", "W"]
 const BLOCK_SIZE = 25

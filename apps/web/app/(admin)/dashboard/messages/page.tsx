@@ -1,4 +1,5 @@
-import { AdminShell, AdminMessagesPanel } from "../_components";
+import { AdminShell } from "../_components";
+import { AdminMessagesPanel } from "./_components";
 
 export default function Page() {
   return (

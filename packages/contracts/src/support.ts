@@ -62,7 +62,19 @@ export const supportThreadQuerySchema = cursorQuerySchema.extend({
   status: supportThreadStatusSchema.optional(),
   /** Restrict to threads assigned to the calling staff member. */
   mine: z.coerce.boolean().optional(),
+  /** Matches the visitor's name or email, or the thread subject. */
+  search: z.string().trim().max(120).optional(),
 });
+
+/** A staff member with the thread open right now, from the presence cache. */
+export const supportThreadViewerSchema = z.object({
+  id: userIdSchema,
+  name: z.string(),
+  image: z.string().nullable(),
+  /** The one viewer allowed to reply: whoever opened it first. */
+  holder: z.boolean(),
+});
+export type SupportThreadViewer = z.infer<typeof supportThreadViewerSchema>;
 
 export const assignSupportThreadSchema = z.object({
   assigneeId: userIdSchema.nullable(),

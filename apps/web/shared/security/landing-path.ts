@@ -6,11 +6,9 @@ export function isStaffRole(role: string | null | undefined): boolean {
 }
 
 /**
- * Where to send someone after they sign in.
- *
- * Staff run the platform from `/admin`, so dropping them on the customer
- * account first costs them a click on every sign-in. A link they actually asked
- * for still wins — only the default "/" is redirected.
+ * Where to send someone after they sign in. Staff run the platform from
+ * `/admin`, so dropping them on the customer account first costs them a click
+ * on every sign-in.
  */
 export function landingPathFor(
   role: string | null | undefined,

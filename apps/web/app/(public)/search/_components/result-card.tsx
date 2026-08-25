@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { BadgeCheck } from "lucide-react"
-import { PropertyCardCarousel } from "@/app/_components/residence-card"
+import { PropertyCardCarousel } from "@/app/_components/property-card-carousel"
 import { SaveButton } from "@/app/_components/save-button"
 import { Frame, FrameFooter, FramePanel } from "@/components/ui/frame"
 

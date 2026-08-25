@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import type { z } from "zod"
 import type { adminAgentSchema } from "@real-estate/contracts"
 import {
@@ -25,8 +26,8 @@ import {
   setAgentAvailability,
   setAgentStatus,
 } from "@/features/admin/api/admin-api"
-import { useHasStaffPermission } from "./admin-shell"
-import { useStepUp } from "./step-up-dialog"
+import { useHasStaffPermission } from "../../_components/admin-shell"
+import { useStepUp } from "../../_components/step-up-dialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -77,7 +78,7 @@ import {
   PanelSection,
   PanelToolbar,
   PanelToolbarSpacer,
-} from "./panel-layout"
+} from "../../_components/panel-layout"
 import { errorMessage } from "@/shared/http/error-message";
 
 type Agent = z.infer<typeof adminAgentSchema>
@@ -92,7 +93,7 @@ export function AgentGovernancePanel() {
   const client = useQueryClient()
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState("")
-  const [debouncedSearch, setDebouncedSearch] = useState("")
+  const debouncedSearch = useDebouncedValue(search.trim(), 300);
   const [adding, setAdding] = useState(false)
   const [tab, setTab] = useState("directory")
   const [candidateSearch, setCandidateSearch] = useState("")
@@ -114,10 +115,6 @@ export function AgentGovernancePanel() {
   >("UNAVAILABLE")
   const [capacity, setCapacity] = useState(10)
 
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300)
-    return () => clearTimeout(timer)
-  }, [search])
   useEffect(() => {
     const timer = setTimeout(
       () => setDebouncedInviteSearch(inviteSearch.trim()),

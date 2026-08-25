@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus } from "lucide-react";
-import { AdminAuctionsTable, AdminShell } from "../_components";
+import { AdminShell } from "../_components";
+import { AdminAuctionsTable } from "./_components";
 import { Button } from "@/components/ui/button";
 import { RequireStaffPermission } from "../_components/admin-shell";
 

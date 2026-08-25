@@ -4,6 +4,7 @@ import { AdminUsersService } from './admin-users.service';
 import { AdminListingsController } from './admin-listings.controller';
 import { AdminAuctionsController } from './admin-auctions.controller';
 import { AdminOperationsController } from './admin-operations.controller';
+import { TicketsService } from './tickets.service';
 import { StaffRbacController } from './staff-rbac.controller';
 import { StaffRbacService } from './staff-rbac.service';
 import {
@@ -31,6 +32,7 @@ import './admin.permissions';
     StaffRbacService,
     PlatformGovernanceService,
     AgentGovernanceService,
+    TicketsService,
   ],
 })
 export class AdminModule {}

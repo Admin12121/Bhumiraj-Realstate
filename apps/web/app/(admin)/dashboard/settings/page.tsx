@@ -1,4 +1,5 @@
-import { AdminShell, AdminSettingsTabs } from "../_components";
+import { AdminShell } from "../_components";
+import { AdminSettingsTabs } from "./_components";
 
 export default function Page() {
   return (

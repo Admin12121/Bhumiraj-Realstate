@@ -84,7 +84,6 @@ function MethodDetails({ method }: { method: PaymentMethod }) {
 
 /**
  * The listing fee, collected inside the wizard rather than on a page after it.
- *
  * Sending the seller to a separate screen once the listing already existed left
  * a saved-but-unpaid listing behind every time someone closed the tab.
  */

@@ -129,12 +129,9 @@ export function GoogleButton({
  * stale or foreign cookie leaves someone unable to reach a usable sign-in.
  */
 /**
- * Sends an already-signed-in visitor where they were going.
- *
- * `useSession` reports a server-validated session, so a resolved user is a real
- * one — showing them a sign-in form is a dead end. A stale or foreign cookie
- * resolves to no user and still gets the form, and `?switch=1` reaches it
- * deliberately for anyone who wants a different account.
+ * Sends an already-signed-in visitor where they were going. `useSession`
+ * reports a server-validated session, so a resolved user is a real one —
+ * showing them a sign-in form is a dead end.
  */
 export function ExistingSessionNotice({ callbackURL }: { callbackURL: string }) {
   const session = useSession()

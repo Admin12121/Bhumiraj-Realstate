@@ -29,6 +29,7 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
+import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker"
 import { ChatComposer } from "./chat-composer"
 
@@ -117,12 +118,9 @@ function Panel({ onClose }: { onClose: () => void }) {
                         <MessageScrollerItem key={message.id}>
                           <Message align={mine ? "end" : "start"}>
                             <MessageContent>
-                              <div
-                                className={
-                                  mine
-                                    ? "max-w-[82%] rounded-[16px] rounded-br-[5px] bg-[#202020] px-3.5 py-2.5 text-[14px] leading-5 text-white"
-                                    : "max-w-[82%] rounded-[16px] rounded-bl-[5px] bg-[#f1f1ef] px-3.5 py-2.5 text-[14px] leading-5 text-[#202020]"
-                                }
+                              <Bubble
+                                align={mine ? "end" : "start"}
+                                variant={mine ? "default" : "muted"}
                               >
                                 {message.attachmentUrl ? (
                                   // eslint-disable-next-line @next/next/no-img-element
@@ -132,8 +130,8 @@ function Panel({ onClose }: { onClose: () => void }) {
                                     className="mb-1.5 max-h-[220px] w-full rounded-[10px] object-cover"
                                   />
                                 ) : null}
-                                {message.body}
-                              </div>
+                                <BubbleContent>{message.body}</BubbleContent>
+                              </Bubble>
                               <MessageFooter className="text-[11px] text-[#9a9a9a]">
                                 {mine
                                   ? "You"

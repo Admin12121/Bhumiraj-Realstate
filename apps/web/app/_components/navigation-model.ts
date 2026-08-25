@@ -55,9 +55,7 @@ export const accountNavigation: NavigationItem[] = [
 
 /**
  * Profile, security and sessions are one screen with three tabs, exactly as in
- * the admin console — same component, same route shape. Keeping them as three
- * sidebar entries meant three routes and three different treatments of the same
- * settings.
+ * the admin console — same component, same route shape.
  */
 export const accountSystemNavigation: NavigationItem[] = [
   { label: "Settings", icon: Settings, href: "/account/settings" },

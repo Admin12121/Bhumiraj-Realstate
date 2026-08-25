@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -17,6 +18,9 @@ import {
   idSchema,
   moderationDecisionSchema,
   platformSettingsSchema,
+  ticketKindSchema,
+  ticketReplySchema,
+  ticketTransferSchema,
 } from '@real-estate/contracts';
 import { prisma, type Prisma } from '@real-estate/database';
 import {
@@ -26,6 +30,7 @@ import {
 import { StaffPermissionsGuard } from '../../shared/auth/staff-permissions.guard';
 import { ZodValidationPipe } from '../../shared/http/zod-validation.pipe';
 import { ADMIN_PERMISSIONS } from './admin.permissions';
+import { TicketsService } from './tickets.service';
 
 const moderationKindSchema = z.enum(['listing', 'user']);
 
@@ -40,6 +45,8 @@ const DEFAULT_SETTINGS = {
 @Controller('api/v1/admin')
 @UseGuards(StaffPermissionsGuard)
 export class AdminOperationsController {
+  constructor(private readonly tickets: TicketsService) {}
+
   @Get('overview')
   @StaffPermissions(ADMIN_PERMISSIONS.OVERVIEW_READ)
   async overview() {
@@ -210,11 +217,13 @@ export class AdminOperationsController {
   async moderation(
     @Query(new ZodValidationPipe(adminModerationQuerySchema))
     query: z.infer<typeof adminModerationQuerySchema>,
+    @Session() session: UserSession,
   ) {
     const skip = (query.page - 1) * query.pageSize;
     if (query.kind === 'USER_REPORT') {
       const where: Prisma.UserReportWhereInput = {
         ...(query.status ? { status: query.status } : {}),
+        ...(query.mine ? { assignedToId: session.user.id } : {}),
         ...(query.search
           ? {
               OR: [
@@ -276,6 +285,7 @@ export class AdminOperationsController {
 
     const where: Prisma.ListingReportWhereInput = {
       ...(query.status ? { status: query.status } : {}),
+      ...(query.mine ? { assignedToId: session.user.id } : {}),
       ...(query.search
         ? {
             OR: [
@@ -641,5 +651,47 @@ export class AdminOperationsController {
       total,
       pageCount: Math.ceil(total / query.pageSize),
     };
+  }
+
+  @Get('tickets/staff')
+  @StaffPermissions(ADMIN_PERMISSIONS.MODERATION_READ)
+  ticketStaff(@Query('search') search?: string) {
+    return this.tickets.assignableStaff((search ?? '').trim());
+  }
+
+  @Get('tickets/:kind/:id')
+  @StaffPermissions(ADMIN_PERMISSIONS.MODERATION_READ)
+  ticket(
+    @Param('kind', new ZodValidationPipe(ticketKindSchema))
+    kind: z.infer<typeof ticketKindSchema>,
+    @Param('id', new ZodValidationPipe(idSchema)) id: string,
+  ) {
+    return this.tickets.detail(kind, id);
+  }
+
+  @Post('tickets/:kind/:id/messages')
+  @StaffPermissions(ADMIN_PERMISSIONS.MODERATION_MANAGE)
+  replyToTicket(
+    @Param('kind', new ZodValidationPipe(ticketKindSchema))
+    kind: z.infer<typeof ticketKindSchema>,
+    @Param('id', new ZodValidationPipe(idSchema)) id: string,
+    @Body(new ZodValidationPipe(ticketReplySchema))
+    body: z.infer<typeof ticketReplySchema>,
+    @Session() session: UserSession,
+  ) {
+    return this.tickets.reply(kind, id, body.body, session.user.id);
+  }
+
+  @Post('tickets/:kind/:id/transfer')
+  @StaffPermissions(ADMIN_PERMISSIONS.MODERATION_MANAGE)
+  transferTicket(
+    @Param('kind', new ZodValidationPipe(ticketKindSchema))
+    kind: z.infer<typeof ticketKindSchema>,
+    @Param('id', new ZodValidationPipe(idSchema)) id: string,
+    @Body(new ZodValidationPipe(ticketTransferSchema))
+    body: z.infer<typeof ticketTransferSchema>,
+    @Session() session: UserSession,
+  ) {
+    return this.tickets.transfer(kind, id, body.assigneeId, session.user.id);
   }
 }

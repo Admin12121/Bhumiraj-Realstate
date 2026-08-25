@@ -17,12 +17,9 @@ function normalizeOrigin(value: string): string | null {
 }
 
 /**
- * Enforces same-origin browser writes for cookie-authenticated requests.
- *
- * Bearer-authenticated service clients without cookies remain supported. A
+ * Enforces same-origin browser writes for cookie-authenticated requests. A
  * browser request carrying cookies must present a trustworthy Origin, Referer,
- * or same-origin Fetch Metadata signal. Better Auth also performs its own
- * origin checks for the routes mounted under `/api/auth/*`.
+ * or same-origin Fetch Metadata signal.
  */
 @Injectable()
 export class CsrfOriginGuard implements CanActivate {

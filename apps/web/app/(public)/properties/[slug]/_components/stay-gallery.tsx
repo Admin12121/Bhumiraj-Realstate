@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { ImageOff } from "lucide-react"
 import { PhotoLightbox } from "@/app/_components/photo-lightbox"
-import { PropertyCardCarousel } from "@/app/_components/residence-card"
+import { PropertyCardCarousel } from "@/app/_components/property-card-carousel"
 
 const imageShadow =
   "shadow-[0_8px_16px_-4px_rgba(0,0,0,0.10),0_4px_8px_-2px_rgba(0,0,0,0.10)]"

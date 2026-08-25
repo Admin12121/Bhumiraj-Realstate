@@ -610,9 +610,52 @@ export const platformSettingsSchema = z.object({
   maximumPropertyImages: z.number().int().min(1).max(100),
 });
 
+export const ticketKindSchema = z.enum(["LISTING_REPORT", "USER_REPORT"]);
+export const ticketStatusSchema = z.enum([
+  "OPEN",
+  "IN_REVIEW",
+  "RESOLVED",
+  "DISMISSED",
+]);
+
 export const adminModerationQuerySchema = adminPaginationQuerySchema.extend({
-  kind: z.enum(["LISTING_REPORT", "USER_REPORT"]).default("LISTING_REPORT"),
-  status: z.enum(["OPEN", "IN_REVIEW", "RESOLVED", "DISMISSED"]).optional(),
+  kind: ticketKindSchema.default("LISTING_REPORT"),
+  status: ticketStatusSchema.optional(),
+  /** Only tickets this staff member is working. */
+  mine: queryBooleanSchema.optional(),
+});
+
+/** One reply on a ticket. */
+export const ticketMessageSchema = z.object({
+  id: idSchema,
+  body: z.string(),
+  fromStaff: z.boolean(),
+  authorName: z.string(),
+  createdAt: isoDateSchema,
+});
+
+export const ticketDetailSchema = z.object({
+  id: idSchema,
+  kind: ticketKindSchema,
+  status: ticketStatusSchema,
+  reason: z.string(),
+  details: z.string().nullable(),
+  createdAt: isoDateSchema,
+  reporterName: z.string(),
+  reporterEmail: z.string(),
+  /** What the ticket is about: a listing title or the reported account. */
+  subjectLabel: z.string(),
+  assignedToId: userIdSchema.nullable(),
+  assignedToName: z.string().nullable(),
+  messages: z.array(ticketMessageSchema),
+});
+
+export const ticketReplySchema = z.object({
+  body: z.string().trim().min(1).max(4000),
+});
+
+export const ticketTransferSchema = z.object({
+  assigneeId: userIdSchema,
 });
 export const adminAgentsQuerySchema = adminPaginationQuerySchema.extend({
   verified: queryBooleanSchema.optional(),

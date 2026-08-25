@@ -27,8 +27,8 @@ import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
 import { Form } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PanelSection } from "./panel-layout"
-import { useStepUp } from "./step-up-dialog"
+import { PanelSection } from "../../_components/panel-layout"
+import { useStepUp } from "../../_components/step-up-dialog"
 import { errorMessage } from "@/shared/http/error-message";
 
 /**

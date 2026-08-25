@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation"
 import { useState, type ReactNode } from "react"
 import {
   Dialog,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogPanel,

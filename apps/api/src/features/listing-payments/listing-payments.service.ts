@@ -54,10 +54,9 @@ export class ListingPaymentsService {
   }
 
   /**
-   * Turns the uploaded QR assets into CDN URLs.
-   *
-   * The URL is derived rather than accepted from the client, so an
-   * administrator cannot point the payment screen at an arbitrary image.
+   * Turns the uploaded QR assets into CDN URLs. The URL is derived rather than
+   * accepted from the client, so an administrator cannot point the payment
+   * screen at an arbitrary image.
    */
   private async resolveMethodImages(
     input: ListingFeeSettings,

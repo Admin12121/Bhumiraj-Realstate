@@ -23,16 +23,8 @@ const COLLAPSED_WIDTH = "3.25rem";
 
 /**
  * The rail that lists the records inside an editor page — staff roles today,
- * anything record-shaped later.
- *
- * It exists as one component rather than a copy per page because "consistent"
- * has to be structural: otherwise every panel grows its own header layout and
- * re-implements the collapse behaviour. Panels supply their items; everything
- * around them is fixed here.
- *
- * Collapse state is local on purpose. This rail and the admin sidebar are
- * independent — collapsing one must never move the other — so it deliberately
- * does not read or write the shared sidebar cookie, and leaves Cmd+B alone.
+ * anything record-shaped later. Panels supply their items; everything around
+ * them is fixed here. Collapse state is local on purpose.
  */
 export function NestedSidebar({
   actions,
@@ -164,10 +156,9 @@ export function NestedSidebar({
 }
 
 /**
- * A button for the rail header.
- *
- * Exists so panels declare *what* the action is and not how it looks — size,
- * variant and tooltip are the parts that have to match across panels.
+ * A button for the rail header. Exists so panels declare *what* the action is
+ * and not how it looks — size, variant and tooltip are the parts that have to
+ * match across panels.
  */
 export function NestedSidebarAction({
   icon,
@@ -201,11 +192,9 @@ export function NestedSidebarAction({
 }
 
 /**
- * One record in the rail.
- *
- * In icon-only mode the label is dropped and the icon centred, with the label
- * moving to a tooltip — otherwise a collapsed rail is a column of anonymous
- * squares.
+ * One record in the rail. In icon-only mode the label is dropped and the icon
+ * centred, with the label moving to a tooltip — otherwise a collapsed rail is a
+ * column of anonymous squares.
  */
 export function NestedSidebarItem({
   children,

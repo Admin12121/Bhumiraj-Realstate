@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft,
   Check,
+  Search,
   ExternalLink,
   History,
   MapPin,
@@ -39,6 +40,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Frame } from "@/components/ui/frame";
 import { Input } from "@/components/ui/input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -50,9 +56,9 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { PanelEmptyRow } from "./panel-layout";
-import { useHasStaffPermission } from "./admin-shell";
-import { useStepUp } from "./step-up-dialog";
+import { PanelEmptyRow } from "../../_components/panel-layout";
+import { useHasStaffPermission } from "../../_components/admin-shell";
+import { useStepUp } from "../../_components/step-up-dialog";
 import {
   assignListing,
   getAssignableAgents,
@@ -134,12 +140,8 @@ const AUCTION_FIELDS: readonly FieldSpec[] = [
 ];
 
 /**
- * A record row: the value is read until someone chooses to edit it.
- *
- * Matches the hotel detail panel in the reference console — a page of
- * always-on inputs reads as a form to fill in rather than a record to
- * inspect, and makes an accidental keystroke indistinguishable from an edit.
- * One row is editable at a time, saved or cancelled from the Actions column.
+ * A record row: the value is read until someone chooses to edit it. One row is
+ * editable at a time, saved or cancelled from the Actions column.
  */
 function DetailRows({
   fields,
@@ -237,10 +239,9 @@ function DetailRows({
 }
 
 /**
- * The record behind a listing, as an editable table.
- *
- * Every change is written to the audit log with the actor and the before/after
- * values, so the History tab answers "who changed this, and when".
+ * The record behind a listing, as an editable table. Every change is written to
+ * the audit log with the actor and the before/after values, so the History tab
+ * answers "who changed this, and when".
  */
 export function AdminListingDetailView({ slug }: { slug: string }) {
   const client = useQueryClient();
@@ -254,7 +255,7 @@ export function AdminListingDetailView({ slug }: { slug: string }) {
   // rather than letting the request come back as a bare error.
   const { guard } = useStepUp();
   const canAssign = useHasStaffPermission("admin.assignments.manage");
-  const [assigning, setAssigning] = useState(false);
+  const [agentSearch, setAgentSearch] = useState("");
   const [proofUrl, setProofUrl] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
@@ -349,15 +350,19 @@ export function AdminListingDetailView({ slug }: { slug: string }) {
   const agents = useQuery({
     queryKey: ["admin", "assignable-agents"],
     queryFn: ({ signal }) => getAssignableAgents(signal),
-    enabled: assigning,
+    enabled: canAssign && listing.data?.status === "AWAITING_AGENT",
   });
+
+  const assignableAgents = (agents.data?.items ?? []).filter((agent) =>
+    agent.name.toLowerCase().includes(agentSearch.trim().toLowerCase()),
+  );
 
   const assign = useMutation({
     mutationFn: (agentId: string) =>
       assignListing(listing.data!.id, { agentId }),
     onSuccess: () => {
       toast.success("Agent offered this listing.");
-      setAssigning(false);
+      setAgentSearch("");
       void client.invalidateQueries({ queryKey: ["admin", "listing", slug] });
     },
     onError: (error: unknown) => toast.error(errorMessage(error)),
@@ -492,59 +497,70 @@ export function AdminListingDetailView({ slug }: { slug: string }) {
                     Agent
                   </TableHead>
                   <TableCell className="whitespace-normal py-2">
-                    <div className="flex flex-wrap items-center gap-3">
-                      {detail.agent?.name ?? (
-                        <span className="text-muted-foreground">Unassigned</span>
-                      )}
-                      {/* Assignment is only accepted while the listing sits in
-                          the agent queue; the API rejects it in any other state. */}
-                      {canAssign && detail.status === "AWAITING_AGENT" ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setAssigning((open) => !open)}
-                        >
-                          <UserRoundCog />
-                          {assigning ? "Cancel" : "Assign agent"}
-                        </Button>
-                      ) : null}
-                    </div>
-                    {assigning ? (
-                      <div className="mt-3 rounded-xl border bg-muted/40 p-2">
+                    {detail.agent?.name ? (
+                      <span>{detail.agent.name}</span>
+                    ) : canAssign && detail.status === "AWAITING_AGENT" ? (
+                      // Nobody is assigned yet, so the picker is the field: no
+                      // toggle to discover before the listing can move on.
+                      <div className="grid max-w-md gap-2">
+                        <InputGroup>
+                          <InputGroupInput
+                            value={agentSearch}
+                            onChange={(event) =>
+                              setAgentSearch(event.target.value)
+                            }
+                            placeholder="Search agents"
+                            aria-label="Search agents"
+                            type="search"
+                          />
+                          <InputGroupAddon>
+                            <Search />
+                          </InputGroupAddon>
+                        </InputGroup>
                         {agents.isPending ? (
-                          <p className="p-2 text-muted-foreground text-sm">
+                          <p className="text-muted-foreground text-sm">
                             Loading agents…
                           </p>
-                        ) : (agents.data?.items ?? []).length === 0 ? (
-                          <p className="p-2 text-muted-foreground text-sm">
-                            No agent is available to take this listing.
+                        ) : assignableAgents.length === 0 ? (
+                          <p className="text-muted-foreground text-sm">
+                            {agentSearch
+                              ? "No agent matches that search."
+                              : "No agent is available to take this listing."}
                           </p>
                         ) : (
-                          <ul className="m-0 flex list-none flex-col gap-1 p-0">
-                            {(agents.data?.items ?? []).map((agent) => (
-                              <li key={agent.id}>
+                          <ul className="m-0 grid list-none gap-1 p-0">
+                            {assignableAgents.map((agent) => (
+                              <li
+                                className="flex items-center gap-2 rounded-lg border bg-background px-3 py-1.5"
+                                key={agent.id}
+                              >
+                                <span className="min-w-0 flex-1 truncate text-sm">
+                                  {agent.name}
+                                </span>
+                                <span className="shrink-0 text-muted-foreground text-xs">
+                                  {agent.atCapacity
+                                    ? "At limit"
+                                    : agent.nearCapacity
+                                      ? "Near limit"
+                                      : "Available"}
+                                </span>
                                 <Button
-                                  className="w-full justify-between"
-                                  variant="ghost"
-                                  size="sm"
+                                  aria-label={`Assign ${agent.name}`}
                                   disabled={agent.atCapacity || assign.isPending}
                                   onClick={() => assign.mutate(agent.id)}
+                                  size="icon-sm"
+                                  variant="ghost"
                                 >
-                                  <span className="truncate">{agent.name}</span>
-                                  <span className="shrink-0 text-xs">
-                                    {agent.atCapacity
-                                      ? "At limit"
-                                      : agent.nearCapacity
-                                        ? "Near limit"
-                                        : "Available"}
-                                  </span>
+                                  <UserRoundCog />
                                 </Button>
                               </li>
                             ))}
                           </ul>
                         )}
                       </div>
-                    ) : null}
+                    ) : (
+                      <span className="text-muted-foreground">Unassigned</span>
+                    )}
                   </TableCell>
                   <TableCell />
                 </TableRow>

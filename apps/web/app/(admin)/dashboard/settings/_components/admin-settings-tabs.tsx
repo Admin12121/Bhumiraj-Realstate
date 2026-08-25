@@ -3,10 +3,10 @@
 import { useState } from "react";
 
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs";
-import { SettingsPanel } from "./admin-operations-panels";
+import { SettingsPanel } from "./settings-panel";
 import { ListingFeePanel } from "./listing-fee-panel";
 import { OwnerGovernancePanel } from "./owner-governance-panel";
-import { RequireStaffPermission } from "./admin-shell";
+import { RequireStaffPermission } from "../../_components/admin-shell";
 
 /** Platform defaults and ownership are both "what the platform is", so both live here. */
 export function AdminSettingsTabs() {

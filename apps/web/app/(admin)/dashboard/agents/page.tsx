@@ -1,4 +1,5 @@
-import { AdminShell, AgentGovernancePanel } from "../_components"
+import { AdminShell } from "../_components";
+import { AgentGovernancePanel } from "./_components";
 
 export default function Page() {
   return (

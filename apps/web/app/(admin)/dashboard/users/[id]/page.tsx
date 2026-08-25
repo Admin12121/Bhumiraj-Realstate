@@ -1,4 +1,5 @@
-import { AdminShell, AdminUserDetail } from "../../_components";
+import { AdminShell } from "../../_components";
+import { AdminUserDetail } from "../_components";
 
 export default async function Page({
   params,

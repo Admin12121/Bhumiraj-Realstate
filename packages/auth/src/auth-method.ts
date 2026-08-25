@@ -29,11 +29,7 @@ const AUTHENTICATOR_DATA_FLAGS_OFFSET = 32;
 const USER_VERIFIED_FLAG = 0x04;
 
 /**
- * Reads the user-verified bit out of a WebAuthn assertion.
- *
- * The passkey plugin calls `verifyAuthenticationResponse` with
- * `requireUserVerification: false` and offers no option to change it, and
- * `authenticatorSelection` only shapes registration. Without this check a
+ * Reads the user-verified bit out of a WebAuthn assertion. Without this check a
  * possession-only assertion would be indistinguishable from a biometric one.
  * Returns undefined when the flag cannot be read at all.
  */

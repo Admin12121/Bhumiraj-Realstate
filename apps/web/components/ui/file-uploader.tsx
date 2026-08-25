@@ -27,13 +27,7 @@ function iconFor(file: File) {
   return <FileIcon className="size-4 opacity-60" />;
 }
 
-/**
- * Drop area plus a table of what is attached.
- *
- * A bare file input told you a file was chosen but not how big it was, whether
- * it was over the limit, or how to drop just one of them — so the table lists
- * each file with its size and its own remove.
- */
+/** Drop area plus a table of what is attached. */
 export function FileUploader({
   files,
   isDragging,

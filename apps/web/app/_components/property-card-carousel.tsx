@@ -4,7 +4,6 @@ import Link from "next/link"
 import { useMemo, useRef, useState, type ReactNode, type TouchEvent } from "react"
 import { ChevronLeft, ChevronRight, ImageOff } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { SaveButton } from "./save-button"
 
 /** The reference's swipeable card media: slides, arrows and a progress pill. */
 /** The slide strip: a link normally, a plain box while previewing. */
@@ -181,66 +180,5 @@ export function PropertyCardCarousel({
         </>
       )}
     </div>
-  )
-}
-
-export type Residence = {
-  /** Database id; absent for sample residences, which cannot be saved. */
-  listingId?: string | undefined
-  slug: string
-  image: string
-  images?: string[]
-  available?: string
-  city: string
-  title: string
-  rooms: string
-  latitude?: number
-  longitude?: number
-}
-
-/** The reference's residence card, used for both real and sample listings. */
-export function ResidenceCard({ residence }: { residence: Residence }) {
-  const href = `/properties/${residence.slug}`
-
-  return (
-    <article className="min-w-0 overflow-visible bg-transparent text-[#1d1919]">
-      <PropertyCardCarousel
-        href={href}
-        images={residence.images ?? [residence.image]}
-        fallbackImage={residence.image}
-        alt={residence.title}
-        aspectRatio="1.52 / 1"
-        className="rounded-[8px] bg-[#f8f8f7]"
-        imageClassName="group-hover/media:scale-[1.015]"
-        topLeft={
-          residence.available ? (
-            <span className="mt-[14px] ml-[14px] inline-flex h-6 items-center rounded-[360px] border border-[#e9e8e6] bg-white px-[10px] text-[11px] leading-none font-medium text-[#221811]">
-              {residence.available}
-            </span>
-          ) : null
-        }
-        topRight={
-          <SaveButton
-            listingId={residence.listingId}
-            className="mt-3 mr-3 inline-flex size-8 items-center justify-center rounded-full border-0 bg-transparent p-0"
-            iconClassName="size-[21px] text-white drop-shadow-[0_1px_2px_rgba(0,0,0,.65)]"
-          />
-        }
-      />
-
-      <Link href={href} className="block min-w-0 py-3 text-[#1d1919]">
-        <div className="flex flex-col gap-1">
-          <p className="truncate text-[11px] leading-normal font-normal text-[#737373]">
-            {residence.city}
-          </p>
-          <h3 className="truncate text-[13px] leading-normal font-medium text-[#1d1919]">
-            {residence.title}
-          </h3>
-          <p className="truncate text-[11px] leading-normal font-normal text-[#737373]">
-            {residence.rooms}
-          </p>
-        </div>
-      </Link>
-    </article>
   )
 }

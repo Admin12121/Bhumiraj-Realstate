@@ -40,10 +40,9 @@ function labelFor(path: readonly PropertyKey[]): string | null {
 }
 
 /**
- * One readable sentence for a single validation issue.
- *
- * Zod's own text ("Too small: expected string to have >=10 characters") is
- * written for developers; these are written for the person filling the form.
+ * One readable sentence for a single validation issue. Zod's own text ("Too
+ * small: expected string to have >=10 characters") is written for developers;
+ * these are written for the person filling the form.
  */
 export function issueMessage(issue: {
   code: string;
@@ -106,11 +105,9 @@ export function fieldErrors(error: ZodError): Record<string, string> {
 }
 
 /**
- * The text to show a user for any thrown error.
- *
- * Raw `ZodError.message` is a JSON dump of internal issue objects and
- * `Error.message` from an unexpected failure can carry internals, so neither is
- * ever shown as-is.
+ * The text to show a user for any thrown error. Raw `ZodError.message` is a
+ * JSON dump of internal issue objects and `Error.message` from an unexpected
+ * failure can carry internals, so neither is ever shown as-is.
  */
 export function errorMessage(error: unknown): string {
   if (error instanceof ZodError) {
