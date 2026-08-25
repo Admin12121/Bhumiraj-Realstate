@@ -12,7 +12,6 @@ import {
 import { usePathname, useRouter } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import {
-  BadgeDollarSign,
   ChevronRight,
   BarChart3,
   Building2,
@@ -27,7 +26,6 @@ import {
 } from "lucide-react"
 import { signOut, useSession } from "@real-estate/auth/client"
 import { getAdminAccess } from "@/features/admin/api/admin-api"
-import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import {
   Sidebar,
@@ -49,6 +47,7 @@ import {
 import { MobileBottomNavigation } from "@/app/_components/mobile-bottom-navigation"
 import { WorkspaceUserMenu } from "@/app/_components/workspace-user-menu"
 import { NotificationBell } from "@/features/notifications/components/notification-bell"
+import { Skeleton } from "@/components/ui/skeleton"
 import { StepUpProvider } from "./step-up-dialog"
 import { TwoFactorNudge } from "./two-factor-nudge"
 import type { NavigationItem } from "@/app/_components/navigation-model"
@@ -73,12 +72,6 @@ const sections = [
         icon: Building2,
         href: "/dashboard/listings",
         permission: "admin.listings.read",
-      },
-      {
-        label: "Payments",
-        icon: BadgeDollarSign,
-        href: "/dashboard/payments",
-        permission: "admin.payments.read",
       },
       {
         label: "Auctions",
@@ -153,6 +146,42 @@ const sections = [
     ],
   },
 ] as const
+
+/**
+ * Stands in for the shell while the session and permissions resolve. It mirrors
+ * the real layout so the console does not flash a bare centred message.
+ */
+function AdminShellSkeleton() {
+  return (
+    <div className="flex min-h-dvh" aria-busy="true" aria-live="polite">
+      <span className="sr-only">Loading the admin console…</span>
+      <div className="hidden w-[17rem] shrink-0 border-r p-3 md:block">
+        <div className="flex h-12 items-center gap-2 border-b pb-3">
+          <Skeleton className="size-8 shrink-0 rounded-lg" />
+          <div className="grid flex-1 gap-1">
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-2.5 w-20" />
+          </div>
+        </div>
+        <div className="grid gap-2 pt-4">
+          {Array.from({ length: 9 }, (_, index) => (
+            <Skeleton className="h-8 w-full rounded-md" key={index} />
+          ))}
+        </div>
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="size-8 rounded-md" />
+        </div>
+        <div className="grid gap-4 p-2">
+          <Skeleton className="h-10 w-full rounded-xl" />
+          <Skeleton className="h-64 w-full rounded-2xl" />
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function isActiveRoute(pathname: string, href: string): boolean {
   return href === "/dashboard"
@@ -238,10 +267,8 @@ function AdminNavigation({
 
 function AdminHeader({
   title,
-  accountType,
 }: {
   title: string
-  accountType: string
 }) {
   const { state, isMobile } = useSidebar()
   // Only offer a trigger here once the sidebar's own has collapsed away.
@@ -264,9 +291,6 @@ function AdminHeader({
         <h1 className="truncate text-base font-medium">{title}</h1>
       </div>
       <NotificationBell />
-      <Badge size="sm" variant={accountType === "OWNER" ? "success" : "secondary"}>
-        {accountType}
-      </Badge>
     </header>
   )
 }
@@ -293,7 +317,6 @@ export function AdminShell({
   const access = useQuery({
     queryKey: ["admin", "access"],
     queryFn: getAdminAccess,
-    enabled: Boolean(session.data),
     retry: false,
     staleTime: 30_000,
   })
@@ -308,11 +331,7 @@ export function AdminShell({
   }, [access.isError, pathname, router, session.data, session.isPending])
 
   if (session.isPending || access.isPending || !session.data || !access.data) {
-    return (
-      <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">
-        Checking administrator access…
-      </div>
-    )
+    return <AdminShellSkeleton />
   }
 
   const permissions = new Set(access.data.permissions)
@@ -392,12 +411,11 @@ export function AdminShell({
           <SidebarInset className="min-w-0 bg-[#f7f9f7] pb-24 min-[800px]:pb-0">
             <AdminHeader
               title={denied ? "Access restricted" : title}
-              accountType={access.data.accountType}
             />
 
             <main
               id="main-content"
-              className={bleed ? "min-w-0" : "min-w-0 p-4 sm:p-6 lg:p-8"}
+              className={bleed ? "min-w-0" : "min-w-0 p-2"}
             >
               {bleed ? null : <TwoFactorNudge />}
               {denied ? (

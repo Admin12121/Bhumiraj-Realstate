@@ -33,6 +33,7 @@ function toPost(listing: {
   title: string
   description: string
   coverImageUrl: string | null
+  imageUrls: string[]
   propertyType: string
   listingType: string
   isVerified: boolean
@@ -54,12 +55,18 @@ function toPost(listing: {
   price: { amountMinor: string; currency: string } | null
   specifications: { areaSqFt: number | null }
   auction: { id: string } | null
+  isSaved: boolean
 }): PropertyPostData {
   return {
     slug: listing.slug,
     title: listing.title,
     description: listing.description,
-    images: listing.coverImageUrl ? [listing.coverImageUrl] : [],
+    images:
+      listing.imageUrls.length > 0
+        ? listing.imageUrls
+        : listing.coverImageUrl
+          ? [listing.coverImageUrl]
+          : [],
     agent: {
       ...(listing.agent
         ? { id: listing.agent.username ?? listing.agent.id }
@@ -70,6 +77,9 @@ function toPost(listing: {
     },
     publishedAt: listing.publishedAt ?? listing.createdAt,
     reference: listing.id.slice(0, 8).toUpperCase(),
+    // Without this the card looks like a sample residence and refuses to save.
+    listingId: listing.id,
+    saved: listing.isSaved,
     ...(listing.auction ? { auctionId: listing.auction.id } : {}),
     price: listing.price
       ? formatMinorAmount(listing.price.amountMinor, listing.price.currency)
@@ -321,8 +331,10 @@ export function HomeHero() {
       <div className="h-32 lg:h-9" />
 
       <PostFeed
-        filters={{ type: "SALE", sort: "popular" }}
-        exploreHref="/search?type=SALE"
+        // "Featured residences" means every published property, not only the
+        // ones for sale: a seller who posts a rental was told nothing matched.
+        filters={{ sort: "popular" }}
+        exploreHref="/search"
       />
 
       <LovedByOwners />

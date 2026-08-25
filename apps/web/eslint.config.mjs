@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Vendor bundles copied in by scripts/sync-map-worker.mjs.
     "public/maplibre-gl-worker.mjs",
     "public/maplibre-gl-shared.mjs",
+    // Vendored QR renderer used by the two-factor setup dialog.
+    "public/qr-code-styling.js",
   ]),
   {
     // Vendored verbatim from the @mapcn/map shadcn registry. Its imperative

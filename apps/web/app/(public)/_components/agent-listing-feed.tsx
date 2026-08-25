@@ -22,7 +22,12 @@ function toPost(listing: FeedListing): PropertyPostData {
     slug: listing.slug,
     title: listing.title,
     description: listing.description,
-    images: listing.coverImageUrl ? [listing.coverImageUrl] : [],
+    images:
+      listing.imageUrls.length > 0
+        ? listing.imageUrls
+        : listing.coverImageUrl
+          ? [listing.coverImageUrl]
+          : [],
     agent: {
       ...(listing.agent
         ? { id: listing.agent.username ?? listing.agent.id }
@@ -49,6 +54,7 @@ function toPost(listing: FeedListing): PropertyPostData {
       : {}),
     category: listing.listingType === "RENT" ? "For rent" : "For sale",
     listingId: listing.id,
+    saved: listing.isSaved,
   }
 }
 

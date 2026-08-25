@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Home } from "lucide-react"
-import { setWorkerUrl } from "maplibre-gl"
 import type { GeoJSONSource, MapMouseEvent } from "maplibre-gl"
 import { cn } from "@/lib/utils"
 import { PropertyCardCarousel } from "./residence-card"
@@ -16,12 +15,6 @@ import {
   useMap,
 } from "@/components/ui/map"
 import { DistrictBoundary } from "./district-boundary"
-
-// MapLibre defaults to fetching its worker from unpkg.com, which the CSP blocks.
-// `scripts/sync-map-worker.mjs` copies it into public/ so it loads same-origin.
-if (typeof window !== "undefined") {
-  setWorkerUrl("/maplibre-gl-worker.mjs")
-}
 
 /** Falls back to the Kathmandu valley when nothing in the result set is mappable. */
 const KATHMANDU = { latitude: 27.7172, longitude: 85.324 }

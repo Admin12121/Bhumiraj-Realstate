@@ -10,17 +10,22 @@ export const metadata: Metadata = { title: "Auctions" };
 export default function Page() {
   return (
     <AdminShell title="Auctions" permission="admin.auctions.read">
-      <div className="grid gap-4">
-        <RequireStaffPermission permission="admin.auctions.manage" fallback={null}>
-          <div className="flex justify-end">
-            <Button render={<Link href="/dashboard/auctions/new" />} size="sm">
+      <AdminAuctionsTable
+        newAuctionAction={
+          <RequireStaffPermission
+            permission="admin.auctions.manage"
+            fallback={null}
+          >
+            <Button
+              render={<Link href="/dashboard/auctions/new" />}
+              size="icon"
+              aria-label="New auction"
+            >
               <Plus />
-              New auction
             </Button>
-          </div>
-        </RequireStaffPermission>
-        <AdminAuctionsTable />
-      </div>
+          </RequireStaffPermission>
+        }
+      />
     </AdminShell>
   );
 }

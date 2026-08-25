@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/field";
 import {
   Fieldset,
-  FieldsetDescription,
   FieldsetLegend,
 } from "@/components/ui/fieldset";
 import { Frame } from "@/components/ui/frame";
@@ -152,11 +151,8 @@ export function ListingFeePanel() {
     <div className="grid gap-6">
       <Fieldset>
         <FieldsetLegend>Listing fee</FieldsetLegend>
-        <FieldsetDescription>
-          Charged once per property, before it enters the review queue.
-        </FieldsetDescription>
         <FieldGroup>
-          <Field className="flex-row items-center justify-between rounded-xl border p-4">
+          <Field className="flex-row items-center justify-between rounded-xl border p-4 mt-4">
             <div className="min-w-0">
               <FieldLabel className="font-medium">Charge a fee</FieldLabel>
               <p className="mt-0.5 text-xs text-muted-foreground">
@@ -210,11 +206,26 @@ export function ListingFeePanel() {
       <FieldSeparator />
 
       <Fieldset>
-        <FieldsetLegend>Payment methods</FieldsetLegend>
-        <FieldsetDescription>
-          Sellers see these on the payment screen and upload a receipt against
-          whichever one they used.
-        </FieldsetDescription>
+        <div className="flex items-center justify-between gap-3">
+          <FieldsetLegend>Payment methods</FieldsetLegend>
+          {canManage ? (
+            <Button
+              type="button"
+              size="icon-sm"
+              aria-label="Add payment method"
+              onClick={() =>
+                patch({
+                  methods: [
+                    ...values.methods,
+                    blankMethod(values.methods.length),
+                  ],
+                })
+              }
+            >
+              <Plus />
+            </Button>
+          ) : null}
+        </div>
 
         <div className="mt-4 grid gap-4">
           {values.methods.length === 0 ? (
@@ -432,38 +443,25 @@ export function ListingFeePanel() {
             );
           })}
 
-          {canManage ? (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-fit"
-              onClick={() =>
-                patch({
-                  methods: [...values.methods, blankMethod(values.methods.length)],
-                })
-              }
-            >
-              <Plus />
-              Add payment method
-            </Button>
-          ) : null}
         </div>
+
+        {/* Item 4: the actions belong to the form they save, not beside it. */}
+        {canManage ? (
+          <div className="mt-6 flex items-center justify-end gap-2 border-t pt-4">
+            <Button
+              variant="ghost"
+              disabled={save.isPending}
+              onClick={() => setDraft(query.data ?? null)}
+            >
+              Discard
+            </Button>
+            <Button loading={save.isPending} onClick={() => save.mutate(values)}>
+              Save
+            </Button>
+          </div>
+        ) : null}
       </Fieldset>
 
-      {canManage ? (
-        <div className="flex items-center gap-3">
-          <Button loading={save.isPending} onClick={() => save.mutate(values)}>
-            Save payment settings
-          </Button>
-          <Button
-            variant="ghost"
-            disabled={save.isPending}
-            onClick={() => setDraft(query.data ?? null)}
-          >
-            Discard changes
-          </Button>
-        </div>
-      ) : null}
     </div>
   );
 }

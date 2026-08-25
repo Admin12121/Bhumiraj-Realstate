@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { listingStatusSchema, listingTypeSchema } from "./listings";
 import {
   adminPageSchema,
   adminPaginationQuerySchema,
@@ -326,17 +327,8 @@ export const adminListingSchema = z.object({
   publishedAt: isoDateSchema.nullable(),
 });
 export const adminListingsQuerySchema = adminPaginationQuerySchema.extend({
-  status: z
-    .enum([
-      "DRAFT",
-      "PENDING_REVIEW",
-      "PUBLISHED",
-      "REJECTED",
-      "WITHDRAWN",
-      "ARCHIVED",
-    ])
-    .optional(),
-  type: z.enum(["SALE", "RENT", "AUCTION"]).optional(),
+  status: listingStatusSchema.optional(),
+  type: listingTypeSchema.optional(),
 });
 export const adminListingsResponseSchema = adminPageSchema(adminListingSchema);
 export const listingModerationDecisionSchema = z.object({
@@ -350,15 +342,8 @@ export const adminListingDetailSchema = z.object({
   slug: z.string(),
   title: z.string(),
   description: z.string(),
-  status: z.enum([
-    "DRAFT",
-    "PENDING_REVIEW",
-    "PUBLISHED",
-    "REJECTED",
-    "WITHDRAWN",
-    "ARCHIVED",
-  ]),
-  type: z.enum(["SALE", "RENT", "AUCTION"]),
+  status: listingStatusSchema,
+  type: listingTypeSchema,
   propertyType: z.string(),
   priceMinor: z.string().nullable(),
   currency: z.string(),

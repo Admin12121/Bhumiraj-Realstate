@@ -245,7 +245,7 @@ export function StaffRolesPanel() {
   // ── List view ────────────────────────────────────────────────────────────
   if (editing === null) {
     return (
-      <div className="p-4 sm:p-6 lg:p-8">
+      <div className="sm:p-6 p-2">
         <PanelSection>
 
           <div className="grid gap-3 lg:grid-cols-[minmax(18rem,26rem)_minmax(1rem,1fr)_auto]">

@@ -28,7 +28,7 @@
     "docker:up": "docker compose up -d --build",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f --tail=200",
-    "dev:reload": "docker compose restart web && node scripts/wait-for-web.mjs",
+    "dev:reload": "docker compose restart web && node scripts/wait-for-web.mjs && node scripts/touch-routes.mjs",
     "dev:reload:api": "docker compose restart api worker",
     "check": "bun run lint && bun run typecheck && bun run test",
     "build:packages": "turbo run build \"--filter=./packages/*\"",

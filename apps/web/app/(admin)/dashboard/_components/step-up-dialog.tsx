@@ -135,18 +135,14 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
           }
         }}
       >
-        <DialogPopup className="sm:max-w-md">
-          <DialogPanel>
+        <DialogPopup className="sm:max-w-md p-0!">
+          <DialogPanel className="p-0!">
             <DialogHeader>
               <DialogTitle>Confirm it&apos;s you</DialogTitle>
-              <DialogDescription>
-                This action changes platform authority, so it needs a second
-                factor. Pick whichever you have to hand.
-              </DialogDescription>
             </DialogHeader>
 
             {method === "choose" ? (
-              <div className="space-y-2">
+              <div className="space-y-2 p-6">
                 <Button
                   className="w-full justify-start"
                   variant="outline"
@@ -184,7 +180,7 @@ export function StepUpProvider({ children }: { children: ReactNode }) {
                 </p>
               </div>
             ) : (
-              <Field>
+              <Field className="p-6">
                 <FieldLabel htmlFor="step-up-code">
                   {method === "backup" ? "Backup code" : "Authenticator code"}
                 </FieldLabel>

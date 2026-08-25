@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link"
-import { useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Gavel } from "lucide-react";
@@ -42,7 +42,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { PanelEmptyRow } from "./panel-layout";
+import {
+  PanelEmptyRow,
+  PanelSearch,
+  PanelToolbar,
+  PanelToolbarSpacer,
+} from "./panel-layout";
 import { useHasStaffPermission } from "./admin-shell";
 import { useStepUp } from "./step-up-dialog";
 import { errorMessage } from "@/shared/http/error-message";
@@ -73,12 +78,19 @@ function statusVariant(status: string) {
   return "secondary" as const;
 }
 
-export function AdminAuctionsTable() {
+export function AdminAuctionsTable({
+  newAuctionAction,
+}: {
+  /** The "new auction" control, so it sits in the toolbar row with the filters. */
+  newAuctionAction?: ReactNode;
+} = {}) {
   const { guard } = useStepUp();
   const queryClient = useQueryClient();
   const canManage = useHasStaffPermission("admin.auctions.manage");
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<(typeof auctionStatuses)[number]>("ALL");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   // Cancelling needs a reason, so it waits on the dialog instead of a prompt.
   const [cancelling, setCancelling] = useState<{
     id: string;
@@ -86,9 +98,15 @@ export function AdminAuctionsTable() {
   } | null>(null);
   const [reason, setReason] = useState("");
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   const query = useQuery({
-    queryKey: ["admin", "auctions", page, status],
-    queryFn: () => getAdminAuctions(page, 25, status === "ALL" ? "" : status),
+    queryKey: ["admin", "auctions", page, status, debouncedSearch],
+    queryFn: () =>
+      getAdminAuctions(page, 25, status === "ALL" ? "" : status, debouncedSearch),
     placeholderData: (previous) => previous,
   });
 
@@ -115,8 +133,17 @@ export function AdminAuctionsTable() {
 
   return (
     <div className="grid gap-4">
-      <div className="grid gap-3 lg:grid-cols-[minmax(1rem,1fr)_14rem]">
-        <div aria-hidden className="hidden lg:block" />
+      <PanelToolbar className="lg:grid-cols-[minmax(18rem,26rem)_minmax(1rem,1fr)_14rem_auto]">
+        <PanelSearch
+          value={search}
+          onValueChange={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
+          placeholder="Search auctions by title"
+          label="Search auctions"
+        />
+        <PanelToolbarSpacer />
         <Select
           items={statusItems}
           value={status}
@@ -136,7 +163,8 @@ export function AdminAuctionsTable() {
             ))}
           </SelectPopup>
         </Select>
-      </div>
+        {newAuctionAction}
+      </PanelToolbar>
 
       <Frame>
         <Table variant="card">

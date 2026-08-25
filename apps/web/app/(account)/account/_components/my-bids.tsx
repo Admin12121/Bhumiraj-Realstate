@@ -14,6 +14,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Frame } from "@/components/ui/frame";
 import {
   Table,
   TableBody,
@@ -60,9 +61,9 @@ export function MyBids() {
   const items = query.data?.pages.flatMap((page) => page.items) ?? [];
 
   return (
-    <div className="surface overflow-hidden rounded-2xl">
+    <Frame>
       <div className="overflow-x-auto">
-        <Table className="min-w-[680px]">
+        <Table variant="card" className="min-w-[680px]">
           <TableHeader>
             <TableRow>
               <TableHead className="p-4">Auction</TableHead>
@@ -123,6 +124,6 @@ export function MyBids() {
         fetchNextPage={query.fetchNextPage}
         label="Loading bid history…"
       />
-    </div>
+    </Frame>
   );
 }

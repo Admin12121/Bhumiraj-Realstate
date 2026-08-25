@@ -47,6 +47,8 @@ export type PropertyPostData = {
   category?: string | undefined
   badge?: string | undefined
   listingId?: string | undefined
+  /** Whether the signed-in viewer already saved this listing. */
+  saved?: boolean | undefined
   /** Set when the listing is an auction: the post is identical bar its action. */
   auctionId?: string | undefined
   latitude?: number | undefined
@@ -274,6 +276,7 @@ export function PropertyPost({
           <CardFrameAction className="flex gap-1">
             <SaveButton
               listingId={post.listingId}
+              initialSaved={post.saved ?? false}
               className="inline-flex size-9 items-center justify-center rounded-md bg-secondary text-secondary-foreground transition-colors hover:bg-secondary/80"
               iconClassName="size-[18px]"
             />

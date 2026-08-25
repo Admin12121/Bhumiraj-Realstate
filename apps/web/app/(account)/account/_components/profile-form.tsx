@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -12,20 +12,18 @@ import { uploadMedia, waitForMediaReady } from "@/features/media/api/media-api";
 import { errorMessage } from "@/shared/http/error-message";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Frame } from "@/components/ui/frame";
 import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-  FieldSeparator,
-} from "@/components/ui/field";
-import { Fieldset } from "@/components/ui/fieldset";
-import { Frame, FramePanel } from "@/components/ui/frame";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { FileUploader } from "@/components/ui/file-uploader";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Textarea } from "@/components/ui/textarea";
 import { useFileUpload } from "@/hooks/use-file-upload";
 
 const IMAGE_TYPES = "image/jpeg,image/png,image/webp,image/avif";
@@ -33,9 +31,7 @@ const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
 
 type FormState = {
   name: string;
-  username: string;
   phone: string;
-  bio: string;
 };
 type Errors = Partial<Record<keyof FormState, string>>;
 
@@ -47,16 +43,13 @@ function validate(form: FormState): Errors {
   } else if (form.name.trim().length > 100) {
     errors.name = "Your name must be 100 characters or fewer.";
   }
-  const username = form.username.trim();
-  if (username && !/^[a-z0-9_]{3,30}$/.test(username)) {
-    errors.username =
-      "Use 3–30 characters: lowercase letters, numbers and underscores only.";
-  }
-  if (form.phone.trim().length > 30) {
-    errors.phone = "That phone number is too long.";
-  }
-  if (form.bio.trim().length > 500) {
-    errors.bio = "Your bio must be 500 characters or fewer.";
+  // A phone number is what an agent calls back on, so it is required rather
+  // than optional: an account without one cannot list or bid.
+  const phone = form.phone.trim();
+  if (!phone) {
+    errors.phone = "Add a phone number so agents can reach you.";
+  } else if (!/^[0-9+\-\s()]{7,30}$/.test(phone)) {
+    errors.phone = "Enter a valid phone number.";
   }
   return errors;
 }
@@ -95,9 +88,7 @@ export function ProfileForm() {
     (profile.data
       ? {
           name: profile.data.name,
-          username: profile.data.username ?? "",
           phone: profile.data.phone ?? "",
-          bio: profile.data.bio ?? "",
         }
       : null);
 
@@ -118,10 +109,6 @@ export function ProfileForm() {
 
       return updateMyProfile({
         name: current.name.trim(),
-        ...(current.username.trim()
-          ? { username: current.username.trim() }
-          : {}),
-        bio: current.bio.trim() || null,
         phone: current.phone.trim() || null,
         ...(imageAssetId ? { imageAssetId } : {}),
         ...(coverAssetId ? { coverAssetId } : {}),
@@ -171,6 +158,46 @@ export function ProfileForm() {
   };
 
 
+
+  /** One row: what it is on the left, the control on the right. */
+  const rows: Array<{
+    key: keyof FormState;
+    label: string;
+    hint: string;
+    control: ReactNode;
+  }> = [
+    {
+      key: "name",
+      label: "Full name",
+      hint: "Shown wherever you appear on the marketplace",
+      control: (
+        <Input
+          aria-label="Full name"
+          value={values.name}
+          onChange={(event) => set("name", event.target.value)}
+          maxLength={100}
+          autoComplete="name"
+        />
+      ),
+    },
+    {
+      key: "phone",
+      label: "Phone",
+      hint: "Required — how an agent reaches you about a listing",
+      control: (
+        <Input
+          aria-label="Phone"
+          type="tel"
+          value={values.phone}
+          onChange={(event) => set("phone", event.target.value)}
+          maxLength={30}
+          placeholder="98XXXXXXXX"
+          autoComplete="tel"
+        />
+      ),
+    },
+  ];
+
   return (
     <form
       onSubmit={(event) => {
@@ -182,135 +209,112 @@ export function ProfileForm() {
         }
         mutation.mutate(values);
       }}
+      className="grid gap-4"
     >
-      {/* Framed like the Security, Sessions and Passkeys tabs beside it. */}
+      {/* Laid out like the Security, Sessions and Passkeys tabs beside it. */}
       <Frame>
-        <FramePanel className="space-y-6">
-          <Fieldset>
-            <FieldGroup>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FileUploader
-                  title="New profile photo"
-                  files={avatarFiles}
-                  isDragging={avatarDragging}
-                  errors={avatarErrors}
-                  inputProps={avatar.getInputProps()}
-                  maxFiles={1}
-                  maxSize={MAX_IMAGE_BYTES}
-                  onOpen={avatar.openFileDialog}
-                  onRemove={avatar.removeFile}
-                  onClear={avatar.clearFiles}
-                  onDragEnter={avatar.handleDragEnter}
-                  onDragLeave={avatar.handleDragLeave}
-                  onDragOver={avatar.handleDragOver}
-                  onDrop={avatar.handleDrop}
+        <Table variant="card">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Profile</TableHead>
+              <TableHead className="w-[46%]">Value</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow>
+              <TableCell>
+                <div className="font-medium">Photos</div>
+                <div className="text-muted-foreground text-xs">
+                  Profile picture and the cover on your public page
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FileUploader
+                    title="Profile photo"
+                    files={avatarFiles}
+                    isDragging={avatarDragging}
+                    errors={avatarErrors}
+                    inputProps={avatar.getInputProps()}
+                    maxFiles={1}
+                    maxSize={MAX_IMAGE_BYTES}
+                    onOpen={avatar.openFileDialog}
+                    onRemove={avatar.removeFile}
+                    onClear={avatar.clearFiles}
+                    onDragEnter={avatar.handleDragEnter}
+                    onDragLeave={avatar.handleDragLeave}
+                    onDragOver={avatar.handleDragOver}
+                    onDrop={avatar.handleDrop}
+                  />
+                  <FileUploader
+                    title="Cover photo"
+                    files={coverFiles}
+                    isDragging={coverDragging}
+                    errors={coverErrors}
+                    inputProps={cover.getInputProps()}
+                    maxFiles={1}
+                    maxSize={MAX_IMAGE_BYTES}
+                    onOpen={cover.openFileDialog}
+                    onRemove={cover.removeFile}
+                    onClear={cover.clearFiles}
+                    onDragEnter={cover.handleDragEnter}
+                    onDragLeave={cover.handleDragLeave}
+                    onDragOver={cover.handleDragOver}
+                    onDrop={cover.handleDrop}
+                  />
+                </div>
+              </TableCell>
+            </TableRow>
+
+            {rows.map((row) => (
+              <TableRow key={row.key}>
+                <TableCell>
+                  <div className="font-medium">{row.label}</div>
+                  <div className="text-muted-foreground text-xs">
+                    {row.hint}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="grid gap-1.5">
+                    {row.control}
+                    {errors[row.key] ? (
+                      <p
+                        className="text-destructive-foreground text-xs"
+                        role="alert"
+                      >
+                        {errors[row.key]}
+                      </p>
+                    ) : null}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+
+            <TableRow>
+              <TableCell>
+                <div className="font-medium">Email</div>
+                <div className="text-muted-foreground text-xs">
+                  Change it from the Security tab
+                </div>
+              </TableCell>
+              <TableCell>
+                <Input
+                  aria-label="Email"
+                  value={profile.data?.email ?? ""}
+                  disabled
+                  readOnly
                 />
-                <FileUploader
-                  title="New cover photo"
-                  files={coverFiles}
-                  isDragging={coverDragging}
-                  errors={coverErrors}
-                  inputProps={cover.getInputProps()}
-                  maxFiles={1}
-                  maxSize={MAX_IMAGE_BYTES}
-                  onOpen={cover.openFileDialog}
-                  onRemove={cover.removeFile}
-                  onClear={cover.clearFiles}
-                  onDragEnter={cover.handleDragEnter}
-                  onDragLeave={cover.handleDragLeave}
-                  onDragOver={cover.handleDragOver}
-                  onDrop={cover.handleDrop}
-                />
-              </div>
-            </FieldGroup>
-          </Fieldset>
-
-          <FieldSeparator />
-
-          <Fieldset>
-            <FieldGroup>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field invalid={Boolean(errors.name)}>
-                  <FieldLabel htmlFor="profile-name">Full name</FieldLabel>
-                  <Input
-                    id="profile-name"
-                    value={values.name}
-                    onChange={(event) => set("name", event.target.value)}
-                    maxLength={100}
-                    autoComplete="name"
-                  />
-                  <FieldError match>{errors.name}</FieldError>
-                </Field>
-
-                <Field invalid={Boolean(errors.username)}>
-                  <FieldLabel htmlFor="profile-username">Username</FieldLabel>
-                  <Input
-                    id="profile-username"
-                    value={values.username}
-                    onChange={(event) => set("username", event.target.value)}
-                    maxLength={30}
-                    placeholder="your_handle"
-                    autoComplete="username"
-                  />
-                  <FieldDescription>
-                    Lowercase letters, numbers and underscores.
-                  </FieldDescription>
-                  <FieldError match>{errors.username}</FieldError>
-                </Field>
-
-                <Field invalid={Boolean(errors.phone)}>
-                  <FieldLabel htmlFor="profile-phone">Phone</FieldLabel>
-                  <Input
-                    id="profile-phone"
-                    type="tel"
-                    value={values.phone}
-                    onChange={(event) => set("phone", event.target.value)}
-                    maxLength={30}
-                    placeholder="98XXXXXXXX"
-                    autoComplete="tel"
-                  />
-                  <FieldError match>{errors.phone}</FieldError>
-                </Field>
-
-                <Field disabled>
-                  <FieldLabel htmlFor="profile-email">Email</FieldLabel>
-                  <Input
-                    id="profile-email"
-                    value={profile.data?.email ?? ""}
-                    disabled
-                    readOnly
-                  />
-                  <FieldDescription>
-                    Change your email from the Security tab.
-                  </FieldDescription>
-                </Field>
-              </div>
-
-              <Field invalid={Boolean(errors.bio)}>
-                <FieldLabel htmlFor="profile-bio">Bio</FieldLabel>
-                <Textarea
-                  id="profile-bio"
-                  value={values.bio}
-                  onChange={(event) => set("bio", event.target.value)}
-                  maxLength={500}
-                  rows={5}
-                  placeholder="A short introduction shown on your public profile."
-                />
-                <FieldDescription>
-                  {values.bio.trim().length}/500 characters.
-                </FieldDescription>
-                <FieldError match>{errors.bio}</FieldError>
-              </Field>
-            </FieldGroup>
-          </Fieldset>
-
-          <div className="flex items-center justify-end border-t pt-6">
-            <Button type="submit" loading={mutation.isPending}>
-              {mutation.isPending ? "Saving…" : "Save changes"}
-            </Button>
-          </div>
-        </FramePanel>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </Frame>
+
+      <div className="flex justify-end">
+        <Button type="submit" loading={mutation.isPending}>
+          {mutation.isPending ? "Saving…" : "Save changes"}
+        </Button>
+      </div>
     </form>
   );
 }

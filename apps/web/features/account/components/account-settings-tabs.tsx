@@ -7,12 +7,18 @@ import { KeyRound, MonitorSmartphone } from "lucide-react";
 import { toast } from "sonner";
 import { authClient } from "@real-estate/auth/client";
 
-import {
+import { getMyProfile,
   getAccount,
   getSessions,
   revokeSession,
 } from "@/features/account/api/account-api";
 import { queryKeys } from "@/shared/query/query-keys";
+import { QrCode } from "@/components/qr-code";
+import {
+  OTPField,
+  OTPFieldInput,
+  OTPFieldSeparator,
+} from "@/components/ui/otp-field";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -73,6 +79,12 @@ export function AccountSettingsTabs({
   const client = useQueryClient();
   const [tab, setTab] = useState(initialTab);
   const [dialog, setDialog] = useState<"password" | "twoFactor" | null>(null);
+  // The enrolment runs in stages: password, scan, verify, save the codes.
+  const [totpUri, setTotpUri] = useState<string | null>(null);
+  const [pendingCodes, setPendingCodes] = useState<string[]>([]);
+  const [codes, setCodes] = useState<string[]>([]);
+  const [totpCode, setTotpCode] = useState("");
+  const [scanned, setScanned] = useState(false);
   const [password, setPassword] = useState("");
   const [renaming, setRenaming] = useState<PasskeyRecord | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -93,6 +105,11 @@ export function AccountSettingsTabs({
     mutationFn: async () => {
       const email = account.data?.email;
       if (!email) throw new Error("Your email address is not available.");
+      if (!profile.data?.phone) {
+        throw new Error(
+          "Add your phone number on the Profile tab before verifying your email.",
+        );
+      }
       const result = await authClient.sendVerificationEmail({
         email,
         callbackURL: "/account/settings",
@@ -104,6 +121,13 @@ export function AccountSettingsTabs({
     },
     onSuccess: () => toast.success("Verification email sent."),
     onError: (error: unknown) => toast.error(errorMessage(error)),
+  });
+
+  // Verification needs a phone number on file, so the row can say so instead of
+  // letting the request fail.
+  const profile = useQuery({
+    queryKey: queryKeys.profile("me"),
+    queryFn: getMyProfile,
   });
 
   const passkeys = useQuery({
@@ -177,22 +201,61 @@ export function AccountSettingsTabs({
     onError: (error: unknown) => toast.error(errorMessage(error)),
   });
 
+  /**
+   * Enabling returns the TOTP URI and the backup codes. The previous version
+   * discarded both and reported success, so 2FA could be switched on for an
+   * account that had never scanned anything — locking the owner out of every
+   * step-up action.
+   */
   const twoFactor = useMutation({
     mutationFn: async ({ enable }: { enable: boolean }) => {
-      const result = enable
-        ? await authClient.twoFactor.enable({ password })
-        : await authClient.twoFactor.disable({ password });
+      if (!enable) {
+        const result = await authClient.twoFactor.disable({ password });
+        if (result.error) {
+          throw new Error(result.error.message || "Could not disable 2FA");
+        }
+        return null;
+      }
+      const result = await authClient.twoFactor.enable({
+        issuer: "Bhumiraj Estates",
+        password,
+      });
       if (result.error) {
-        throw new Error(result.error.message || "Could not update 2FA");
+        throw new Error(result.error.message || "That password was not accepted.");
+      }
+      return result.data as { totpURI: string; backupCodes: string[] };
+    },
+    onSuccess: (data) => {
+      setPassword("");
+      if (!data) {
+        toast.success("Two-factor authentication disabled.");
+        setDialog(null);
+        refreshAccount();
+        return;
+      }
+      setTotpUri(data.totpURI);
+      setPendingCodes(data.backupCodes);
+    },
+    onError: (error: unknown) => toast.error(errorMessage(error)),
+  });
+
+  const verifyTotp = useMutation({
+    mutationFn: async (code: string) => {
+      const result = await authClient.twoFactor.verifyTotp({ code });
+      if (result.error) {
+        throw new Error(result.error.message || "That code was not accepted.");
       }
     },
     onSuccess: () => {
-      toast.success("Two-factor setting updated.");
-      setDialog(null);
-      setPassword("");
+      setCodes(pendingCodes);
+      setTotpCode("");
+      toast.success("Two-factor authentication enabled.");
       refreshAccount();
     },
-    onError: (error: unknown) => toast.error(errorMessage(error)),
+    onError: (error: unknown) => {
+      setTotpCode("");
+      toast.error(errorMessage(error));
+    },
   });
 
   const changePassword = useMutation({
@@ -273,7 +336,9 @@ export function AccountSettingsTabs({
                     <TableCell>
                       <div className="font-medium">Email</div>
                       <div className="text-xs text-muted-foreground">
-                        Needed to post a property or place a bid
+                        {profile.data && !profile.data.phone
+                          ? "Add a phone number on the Profile tab first"
+                          : "Needed to post a property or place a bid"}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -418,7 +483,6 @@ export function AccountSettingsTabs({
                 <TableBody>
                   {[
                     { id: "google", label: "Google" },
-                    { id: "credential", label: "Password" },
                   ].map((provider) => {
                     const connected = providers.includes(provider.id);
                     return (
@@ -657,43 +721,142 @@ export function AccountSettingsTabs({
       <Dialog
         open={dialog === "twoFactor"}
         onOpenChange={(open) => {
-          if (!open) {
-            setDialog(null);
-            setPassword("");
-          }
+          if (open) return;
+          const finished = codes.length > 0;
+          setDialog(null);
+          setPassword("");
+          setTotpUri(null);
+          setPendingCodes([]);
+          setCodes([]);
+          setTotpCode("");
+          setScanned(false);
+          if (finished) refreshAccount();
         }}
       >
         <DialogPopup>
           <DialogHeader>
             <DialogTitle>
-              {twoFactorOn ? "Disable two-factor" : "Enable two-factor"}
+              {codes.length > 0
+                ? "Save your backup codes"
+                : totpUri && scanned
+                  ? "Enter the code from your app"
+                  : totpUri
+                    ? "Scan this with your authenticator"
+                    : twoFactorOn
+                      ? "Disable two-factor"
+                      : "Enable two-factor"}
             </DialogTitle>
             <DialogDescription>
-              Confirm your password to change how this account is protected.
+              {codes.length > 0
+                ? "Each code works once if you lose your phone. Store them somewhere safe — they are not shown again."
+                : totpUri && scanned
+                  ? "Open your authenticator app and enter the six-digit code it shows."
+                  : totpUri
+                    ? "Scan the QR with Google Authenticator, 1Password or similar."
+                    : "Confirm your password to change how this account is protected."}
             </DialogDescription>
           </DialogHeader>
-          <DialogPanel>
-            <Field>
-              <FieldLabel>Current password</FieldLabel>
-              <Input
-                type="password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete="current-password"
-              />
-            </Field>
-          </DialogPanel>
-          <DialogFooter>
-            <DialogClose render={<Button variant="outline">Cancel</Button>} />
-            <Button
-              variant={twoFactorOn ? "destructive" : "default"}
-              loading={twoFactor.isPending}
-              disabled={!password}
-              onClick={() => twoFactor.mutate({ enable: !twoFactorOn })}
-            >
-              {twoFactorOn ? "Disable" : "Enable"}
-            </Button>
-          </DialogFooter>
+
+          {codes.length > 0 ? (
+            <>
+              <DialogPanel>
+                <div className="grid grid-cols-2 gap-1.5 rounded-lg border bg-muted/50 p-3">
+                  {codes.map((backup) => (
+                    <code
+                      className="text-center font-mono text-sm tracking-widest"
+                      key={backup}
+                    >
+                      {backup}
+                    </code>
+                  ))}
+                </div>
+              </DialogPanel>
+              <DialogFooter>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(
+                      codes.join(String.fromCharCode(10)),
+                    );
+                    toast.success("Codes copied.");
+                  }}
+                >
+                  Copy codes
+                </Button>
+                <DialogClose render={<Button>Done</Button>} />
+              </DialogFooter>
+            </>
+          ) : totpUri && !scanned ? (
+            <>
+              <DialogPanel className="grid justify-items-center gap-3">
+                <QrCode value={totpUri} />
+                <p className="break-all text-center text-muted-foreground text-xs">
+                  Can&apos;t scan? Enter this key:{" "}
+                  <code className="font-mono">
+                    {new URL(totpUri).searchParams.get("secret") ?? ""}
+                  </code>
+                </p>
+              </DialogPanel>
+              <DialogFooter>
+                <Button onClick={() => setScanned(true)}>Next</Button>
+              </DialogFooter>
+            </>
+          ) : totpUri ? (
+            <>
+              <DialogPanel className="flex justify-center">
+                <OTPField
+                  disabled={verifyTotp.isPending}
+                  length={6}
+                  value={totpCode}
+                  onValueChange={(value) => {
+                    setTotpCode(value);
+                    if (value.length === 6) verifyTotp.mutate(value);
+                  }}
+                >
+                  <OTPFieldInput />
+                  <OTPFieldInput />
+                  <OTPFieldInput />
+                  <OTPFieldSeparator />
+                  <OTPFieldInput />
+                  <OTPFieldInput />
+                  <OTPFieldInput />
+                </OTPField>
+              </DialogPanel>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setScanned(false)}>
+                  Back
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogPanel>
+                <Field>
+                  <FieldLabel>Current password</FieldLabel>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    autoComplete="current-password"
+                  />
+                </Field>
+              </DialogPanel>
+              <DialogFooter>
+                <DialogClose
+                  render={<Button variant="outline">Cancel</Button>}
+                />
+                <Button
+                  variant={twoFactorOn ? "destructive" : "default"}
+                  loading={twoFactor.isPending}
+                  disabled={!password}
+                  onClick={() => twoFactor.mutate({ enable: !twoFactorOn })}
+                >
+                  {twoFactorOn ? "Disable" : "Continue"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogPopup>
       </Dialog>
 

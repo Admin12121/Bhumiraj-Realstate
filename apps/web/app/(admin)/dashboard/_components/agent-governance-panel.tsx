@@ -4,7 +4,16 @@ import { useEffect, useState, type FormEvent } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import type { z } from "zod"
 import type { adminAgentSchema } from "@real-estate/contracts"
-import { Copy, MailPlus, Plus, Settings2, ShieldCheck, UserRoundCheck, UserRoundX } from "lucide-react"
+import {
+  Copy,
+  EllipsisVertical,
+  MailPlus,
+  Plus,
+  Settings2,
+  ShieldCheck,
+  UserRoundCheck,
+  UserRoundX,
+} from "lucide-react"
 import { toast } from "sonner"
 import {
   createAgent,
@@ -53,6 +62,15 @@ import { Textarea } from "@/components/ui/textarea"
 import { TablePagination } from "@/components/ui/table-pagination"
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs"
 import {
+  Menu,
+  MenuGroup,
+  MenuGroupLabel,
+  MenuItem,
+  MenuPopup,
+  MenuSeparator,
+  MenuTrigger,
+} from "@/components/ui/menu"
+import {
   PanelEmptyRow,
   PanelRecords,
   PanelSearch,
@@ -80,6 +98,9 @@ export function AgentGovernancePanel() {
   const [candidateSearch, setCandidateSearch] = useState("")
   const [candidateId, setCandidateId] = useState("")
   const [inviting, setInviting] = useState(false)
+  const [invitePage, setInvitePage] = useState(1)
+  const [inviteSearch, setInviteSearch] = useState("")
+  const [debouncedInviteSearch, setDebouncedInviteSearch] = useState("")
   const [inviteEmail, setInviteEmail] = useState("")
   const [inviteLink, setInviteLink] = useState("")
   const [statusAgent, setStatusAgent] = useState<Agent | null>(null)
@@ -97,6 +118,13 @@ export function AgentGovernancePanel() {
     const timer = setTimeout(() => setDebouncedSearch(search.trim()), 300)
     return () => clearTimeout(timer)
   }, [search])
+  useEffect(() => {
+    const timer = setTimeout(
+      () => setDebouncedInviteSearch(inviteSearch.trim()),
+      300,
+    )
+    return () => clearTimeout(timer)
+  }, [inviteSearch])
 
   const agents = useQuery({
     queryKey: ["admin", "agents", page, debouncedSearch],
@@ -109,8 +137,9 @@ export function AgentGovernancePanel() {
     enabled: adding && candidateSearch.trim().length >= 2,
   })
   const invitations = useQuery({
-    queryKey: ["admin", "agent-invitations"],
-    queryFn: () => getAgentInvitations(1),
+    queryKey: ["admin", "agent-invitations", invitePage, debouncedInviteSearch],
+    queryFn: () => getAgentInvitations(invitePage, debouncedInviteSearch),
+    placeholderData: (previous) => previous,
   })
   const canManage = useHasStaffPermission("admin.agents.manage")
   const refresh = async () => {
@@ -195,14 +224,14 @@ export function AgentGovernancePanel() {
             Agents ({agents.data?.total ?? 0})
           </TabsTab>
           <TabsTab value="invitations">
-            Invitations ({invitations.data?.items.length ?? 0})
+            Invitations ({invitations.data?.total ?? 0})
           </TabsTab>
         </TabsList>
 
         <TabsPanel value="directory">
         <PanelSection>
 
-          <PanelToolbar className="lg:grid-cols-[minmax(18rem,26rem)_minmax(1rem,1fr)_auto_auto]">
+          <PanelToolbar className="lg:grid-cols-[minmax(18rem,26rem)_minmax(1rem,1fr)_auto]">
             <PanelSearch
               value={search}
               onValueChange={(value) => {
@@ -214,23 +243,13 @@ export function AgentGovernancePanel() {
             />
             <PanelToolbarSpacer />
             {canManage ? (
-              <>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  aria-label="Invite agent"
-                  onClick={() => setInviting(true)}
-                >
-                  <MailPlus />
-                </Button>
-                <Button
-                  size="icon"
-                  aria-label="Add existing customer as agent"
-                  onClick={() => setAdding(true)}
-                >
-                  <Plus />
-                </Button>
-              </>
+              <Button
+                size="icon"
+                aria-label="Add existing customer as agent"
+                onClick={() => setAdding(true)}
+              >
+                <Plus />
+              </Button>
             ) : null}
           </PanelToolbar>
 
@@ -273,53 +292,66 @@ export function AgentGovernancePanel() {
                     {agent.averageRating.toFixed(1)} ({agent.reviewCount})
                   </TableCell>
                   <TableCell>{agent.maxActiveCases}</TableCell>
-                  <TableCell className="px-5">
-                    <div className="flex justify-end gap-2">
-                      {canManage && agent.status !== "ACTIVE" &&
-                        agent.status !== "RETIRED" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openStatus(agent, "ACTIVE")}
-                          >
-                            <ShieldCheck /> Approve
-                          </Button>
-                        )}
-                      {canManage && agent.status === "ACTIVE" && (
-                        <Button
-                          size="icon"
-                          variant="outline"
-                          aria-label={`Manage availability for ${agent.email}`}
-                          onClick={() => {
-                            setAvailabilityAgent(agent)
-                            setAvailability(agent.availabilityStatus)
-                            setCapacity(agent.maxActiveCases)
-                          }}
+                  <TableCell className="text-right">
+                    {canManage && agent.status !== "RETIRED" ? (
+                      <Menu>
+                        <MenuTrigger
+                          render={
+                            <Button
+                              aria-label={`Actions for ${agent.email}`}
+                              size="icon-sm"
+                              variant="ghost"
+                            />
+                          }
                         >
-                          <Settings2 />
-                        </Button>
-                      )}
-                      {canManage && agent.status !== "SUSPENDED" &&
-                        agent.status !== "RETIRED" && (
-                          <Button
-                            size="icon"
-                            variant="destructive-outline"
-                            aria-label={`Suspend ${agent.email}`}
-                            onClick={() => openStatus(agent, "SUSPENDED")}
-                          >
-                            <UserRoundX />
-                          </Button>
-                        )}
-                      {canManage && agent.status !== "RETIRED" && (
-                        <Button
-                          size="sm"
-                          variant="destructive-outline"
-                          onClick={() => openStatus(agent, "RETIRED")}
-                        >
-                          Retire
-                        </Button>
-                      )}
-                    </div>
+                          <EllipsisVertical />
+                        </MenuTrigger>
+                        <MenuPopup align="end">
+                          <MenuGroup>
+                            <MenuGroupLabel>Agent</MenuGroupLabel>
+                            {agent.status !== "ACTIVE" ? (
+                              <MenuItem
+                                onClick={() => openStatus(agent, "ACTIVE")}
+                              >
+                                <ShieldCheck />
+                                Approve
+                              </MenuItem>
+                            ) : (
+                              <MenuItem
+                                onClick={() => {
+                                  setAvailabilityAgent(agent)
+                                  setAvailability(agent.availabilityStatus)
+                                  setCapacity(agent.maxActiveCases)
+                                }}
+                              >
+                                <Settings2 />
+                                Availability and capacity
+                              </MenuItem>
+                            )}
+                          </MenuGroup>
+                          <MenuSeparator />
+                          <MenuGroup>
+                            <MenuGroupLabel>Governance</MenuGroupLabel>
+                            {agent.status !== "SUSPENDED" ? (
+                              <MenuItem
+                                variant="destructive"
+                                onClick={() => openStatus(agent, "SUSPENDED")}
+                              >
+                                <UserRoundX />
+                                Suspend
+                              </MenuItem>
+                            ) : null}
+                            <MenuItem
+                              variant="destructive"
+                              onClick={() => openStatus(agent, "RETIRED")}
+                            >
+                              <UserRoundX />
+                              Retire
+                            </MenuItem>
+                          </MenuGroup>
+                        </MenuPopup>
+                      </Menu>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               ))}
@@ -345,6 +377,29 @@ export function AgentGovernancePanel() {
 
         <TabsPanel value="invitations">
         <PanelSection>
+
+          <PanelToolbar className="lg:grid-cols-[minmax(18rem,26rem)_minmax(1rem,1fr)_auto]">
+            <PanelSearch
+              value={inviteSearch}
+              onValueChange={(value) => {
+                setInviteSearch(value)
+                setInvitePage(1)
+              }}
+              placeholder="Search invitations"
+              label="Search invitations"
+            />
+            <PanelToolbarSpacer />
+            {canManage ? (
+              <Button
+                size="icon"
+                aria-label="Invite agent"
+                onClick={() => setInviting(true)}
+              >
+                <MailPlus />
+              </Button>
+            ) : null}
+          </PanelToolbar>
+
           <PanelRecords>
           <Table variant="card">
             <TableHeader>
@@ -397,6 +452,13 @@ export function AgentGovernancePanel() {
             </TableBody>
           </Table>
           </PanelRecords>
+          <TablePagination
+            currentPage={invitations.data?.page ?? invitePage}
+            totalPages={invitations.data?.pageCount ?? 1}
+            totalItems={invitations.data?.total}
+            pageSize={invitations.data?.pageSize}
+            onPageChange={setInvitePage}
+          />
         </PanelSection>
         </TabsPanel>
       </Tabs>

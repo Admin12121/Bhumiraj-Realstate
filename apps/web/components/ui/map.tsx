@@ -22,10 +22,11 @@ import { X, Minus, Plus, Locate, Maximize, Loader2 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
+// MapLibre defaults to fetching its worker from unpkg.com, which the CSP
+// blocks (`worker-src 'self' blob:`), leaving the map blank. Point it at the
+// copy `scripts/sync-map-worker.mjs` puts in public/ so it loads same-origin.
 if (typeof window !== "undefined" && !MapLibreGL.getWorkerUrl()) {
-  MapLibreGL.setWorkerUrl(
-    `https://unpkg.com/maplibre-gl@${MapLibreGL.getVersion()}/dist/maplibre-gl-worker.mjs`,
-  );
+  MapLibreGL.setWorkerUrl("/maplibre-gl-worker.mjs");
 }
 
 const defaultStyles = {

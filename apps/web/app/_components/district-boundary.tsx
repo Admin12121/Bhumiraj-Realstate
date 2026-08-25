@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useMap } from "@/components/ui/map"
-import { districtBoundaryKey } from "@real-estate/contracts"
+import {
+  districtBoundaryKey,
+  NEPAL_DISTRICT_NAMES,
+} from "@real-estate/contracts"
 
 type Feature = GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon>
 
@@ -72,6 +75,92 @@ function bounds(feature: Feature): [number, number, number, number] {
  * dashed outline that fades in for the move and back out once it settles, so
  * the outline reads as a transition rather than permanent chrome.
  */
+
+/** Ray casting against one ring. */
+function inRing(
+  point: [number, number],
+  ring: GeoJSON.Position[],
+): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i]?.[0] ?? 0;
+    const yi = ring[i]?.[1] ?? 0;
+    const xj = ring[j]?.[0] ?? 0;
+    const yj = ring[j]?.[1] ?? 0;
+    const crosses =
+      yi > point[1] !== yj > point[1] &&
+      point[0] < ((xj - xi) * (point[1] - yi)) / (yj - yi || 1e-12) + xi;
+    if (crosses) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * Whether a pin actually falls inside the district that was chosen.
+ *
+ * Returns null when the boundary data cannot be loaded, so a network problem
+ * never blocks someone from posting — the check only ever reports a mismatch it
+ * is sure about. Holes in a polygon are honoured, so a pin inside an enclave
+ * does not count as inside the district.
+ */
+export async function isPointInDistrict(
+  district: string,
+  longitude: number,
+  latitude: number,
+): Promise<boolean | null> {
+  const index = await loadBoundaries();
+  if (index.size === 0) return null;
+
+  const feature = index.get(districtBoundaryKey(district));
+  if (!feature) return null;
+
+  const polygons: GeoJSON.Position[][][] =
+    feature.geometry.type === "Polygon"
+      ? [feature.geometry.coordinates]
+      : feature.geometry.coordinates;
+
+  return polygons.some((rings) => {
+    const [outer, ...holes] = rings;
+    if (!outer || !inRing([longitude, latitude], outer)) return false;
+    return !holes.some((hole) => inRing([longitude, latitude], hole));
+  });
+}
+
+
+/**
+ * Which district a point falls in, as the canonical name used by the app.
+ *
+ * The boundary file spells four districts differently, so the reverse lookup
+ * matches against the app's own list rather than returning the raw GeoJSON
+ * name. Returns null when the data cannot be loaded or the point is outside
+ * Nepal, and the caller simply leaves the field alone.
+ */
+export async function districtAtPoint(
+  longitude: number,
+  latitude: number,
+): Promise<string | null> {
+  const index = await loadBoundaries();
+  if (index.size === 0) return null;
+
+  for (const name of NEPAL_DISTRICT_NAMES) {
+    const feature = index.get(districtBoundaryKey(name));
+    if (!feature) continue;
+
+    const polygons: GeoJSON.Position[][][] =
+      feature.geometry.type === "Polygon"
+        ? [feature.geometry.coordinates]
+        : feature.geometry.coordinates;
+
+    const hit = polygons.some((rings) => {
+      const [outer, ...holes] = rings;
+      if (!outer || !inRing([longitude, latitude], outer)) return false;
+      return !holes.some((hole) => inRing([longitude, latitude], hole));
+    });
+    if (hit) return name;
+  }
+  return null;
+}
+
 export function DistrictBoundary({ district }: { district: string | null }) {
   const { map, isLoaded } = useMap()
   const [feature, setFeature] = useState<Feature | null>(null)

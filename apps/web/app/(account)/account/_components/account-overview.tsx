@@ -89,8 +89,8 @@ export function AccountOverview() {
       icon: Bell,
     },
     {
-      href: "/account/bids",
-      label: "My bids",
+      href: "/account/auctions",
+      label: "Auctions",
       hint: "Auctions you are taking part in",
       icon: Gavel,
     },

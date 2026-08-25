@@ -17,6 +17,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Building2, Search } from "lucide-react";
 
+import { listingStatusSchema } from "@real-estate/contracts";
 import {
   decideAdminListing,
   getAdminListings,
@@ -62,14 +63,9 @@ import { PanelEmptyRow } from "./panel-layout";
 import { useHasStaffPermission } from "./admin-shell";
 import { errorMessage } from "@/shared/http/error-message";
 
-const statuses = [
-  "ALL",
-  "PENDING_REVIEW",
-  "PUBLISHED",
-  "REJECTED",
-  "DRAFT",
-  "WITHDRAWN",
-] as const;
+// Derived from the schema so a new status cannot go missing from the filter,
+// which is how AWAITING_AGENT listings became unreachable here.
+const statuses = ["ALL", ...listingStatusSchema.options] as const;
 
 const statusItems = statuses.map((value) => ({
   value,
@@ -88,7 +84,7 @@ export function AdminListingsTable() {
   const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<(typeof statuses)[number]>(
-    "PENDING_REVIEW",
+    "ALL",
   );
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");

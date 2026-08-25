@@ -3,7 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { admin, twoFactor } from "better-auth/plugins";
 import { defaultAc, userAc } from "better-auth/plugins/admin/access";
 import { passkey } from "@better-auth/passkey";
-import { createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { prisma } from "@real-estate/database";
 import { loadServerEnv, type ServerEnv } from "@real-estate/config";
 import { assertionUserVerified, classifyAuthMethod } from "./auth-method";
@@ -117,14 +117,29 @@ The password for ${user.email} was just changed. If you made this change, nothin
         }),
     },
     emailVerification: {
-      sendVerificationEmail: async ({ user, url }) =>
-        sendEmail({
+      sendVerificationEmail: async ({ user, url }) => {
+        // A verified email without a phone number is half an identity: an agent
+        // still cannot reach the person. Requiring the number first means a
+        // fully verified account is always contactable.
+        const profile = await prisma.userProfile.findUnique({
+          where: { userId: user.id },
+          select: { phone: true },
+        });
+        if (!profile?.phone) {
+          throw new APIError("BAD_REQUEST", {
+            code: "PHONE_REQUIRED",
+            message:
+              "Add your phone number in Settings before verifying your email.",
+          });
+        }
+        await sendEmail({
           to: user.email,
           subject: "Verify your Bhumiraj Estates email",
           text: `Verify your email: ${url}`,
           url,
-        }),
-      sendOnSignUp: true,
+        });
+      },
+      sendOnSignUp: false,
       autoSignInAfterVerification: true,
     },
     socialProviders,
@@ -167,9 +182,33 @@ The password for ${user.email} was just changed. If you made this change, nothin
       user: {
         create: {
           after: async (user) => {
+            // A handle is assigned rather than asked for: it only exists so a
+            // public profile has a readable URL, and making people invent one
+            // at sign-up is friction for no benefit. Collisions retry with a
+            // longer suffix; a null handle is acceptable if every attempt loses.
+            const base =
+              (user.email ?? "user")
+                .split("@")[0]
+                ?.toLowerCase()
+                .replace(/[^a-z0-9_]/g, "")
+                .slice(0, 20) || "user";
+            let username: string | null = null;
+            for (let attempt = 0; attempt < 5; attempt += 1) {
+              const suffix = Math.random().toString(36).slice(2, 6 + attempt);
+              const candidate = `${base}_${suffix}`.slice(0, 30);
+              const taken = await prisma.userProfile.findFirst({
+                where: { username: candidate },
+                select: { userId: true },
+              });
+              if (!taken) {
+                username = candidate;
+                break;
+              }
+            }
+
             await prisma.userProfile.upsert({
               where: { userId: user.id },
-              create: { userId: user.id },
+              create: { userId: user.id, ...(username ? { username } : {}) },
               update: {},
             });
             await dependencies.enqueueUserLifecycle?.({

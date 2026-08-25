@@ -1,5 +1,6 @@
 const CURRENCY_LABELS: Record<string, string> = {
-  NPR: "Rs.",
+  // The Devanagari rupee sign is how prices are written in Nepal.
+  NPR: "रु",
 };
 
 /**

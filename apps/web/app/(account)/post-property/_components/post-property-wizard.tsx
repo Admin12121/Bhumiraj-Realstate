@@ -12,6 +12,7 @@ import {
   rentPeriodSchema,
   FURNISHING_LEVELS,
   LOCATION_PRECISIONS,
+  provinceOfDistrict,
 } from "@real-estate/contracts";
 import { createListing, submitListing } from "@/features/listings/api/listings-api";
 import {
@@ -29,13 +30,19 @@ import {
   FieldSeparator,
 } from "@/components/ui/field";
 import { Fieldset } from "@/components/ui/fieldset";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { FileUploader } from "@/components/ui/file-uploader";
 import { useFileUpload } from "@/hooks/use-file-upload";
 import { LocationPicker } from "./location-picker";
+import {
+  districtAtPoint,
+  isPointInDistrict,
+} from "@/app/_components/district-boundary";
+import { getMyProfile } from "@/features/account/api/account-api";
+import { queryKeys } from "@/shared/query/query-keys";
 import { ListingFeeStep, MAX_PROOF_BYTES } from "./listing-fee-step";
 import {
   getListingFee,
@@ -75,9 +82,6 @@ const AUCTION_STEPS = [
 
 const option = (value: string) => ({ value, label: value.replace(/_/g, " ") });
 
-// Derived from the contract, never retyped. A hand-written copy of this list is
-// how the form came to offer FLAT, BUSINESS and SHOP — three values the API
-// rejects, and only after every photo had already been uploaded.
 const ALL_LISTING_TYPES = listingTypeSchema.options.map(option);
 const SELLER_LISTING_TYPES = ALL_LISTING_TYPES.filter(
   (entry) => entry.value !== "AUCTION",
@@ -160,23 +164,23 @@ const initialForm = {
   propertyType: "HOUSE",
   price: "",
   rentPeriod: "MONTH",
-  province: "Bagmati",
-  district: "Lalitpur",
-  municipality: "Lalitpur Metropolitan City",
+  province: "",
+  district: "",
+  municipality: "",
   ward: "",
-  locality: "Bhaisepati",
+  locality: "",
   street: "",
   latitude: "",
   longitude: "",
   publicLocationPrecision: "APPROXIMATE",
-  bedrooms: "4",
-  bathrooms: "4",
-  kitchens: "1",
-  floors: "2",
-  areaSqFt: "2750",
-  parkingSpaces: "1",
+  bedrooms: "",
+  bathrooms: "",
+  kitchens: "",
+  floors: "",
+  areaSqFt: "",
+  parkingSpaces: "",
   builtYear: "",
-  furnishing: "SEMI_FURNISHED",
+  furnishing: "",
   auctionStartingAmount: "",
   auctionReserveAmount: "",
   auctionMinimumIncrement: "10000",
@@ -195,18 +199,13 @@ type Errors = Partial<
   Record<keyof FormState | "images" | "paymentProof", string>
 >;
 
-/**
- * The rules the API enforces, checked next to the field they belong to.
- *
- * Submitting first and reporting afterwards is what produced a wall of
- * validation text on the last step for a title typed on the first one.
- */
 function validateStep(
   step: number,
   form: FormState,
   imageCount: number,
   proofCount: number,
   feeRequired: boolean,
+  pinMismatch: string | null,
 ): Errors {
   const errors: Errors = {};
   const isAuction = form.listingType === "AUCTION";
@@ -219,11 +218,9 @@ function validateStep(
       errors.description =
         "Describe the property in at least 50 characters so buyers know what it is.";
     }
-    if (isAuction) {
-      if (!form.auctionStartingAmount) {
-        errors.auctionStartingAmount = "Set the amount bidding starts at.";
-      }
-    } else if (!form.price) {
+    // The auction's own figures are collected on the Auction step; asking for
+    // them here blocked Continue with a message that had nowhere to render.
+    if (!isAuction && !form.price) {
       errors.price = "Enter the asking price.";
     }
   }
@@ -237,6 +234,7 @@ function validateStep(
     if (form.locality.trim().length < 2) {
       errors.locality = "Enter the locality or tole.";
     }
+    if (pinMismatch) errors.latitude = pinMismatch;
   }
 
   if (step === 2) {
@@ -277,13 +275,6 @@ function validateStep(
   return errors;
 }
 
-/**
- * The same form serves both entry points, because an auction is a property
- * listing plus terms — duplicating it would leave two forms to keep in step.
- *
- * `auction` mode is reached only from the staff dashboard: it fixes the listing
- * type, shows the auction terms, and skips the seller's listing fee.
- */
 export function PostPropertyWizard({
   mode = "customer",
 }: {
@@ -327,6 +318,56 @@ export function PostPropertyWizard({
     multiple: false,
   });
 
+  /**
+   * Dropping a pin sets the province and district from the real boundary the
+   * point falls in. Asking someone to keep two controls in agreement with a
+   * map is work the map can do itself.
+   */
+  async function placePin(latitude: string, longitude: string) {
+    setForm((current) => ({ ...current, latitude, longitude }));
+    if (!latitude || !longitude) return;
+
+    const district = await districtAtPoint(Number(longitude), Number(latitude));
+    if (!district) return;
+    const province = provinceOfDistrict(district);
+    setForm((current) => ({
+      ...current,
+      district,
+      ...(province ? { province } : {}),
+    }));
+  }
+
+  // Only reachable by choosing a district that disagrees with an existing pin.
+  const pinCheck = useQuery({
+    queryKey: ["district-contains", form.district, form.latitude, form.longitude],
+    queryFn: () =>
+      isPointInDistrict(
+        form.district,
+        Number(form.longitude),
+        Number(form.latitude),
+      ),
+    enabled: Boolean(form.district && form.latitude && form.longitude),
+  });
+  const pinMismatch =
+    pinCheck.data === false
+      ? `That pin is outside ${form.district}. Move the pin, or change the district above.`
+      : null;
+
+  const myProfile = useQuery({
+    queryKey: queryKeys.profile("me"),
+    queryFn: getMyProfile,
+    enabled: mode === "customer",
+  });
+  const missing: string[] = [];
+  if (myProfile.data && !myProfile.data.phone) missing.push("a phone number");
+  if (myProfile.data && !myProfile.data.verified) {
+    missing.push("a verified email address");
+  }
+  const blockedBy =
+    mode === "customer" && missing.length > 0
+      ? `Your account needs ${missing.join(" and ")} before you can post a property.`
+      : null;
+
   const listingFee = useQuery({
     queryKey: ["listing-fee"],
     queryFn: ({ signal }) => getListingFee(signal),
@@ -350,8 +391,6 @@ export function PostPropertyWizard({
       slug: "preview",
       title: form.title || "Untitled property",
       description: form.description,
-      // Every photo, in the order they were added: the first is the cover and
-      // the rest are what the carousel pages through.
       images: uploads.map((item) => item.preview),
       agent: {
         name: user?.name ?? "Bhumiraj Estates",
@@ -376,10 +415,6 @@ export function PostPropertyWizard({
   const mutation = useMutation({
     mutationFn: async () => {
       if (!files.length) throw new Error("Add at least one property image.");
-
-      // Uploading one at a time meant waiting for each scan and re-encode in
-      // turn, so five photos took minutes. A small pool keeps order while
-      // overlapping the waiting, without flooding the scanner.
       setUploaded(0);
       const mediaAssetIds: string[] = new Array(files.length);
       let next = 0;
@@ -453,12 +488,6 @@ export function PostPropertyWizard({
       });
 
       const listing = await createListing(payload);
-
-      // The receipt is attached in the same run, so a seller can never end up
-      // with a listing that exists but was never paid for. Submitting the proof
-      // is what moves the listing into review, so it replaces the plain submit
-      // rather than following it — the proof endpoint rejects a listing that is
-      // already PENDING_REVIEW.
       const receipt = proofFiles[0]?.file;
       if (feeRequired && receipt && listingFee.data) {
         const proofAssetId = await uploadMedia(receipt, "PAYMENT_PROOF");
@@ -515,7 +544,7 @@ export function PostPropertyWizard({
       return;
     }
     for (let index = step; index < target; index += 1) {
-      const found = validateStep(index, form, files.length, proofFiles.length, feeRequired);
+      const found = validateStep(index, form, files.length, proofFiles.length, feeRequired, pinMismatch);
       if (Object.keys(found).length > 0) {
         setErrors(found);
         setStep(index);
@@ -538,8 +567,6 @@ export function PostPropertyWizard({
               <button
                 type="button"
                 aria-current={current ? "step" : undefined}
-                // Only steps already cleared are reachable; the rest would jump
-                // over validation that has not run yet.
                 disabled={index > reached || mutation.isPending}
                 onClick={() => goTo(index)}
                 className="flex min-w-0 items-center gap-2 rounded-md text-start focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2 disabled:cursor-not-allowed"
@@ -574,7 +601,7 @@ export function PostPropertyWizard({
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          const found = validateStep(step, form, files.length, proofFiles.length, feeRequired);
+          const found = validateStep(step, form, files.length, proofFiles.length, feeRequired, pinMismatch);
           if (Object.keys(found).length > 0) {
             setErrors(found);
             return;
@@ -713,9 +740,10 @@ export function PostPropertyWizard({
                 longitude={form.longitude}
                 onProvinceChange={(value) => set("province", value)}
                 onDistrictChange={(value) => set("district", value)}
-                onPointChange={(latitude, longitude) =>
-                  setForm((current) => ({ ...current, latitude, longitude }))
-                }
+                onPointChange={(latitude, longitude) => {
+                  void placePin(latitude, longitude);
+                }}
+                mismatch={pinMismatch}
               />
 
               <FieldSeparator />
@@ -909,43 +937,53 @@ export function PostPropertyWizard({
 
         {step === 5 && (
           <div className="space-y-4">
-            {/* The real card, not a summary: the seller checks how the listing
-                will actually look on the marketplace before posting it. */}
-            {/* The real feed post, with the byline dropped: the seller is
-                checking their listing, not who is posting it. */}
             <div className="mx-auto w-full max-w-2xl">
               <PropertyPost preview showAgent={false} post={previewPost} />
             </div>
-            <Alert>
-              <AlertDescription>
-                Moderators verify the listing, ownership information and auction
-                schedule before publication.
-              </AlertDescription>
-            </Alert>
-          </div>
+         </div>
         )}
 
-        <div className="mt-8 flex items-center justify-between gap-3 border-t pt-6">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={step === 0 || mutation.isPending}
-            onClick={() => goTo(step - 1)}
-          >
-            Back
-          </Button>
-          <Button type="submit" loading={mutation.isPending}>
-            {step === steps.length - 1 ? <UploadCloud /> : null}
-            {mutation.isPending
-              ? uploaded < files.length
-                ? `Uploading ${uploaded + 1} of ${files.length}…`
-                : "Publishing…"
-              : step === steps.length - 1
-                ? isAuctionMode
-                  ? "Create auction"
-                  : "Post property"
-                : "Continue"}
-          </Button>
+        <div className="mt-8 grid gap-2 border-t pt-6">
+          <div className="flex items-center justify-between gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={step === 0 || mutation.isPending}
+              onClick={() => goTo(step - 1)}
+            >
+              Back
+            </Button>
+            {blockedBy ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  toast.error(blockedBy);
+                  router.push("/account/settings");
+                }}
+              >
+                Complete your profile first
+              </Button>
+            ) : (
+              <Button type="submit" loading={mutation.isPending}>
+                {step === steps.length - 1 ? <UploadCloud /> : null}
+                {mutation.isPending
+                  ? uploaded < files.length
+                    ? `Uploading ${uploaded + 1} of ${files.length}…`
+                    : "Publishing…"
+                  : step === steps.length - 1
+                    ? isAuctionMode
+                      ? "Create auction"
+                      : "Post property"
+                    : "Continue"}
+              </Button>
+            )}
+          </div>
+          {blockedBy ? (
+            <p className="text-end text-destructive-foreground text-xs">
+              {blockedBy}
+            </p>
+          ) : null}
         </div>
       </form>
     </div>

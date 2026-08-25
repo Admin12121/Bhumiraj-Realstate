@@ -451,15 +451,12 @@ export function SearchHeaderControls({
 
       <Dialog open={filtersOpen} onOpenChange={setFiltersOpen}>
         <DialogPopup className="sm:max-w-md">
-          <DialogPanel>
+          <DialogPanel className="p-0!">
             <DialogHeader>
               <DialogTitle>Filters</DialogTitle>
-              <DialogDescription>
-                Narrow the results. Cleared filters are removed from the URL.
-              </DialogDescription>
             </DialogHeader>
 
-            <div className="mt-4 flex flex-col gap-5">
+            <div className="mt-4 flex flex-col gap-5 p-6">
               <div>
                 <p className="mb-3 text-[13px] font-medium text-[#202020]">
                   Price range
@@ -508,12 +505,9 @@ export function SearchHeaderControls({
 
       <Dialog open={savedOpen} onOpenChange={setSavedOpen}>
         <DialogPopup className="sm:max-w-md">
-          <DialogPanel>
+          <DialogPanel className="p-0!">
             <DialogHeader>
               <DialogTitle>Saved homes</DialogTitle>
-              <DialogDescription>
-                Homes you save with the heart on a card appear here.
-              </DialogDescription>
             </DialogHeader>
             <p className="mt-4 rounded-lg bg-[#f7f7f6] p-6 text-center text-[14px] text-[#737373]">
               You have not saved any homes yet.

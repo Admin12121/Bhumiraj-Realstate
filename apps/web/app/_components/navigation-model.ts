@@ -49,7 +49,7 @@ export const guestMarketplaceNavigation: NavigationItem[] = [
 export const accountNavigation: NavigationItem[] = [
   { label: "Post property", icon: HousePlus, href: "/post-property" },
   { label: "Saved", icon: Bookmark, href: "/account/saved" },
-  { label: "My bids", icon: Gavel, href: "/account/bids" },
+  { label: "Auctions", icon: Gavel, href: "/account/auctions" },
   { label: "Messages", icon: MessageCircle, href: "/account/messages" },
 ];
 
@@ -84,7 +84,7 @@ export const authenticatedMobilePrimaryNavigation: NavigationItem[] = [
 export const authenticatedMobileMoreNavigation: NavigationItem[] = [
   { label: "Messages", icon: MessageCircle, href: "/account/messages" },
   { label: "Alerts", icon: Bell, href: "/account/alerts" },
-  { label: "My bids", icon: Gavel, href: "/account/bids" },
+  { label: "Auctions", icon: Gavel, href: "/account/auctions" },
   { label: "Profile", icon: UserRound, href: "/account/profile" },
   { label: "Security", icon: ShieldCheck, href: "/account/security" },
   { label: "Sessions", icon: KeyRound, href: "/account/sessions" },

@@ -392,9 +392,9 @@ export const setAgentAvailability = (
     }),
   })
 
-export const getAgentInvitations = (page = 1) =>
+export const getAgentInvitations = (page = 1, search = "") =>
   apiRequest(
-    `/admin/agent-invitations?${queryString({ page, pageSize: 25 })}`,
+    `/admin/agent-invitations?${queryString({ page, pageSize: 25, search })}`,
     {
       method: "GET",
       schema: platformInvitationsResponseSchema,

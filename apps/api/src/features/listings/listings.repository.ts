@@ -166,7 +166,9 @@ export class ListingsRepository {
           },
         },
         media: {
-          take: 1,
+          // The feed card is a carousel, so it needs the gallery and not only
+          // the cover. Capped because a card never shows more than a handful.
+          take: 10,
           orderBy: { position: "asc" },
           select: {
             mediaAsset: {

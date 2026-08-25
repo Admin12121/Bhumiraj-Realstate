@@ -13,7 +13,7 @@ export function Tabs({
   return (
     <TabsPrimitive.Root
       className={cn(
-        "flex flex-col gap-2 data-[orientation=vertical]:flex-row",
+        "flex min-w-0 flex-col gap-2 data-[orientation=vertical]:flex-row",
         className,
       )}
       data-slot="tabs"
@@ -80,7 +80,7 @@ export function TabsPanel({
 }: TabsPrimitive.Panel.Props): React.ReactElement {
   return (
     <TabsPrimitive.Panel
-      className={cn("flex-1 outline-none", className)}
+      className={cn("min-w-0 flex-1 outline-none", className)}
       data-slot="tabs-content"
       // Inactive panels unmount rather than hide: a hidden table still mounts
       // its queries, and keeping them mounted leaves the outgoing panel on

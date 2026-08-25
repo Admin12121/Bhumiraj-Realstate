@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from "react";
 import { MapPin } from "lucide-react";
-import { setWorkerUrl } from "maplibre-gl";
 import type { MapMouseEvent } from "maplibre-gl";
 import {
   NEPAL_PROVINCE_VIEW,
@@ -26,11 +25,6 @@ import {
   useMap,
 } from "@/components/ui/map";
 import { Button } from "@/components/ui/button";
-
-// MapLibre defaults to fetching its worker from unpkg, which the CSP blocks.
-if (typeof window !== "undefined") {
-  setWorkerUrl("/maplibre-gl-worker.mjs");
-}
 
 const KATHMANDU: [number, number] = [85.324, 27.7172];
 
@@ -96,6 +90,7 @@ export function LocationPicker({
   onProvinceChange,
   onDistrictChange,
   onPointChange,
+  mismatch,
 }: {
   province: string;
   district: string;
@@ -104,6 +99,8 @@ export function LocationPicker({
   onProvinceChange: (value: string) => void;
   onDistrictChange: (value: string) => void;
   onPointChange: (latitude: string, longitude: string) => void;
+  /** Set when the pin falls outside the chosen district. */
+  mismatch?: string | null;
 }) {
   const provinces = NEPAL_PROVINCES.map((entry) => entry.name);
   const districts = districtsOfProvince(province);
@@ -189,9 +186,12 @@ export function LocationPicker({
                 {/* MarkerContent portals into MapLibre's marker element; a bare
                     child never reaches the map and leaves the pin invisible. */}
                 <MarkerContent>
-                  <span className="grid size-8 -translate-y-1/2 place-items-center rounded-full bg-primary text-primary-foreground shadow-md ring-2 ring-background">
-                    <MapPin className="size-4" />
-                  </span>
+                  {/* The pin itself, nothing behind it: the filled circle read
+                      as a button rather than a map marker. */}
+                  <MapPin
+                    className="size-7 -translate-y-1/2 fill-primary text-primary-foreground drop-shadow"
+                    strokeWidth={1.5}
+                  />
                 </MarkerContent>
               </MapMarker>
             ) : null}
@@ -201,7 +201,7 @@ export function LocationPicker({
           <p className="text-xs text-muted-foreground">
             {hasPoint
               ? `Pin placed at ${Number(latitude).toFixed(5)}, ${Number(longitude).toFixed(5)}`
-              : "Click the map to mark where the property is."}
+              : null}
           </p>
           {hasPoint ? (
             <Button
@@ -215,6 +215,12 @@ export function LocationPicker({
           ) : null}
         </div>
       </div>
+
+      {mismatch ? (
+        <p className="text-destructive-foreground text-xs" role="alert">
+          {mismatch}
+        </p>
+      ) : null}
     </div>
   );
 }

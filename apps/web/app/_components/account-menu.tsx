@@ -84,14 +84,20 @@ export function AccountMenu({ inverse = false }: { inverse?: boolean }) {
         {/* The handful of places people actually revisit. Staff get the console
             in place of the customer dashboard; everything else is shared. */}
         <MenuGroup>
-          <MenuLinkItem render={<Link href={isStaff ? "/dashboard" : "/account"} />}>
-            <LayoutDashboard />
-            Dashboard
-          </MenuLinkItem>
-          <MenuLinkItem render={<Link href="/account/settings" />}>
-            <UserRound />
-            Profile
-          </MenuLinkItem>
+          {/* Staff live in the console; their account settings are there too,
+              so a second "Profile" entry would point back into the customer
+              area they never use. */}
+          {isStaff ? (
+            <MenuLinkItem render={<Link href="/dashboard" />}>
+              <LayoutDashboard />
+              Dashboard
+            </MenuLinkItem>
+          ) : (
+            <MenuLinkItem render={<Link href="/account/settings" />}>
+              <UserRound />
+              Profile
+            </MenuLinkItem>
+          )}
           <MenuLinkItem render={<Link href="/account/saved" />}>
             <Bookmark />
             Saved

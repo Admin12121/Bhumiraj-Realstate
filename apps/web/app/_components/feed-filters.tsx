@@ -64,17 +64,17 @@ const CATEGORIES = [
   { value: "RESIDENTIAL", label: "Residential" },
 ]
 
-/** Compact NPR label: 1,00,000 → ₹1 Lakh, 15,00,00,000 → ₹15 Crore. */
+/** Compact NPR label: 1,00,000 → रु1 Lakh, 15,00,00,000 → रु15 Crore. */
 function formatNpr(value: number): string {
   if (value >= 10_000_000) {
     const crore = value / 10_000_000
-    return `₹${crore % 1 === 0 ? crore : crore.toFixed(1)} Crore`
+    return `रु${crore % 1 === 0 ? crore : crore.toFixed(1)} Crore`
   }
   if (value >= 100_000) {
     const lakh = value / 100_000
-    return `₹${lakh % 1 === 0 ? lakh : lakh.toFixed(1)} Lakh`
+    return `रु${lakh % 1 === 0 ? lakh : lakh.toFixed(1)} Lakh`
   }
-  return `₹${value.toLocaleString("en-IN")}`
+  return `रु${value.toLocaleString("en-IN")}`
 }
 
 function PriceRange({

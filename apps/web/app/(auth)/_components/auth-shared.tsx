@@ -2,8 +2,8 @@
 
 import Image from "next/image"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState, type ReactNode } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useState, type ReactNode } from "react"
 import { notify } from "@/shared/feedback/notify"
 import { signIn, signOut, useSession } from "@real-estate/auth/client"
 import { Button } from "@/components/ui/button"
@@ -128,24 +128,50 @@ export function GoogleButton({
  * Shown when a session already exists on this browser. Without a way out, a
  * stale or foreign cookie leaves someone unable to reach a usable sign-in.
  */
+/**
+ * Sends an already-signed-in visitor where they were going.
+ *
+ * `useSession` reports a server-validated session, so a resolved user is a real
+ * one — showing them a sign-in form is a dead end. A stale or foreign cookie
+ * resolves to no user and still gets the form, and `?switch=1` reaches it
+ * deliberately for anyone who wants a different account.
+ */
 export function ExistingSessionNotice({ callbackURL }: { callbackURL: string }) {
   const session = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const switching = searchParams.get("switch") === "1"
   const [signingOut, setSigningOut] = useState(false)
   const user = session.data?.user as
     | { name?: string | null; email?: string | null }
     | undefined
+
+  useEffect(() => {
+    if (!user || switching) return
+    router.replace(callbackURL)
+  }, [user, switching, callbackURL, router])
+
   if (!user) return null
+
+  if (!switching) {
+    // The redirect is in flight; a form would flash behind it.
+    return (
+      <div className="rounded-xl border bg-muted/40 p-4">
+        <p className="text-sm text-muted-foreground">Signing you in…</p>
+      </div>
+    )
+  }
 
   return (
     <div className="rounded-xl border bg-muted/40 p-4">
       <p className="text-sm">
-        Already signed in as{" "}
-        <span className="font-semibold">{user.email || user.name}</span>.
+        Signed in as{" "}
+        <span className="font-semibold">{user.email || user.name}</span>. Sign
+        out to use a different account.
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => router.push(callbackURL)}>
-          Continue
+        <Button size="sm" onClick={() => router.replace(callbackURL)}>
+          Continue as {user.email || user.name}
         </Button>
         <Button
           size="sm"
@@ -158,9 +184,10 @@ export function ExistingSessionNotice({ callbackURL }: { callbackURL: string }) 
             router.refresh()
           }}
         >
-          Use another account
+          Sign out
         </Button>
       </div>
     </div>
   )
 }
+

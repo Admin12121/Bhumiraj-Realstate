@@ -127,6 +127,8 @@ export const listingCardSchema = z.object({
     parkingSpaces: z.number().int().nullable(),
   }),
   coverImageUrl: z.string().url().nullable(),
+  /** Cover first; what the card's carousel pages through. */
+  imageUrls: z.array(z.string().url()).default([]),
   imageCount: z.number().int().nonnegative(),
   favoriteCount: z.number().int().nonnegative(),
   viewCount: z.string().regex(/^\d+$/),

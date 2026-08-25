@@ -484,6 +484,13 @@ export class ListingsService {
         row.media[0]?.mediaAsset.variants[0]?.objectKey ??
           row.media[0]?.mediaAsset.objectKey,
       ),
+      imageUrls: row.media
+        .map((item) =>
+          this.mediaUrl(
+            item.mediaAsset.variants[0]?.objectKey ?? item.mediaAsset.objectKey,
+          ),
+        )
+        .filter((url): url is string => Boolean(url)),
       imageCount: row._count?.media ?? row.media.length,
       favoriteCount: row.favoriteCount,
       viewCount: row.viewCount.toString(),

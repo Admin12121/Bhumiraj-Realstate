@@ -20,7 +20,6 @@ import { WorkspaceUserMenu } from "@/app/_components/workspace-user-menu";
 import { NotificationBell } from "@/features/notifications/components/notification-bell";
 import { isStaffRole } from "@/shared/security/landing-path";
 import { useAgentSummary } from "@/features/listings/queries/use-agent-workspace";
-import { Button } from "@/components/ui/button";
 import {
   Sidebar,
   SidebarContent,
@@ -114,14 +113,6 @@ function AccountHeader({ title }: { title: string }) {
         <h1 className="truncate text-base font-medium">{title}</h1>
       </div>
       <NotificationBell />
-      <Button
-        variant="ghost"
-        size="sm"
-        className="border-0 text-muted-foreground"
-        render={<Link href="/" />}
-      >
-        <span className="hidden sm:inline">Marketplace</span>
-      </Button>
     </header>
   );
 }
@@ -151,10 +142,18 @@ export function AccountShell({
     }
     // Staff work out of the console; the customer account overview is not their
     // home. Deeper pages (profile, security) stay reachable.
-    if (staff && pathname === "/account") router.replace("/dashboard");
+    // Staff have no customer area: their settings, messages and everything
+    // else live in the console, so the whole /account tree redirects there.
+    if (staff) {
+      router.replace(
+        pathname.startsWith("/account/settings")
+          ? "/dashboard/account"
+          : "/dashboard",
+      );
+    }
   }, [pathname, router, session.data, session.isPending, staff]);
 
-  if (staff && pathname === "/account") {
+  if (staff) {
     return (
       <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">
         Opening the admin console…
